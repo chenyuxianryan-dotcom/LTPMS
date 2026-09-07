@@ -1,0 +1,123 @@
+/**
+ * LTPMS UI 设计系统 V1.1 — Design Tokens
+ * 唯一的视觉变量来源：组件内禁止直接写 hex，一律引用本文件变量。
+ */
+
+:root {
+  /* ===== Brand 品牌色（深靛蓝系） ===== */
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1e40af;
+  --brand-800: #1e3a8a;
+
+  /* ===== Surface 表面 ===== */
+  --bg-canvas: #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-muted: #f5f5f5;
+  --bg-subtle: #f9fafb;
+  --bg-overlay: rgba(15, 23, 42, 0.6);
+
+  /* ===== Border 边框 ===== */
+  --border-subtle: #f1f5f9;
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-focus: #2563eb;
+
+  /* ===== Text 文字（WCAG AA 已校验） ===== */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-quaternary: #94a3b8;
+  --text-inverse: #ffffff;
+  --text-link: #2563eb;
+
+  /* ===== Semantic 语义色 ===== */
+  --success-50: #ecfdf5;
+  --success-500: #10b981;
+  --success-600: #059669;
+  --warning-50: #fffbeb;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --danger-50: #fef2f2;
+  --danger-500: #ef4444;
+  --danger-600: #dc2626;
+  --info-50: #eff6ff;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+
+  /* ===== Typography 字体 ===== */
+  --font-sans: 'IBM Plex Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  /* ===== Spacing 间距（4px 基准） ===== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ===== Radius 圆角 ===== */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ===== Shadow 阴影（统一深靛蓝灰） ===== */
+  --shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+
+  /* ===== Motion 动效 ===== */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ===== Layout 布局 ===== */
+  --sidebar-width: 240px;
+  --header-height: 56px;
+  --container-max: 1440px;
+  --content-pad: var(--space-6);
+
+  /* ===== SQL 代码块（暗底对比，NL2SQL 结果专用） ===== */
+  --sql-block-bg: #0f172a;
+  --sql-block-text: #e2e8f0;
+  --sql-block-comment: #94a3b8;
+}
+
+/* ===== 暗色主题 fallback ===== */
+[data-theme='dark'] {
+  --bg-canvas: #0f172a;
+  --bg-elevated: #1e293b;
+  --bg-muted: #1e293b;
+  --bg-subtle: #0f172a;
+  --border-default: #334155;
+  --border-strong: #475569;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-quaternary: #64748b;
+}
+
+/* ===== 无障碍：尊重用户减少动效偏好 ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

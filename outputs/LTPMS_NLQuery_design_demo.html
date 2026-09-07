@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="oUtAD3eAQBhppaD005u7xc">
+<head data-page-node-id="omFINw6UC1hw1DTpBG3Gl9">
+<meta charset="UTF-8" data-page-node-id="0URnoQOEwoAzPWBLAriAbz">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="6qnXKhLC1yPodWmVeuyFWO">
+<title>LTPMS · 自然语言查询</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" data-page-node-id="MtE1LgSm5DOrknN4aS2Vns">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-page-node-id="JtyDyS6ESl5zgzlTlvH5iT">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" data-page-node-id="UzaDrECOL6mhel09o0e3ra">
+<style>
+/* ==== TOKENS ==== */
+:root {
+  --bg: #0A0E1A;
+  --bg-elevated: #0F1525;
+  --surface: #111726;
+  --surface-2: #1A2233;
+  --surface-3: #232D44;
+  --border: #1F2A3F;
+  --border-strong: #2D3A55;
+
+  --text-1: #E8EBF0;
+  --text-2: #9AA3B5;
+  --text-3: #6B7689;
+  --text-4: #4A5468;
+
+  --amber: #FBBF24;
+  --amber-dim: #B8860B;
+  --cyan: #38BDF8;
+  --cyan-dim: #0284C7;
+  --emerald: #10B981;
+  --rose: #F87171;
+  --violet: #A78BFA;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.4);
+
+  --font-display: "Fraunces", "Noto Sans SC", serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+  --font-body: "Noto Sans SC", -apple-system, sans-serif;
+
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+/* ==== RESET ==== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: var(--font-body);
+  color: var(--text-1);
+  background: var(--bg);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* ==== BACKGROUND GRID ==== */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%);
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse 100% 50% at 50% 0%, rgba(251,191,36,0.06), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ==== LAYOUT ==== */
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 32px 40px;
+  min-height: 100vh;
+}
+
+/* ==== HEADER ==== */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  animation: fadeDown 0.6s ease both;
+}
+.brand {
+  display: flex; align-items: baseline; gap: 14px;
+}
+.brand-mark {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--amber);
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--amber-dim);
+  border-radius: 2px;
+  background: rgba(251,191,36,0.06);
+}
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.brand-name em {
+  font-style: italic;
+  font-weight: 300;
+  color: var(--text-2);
+  margin-left: 4px;
+}
+.brand-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border-strong);
+}
+.topbar-right {
+  display: flex; align-items: center; gap: 18px;
+}
+.semester-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-2);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.semester-chip:hover { border-color: var(--border-strong); }
+.semester-chip .dot {
+  width: 6px; height: 6px;
+  background: var(--emerald);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--emerald);
+  animation: pulse 2s infinite;
+}
+.user-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 12px 5px 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+}
+.user-avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cyan-dim), var(--violet));
+  display: grid; place-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+}
+.user-name { font-size: 13px; color: var(--text-1); }
+.user-role {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--amber);
+  padding: 1px 6px;
+  border: 1px solid var(--amber-dim);
+  border-radius: 2px;
+  margin-left: 6px;
+}
+
+/* ==== HERO / QUERY ==== */
+.hero {
+  margin-top: 48px;
+  animation: fadeUp 0.7s 0.1s ease both;
+}
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 56px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  font-variation-settings: "opsz" 144;
+}
+.hero-title em {
+  font-style: italic;
+  font-weight: 300;
+  color: var(--amber);
+}
+.hero-sub {
+  font-size: 15px;
+  color: var(--text-2);
+  max-width: 680px;
+  margin-bottom: 36px;
+}
+
+.query-shell {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-md);
+}
+.query-shell:focus-within {
+  border-color: var(--amber-dim);
+  box-shadow: 0 0 0 3px rgba(251,191,36,0.08), var(--shadow-md);
+}
+.query-prompt {
+  display: grid; place-items: center;
+  width: 56px;
+  font-family: var(--font-mono);
+  color: var(--amber);
+  font-size: 20px;
+  border-right: 1px solid var(--border);
+}
+.query-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 20px 18px;
+  color: var(--text-1);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 400;
+}
+.query-input::placeholder { color: var(--text-4); font-style: italic; }
+.query-action {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 20px;
+  margin: 4px;
+  background: var(--amber);
+  color: var(--bg);
+  border: none;
+  border-radius: calc(var(--radius-lg) - 4px);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 130px;
+  justify-content: center;
+}
+.query-action:hover {
+  background: #FCD34D;
+  transform: translateX(2px);
+}
+.query-action:active { transform: scale(0.98); }
+.query-action.loading {
+  background: var(--surface-3);
+  color: var(--amber);
+  pointer-events: none;
+}
+.query-action .dots {
+  display: inline-flex; gap: 3px;
+}
+.query-action .dots span {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor;
+  animation: bounce 1.2s infinite;
+}
+.query-action .dots span:nth-child(2) { animation-delay: 0.15s; }
+.query-action .dots span:nth-child(3) { animation-delay: 0.3s; }
+
+.query-meta {
+  display: flex; justify-content: space-between;
+  margin-top: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.query-meta .kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 10px;
+  margin: 0 2px;
+}
+
+/* ==== EXAMPLES ==== */
+.examples {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 32px;
+  animation: fadeUp 0.7s 0.2s ease both;
+}
+.example {
+  padding: 18px 18px 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--cyan-dim);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.example::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(56,189,248,0.04));
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.example:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--cyan);
+  transform: translateY(-2px);
+}
+.example:hover::before { opacity: 1; }
+.example-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.example-q {
+  font-size: 14px;
+  color: var(--text-1);
+  line-height: 1.5;
+  position: relative;
+  z-index: 1;
+}
+
+/* ==== MAIN GRID ==== */
+.main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 32px;
+  margin-top: 56px;
+  animation: fadeUp 0.7s 0.3s ease both;
+}
+
+/* ==== RESULT PANEL ==== */
+.result-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.result-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+}
+.result-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.result-title .num {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--amber);
+  margin-left: 8px;
+  padding: 1px 6px;
+  background: rgba(251,191,36,0.1);
+  border-radius: 3px;
+  vertical-align: middle;
+}
+.result-meta {
+  display: flex; align-items: center; gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.result-meta .latency {
+  color: var(--emerald);
+}
+.result-actions {
+  display: flex; gap: 8px;
+}
+.btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+}
+.btn:hover { color: var(--text-1); border-color: var(--text-3); }
+
+/* ==== TABLE ==== */
+.table-wrap {
+  overflow-x: auto;
+}
+table.result {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+table.result thead th {
+  text-align: left;
+  padding: 12px 20px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+}
+table.result tbody td {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-1);
+}
+table.result tbody tr {
+  transition: background 0.15s;
+  opacity: 0;
+  animation: rowIn 0.4s ease forwards;
+}
+table.result tbody tr:nth-child(1) { animation-delay: 0.05s; }
+table.result tbody tr:nth-child(2) { animation-delay: 0.10s; }
+table.result tbody tr:nth-child(3) { animation-delay: 0.15s; }
+table.result tbody tr:nth-child(4) { animation-delay: 0.20s; }
+table.result tbody tr:nth-child(5) { animation-delay: 0.25s; }
+table.result tbody tr:nth-child(6) { animation-delay: 0.30s; }
+table.result tbody tr:hover { background: var(--surface-2); }
+table.result tbody td.idx {
+  color: var(--text-4);
+  font-size: 11px;
+  width: 50px;
+}
+table.result tbody td.code {
+  color: var(--cyan);
+  font-weight: 500;
+}
+table.result tbody td.teacher { color: var(--amber); }
+table.result tbody td.count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--emerald);
+}
+
+/* ==== SQL DRAWER ==== */
+.sql-drawer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.sql-toggle {
+  width: 100%;
+  padding: 14px 24px;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  transition: color 0.15s;
+}
+.sql-toggle:hover { color: var(--text-1); }
+.sql-toggle .arrow { transition: transform 0.25s; }
+.sql-toggle.open .arrow { transform: rotate(180deg); }
+.sql-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+.sql-body.open { max-height: 300px; }
+.sql-body pre {
+  padding: 0 24px 20px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.sql-body .kw { color: var(--violet); }
+.sql-body .tbl { color: var(--cyan); font-weight: 500; }
+.sql-body .col { color: var(--amber); }
+.sql-body .str { color: var(--emerald); }
+.sql-body .num { color: var(--rose); }
+
+/* ==== SUGGESTIONS ==== */
+.suggest {
+  padding: 22px 24px;
+  border-top: 1px solid var(--border);
+}
+.suggest-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.suggest-label::before {
+  content: "→";
+  color: var(--amber);
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 7px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+  border-color: var(--cyan-dim);
+}
+
+/* ==== HISTORY (RIGHT SIDEBAR) ==== */
+.history {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  height: fit-content;
+  position: sticky; top: 24px;
+}
+.history-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.history-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+}
+.history-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 2px 8px;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.t-item {
+  position: relative;
+  padding: 14px 0 14px 22px;
+  border-left: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-left: 6px;
+}
+.t-item::before {
+  content: "";
+  position: absolute;
+  left: -4px; top: 18px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  transition: all 0.15s;
+}
+.t-item:hover { border-left-color: var(--cyan-dim); }
+.t-item:hover::before { border-color: var(--cyan); background: var(--cyan-dim); }
+.t-item.active::before { background: var(--amber); border-color: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.t-item.active { border-left-color: var(--amber); }
+.t-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.t-q {
+  font-size: 13px;
+  color: var(--text-1);
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+.t-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  display: flex; gap: 10px;
+}
+.t-meta .ok { color: var(--emerald); }
+.t-meta .warn { color: var(--amber); }
+
+/* ==== STATUS BAR ==== */
+.statusbar {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.statusbar .seg { display: flex; gap: 20px; }
+.statusbar .dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.statusbar .ok { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
+.statusbar .ready { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+
+/* ==== ANIMATIONS ==== */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes rowIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0.4; }
+}
+@keyframes bounce {
+  0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+  30%         { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ==== RESPONSIVE ==== */
+@media (max-width: 1024px) {
+  .main { grid-template-columns: 1fr; }
+  .history { position: static; }
+  .examples { grid-template-columns: 1fr; }
+  .hero-title { font-size: 40px; }
+}
+</style>
+</head>
+<body data-page-node-id="ha10pdkVdSCoQ7ttyJGgb9">
+
+<div class="app" data-page-node-id="zbfvKzf5brwlk4QS6MS4uH">
+
+  <!-- TOPBAR -->
+  <header class="topbar" data-page-node-id="yPL30yME4xuGkSybfjRkC0">
+    <div class="brand" data-page-node-id="9ssL4MN2hRhHLcMU7Nwp3M">
+      <span class="brand-mark" data-page-node-id="8IqEw3fo2BHge2McKXzjZh">LTPMS · v1.1</span>
+      <h1 class="brand-name" data-page-node-id="4kvqz09kM9Y3jVKVbKBvwO">自然语言查询 <em data-page-node-id="hHItj5ooaDcnuCYE2d05D8">/ NL Query</em></h1>
+      <span class="brand-tag" data-page-node-id="mF9BGdBfliSRlRY4PFF7fW">ai-powered · 2026-09-07</span>
+    </div>
+    <div class="topbar-right" data-page-node-id="c5AVvqqgI37hPjBB5pcXzU">
+      <div class="semester-chip" data-page-node-id="pFwpCi41uHNIk3efRkrBeT">
+        <span class="dot" data-page-node-id="DxZFDIYTWC1mdgPEugsTOi"></span>
+        当前学期 · 2026-2027-1
+      </div>
+      <div class="user-pill" data-page-node-id="oiU7mZ7VBIEfzaRnBViEBr">
+        <div class="user-avatar" data-page-node-id="1WgCawQiwwq0EfQEMDcNkU">ZZ</div>
+        <div data-page-node-id="nN8Uti5J5Ik7SaHDXLr86w">
+          <span class="user-name" data-page-node-id="cX9fb3gIYtlVpxw2GMdkET">张志远</span>
+          <span class="user-role" data-page-node-id="MgfHKfALxw3PimNfTcmeGH">ADMIN</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" data-page-node-id="uSkN0WWlGleg0CjEIev4xZ">
+    <div class="hero-eyebrow" data-page-node-id="xkL0JsLBQoujqkxuQgzUdf">// 实验教学数据查询 / NL2SQL console</div>
+    <h2 class="hero-title" data-page-node-id="kiCuEcDpXeOUZRhgXEn0Me">
+      用一句话 <em data-page-node-id="APYhmMpTBxQlIE7L2t9EFZ">问</em> 出你的<br data-page-node-id="jVEbtcgAELdrWBXGoTjIAF">实验教学数据
+    </h2>
+    <p class="hero-sub" data-page-node-id="Ez2dGCIx6z28yC2OXcAZnJ">
+      不写 SQL,直接提问。系统会自动理解你的意图、调用大模型生成查询、注入你的数据权限边界,把答案摆在桌上。
+    </p>
+
+    <!-- QUERY INPUT -->
+    <form class="query-shell" onsubmit="event.preventDefault(); doQuery();" data-page-node-id="iD7yuGNLgC8sCCrk8kWzzC">
+      <div class="query-prompt" data-page-node-id="JLE4H8cFd5sSEA0bPnilua">›_</div>
+      <input id="q" class="query-input" type="text" autocomplete="off" placeholder="显示 2026-2027 学年第 1 学期 36栋401 实验室开设的实验课程及其任课教师..." data-page-node-id="tirSlTJISCkzCKolrj1ttY" />
+      <button id="qbtn" class="query-action" type="submit" data-page-node-id="H8FPzqly7voEMIoqfXWm8C">
+        <span class="label" data-page-node-id="YwXF6yahoxjQ0TFiwEL5ge">查询 / RUN</span>
+      </button>
+    </form>
+
+    <div class="query-meta" data-page-node-id="ow8tECZjy60FOofeiuH5ep">
+      <span data-page-node-id="ZfyHrcB0gWLGFNXGeAVxDR">支持中英文混合输入 · 平均响应 2-8s · 上限 15s</span>
+      <span data-page-node-id="pu4woAL0C8WsoxRQUVCDjT"><span class="kbd" data-page-node-id="3wCaFWpuhuWRxq6gu8gsbB">⌘</span><span class="kbd" data-page-node-id="CkIHARx8hHTnVZDmmUZDEE">K</span> 快捷键 · <span class="kbd" data-page-node-id="QCOeHirvlx6CAWgkPpCYp4">Enter</span> 提交</span>
+    </div>
+
+    <!-- EXAMPLES -->
+    <div class="examples" data-page-node-id="uuHqJuf5IYhlBmVcFNP81y">
+      <div class="example" onclick="fillQ(this)" data-page-node-id="UleJXQawJQeKMLiXE6XT0j">
+        <div class="example-tag" data-page-node-id="SmNdvZICFlsx6glrxsbDig">// 01 · 查询类</div>
+        <div class="example-q" data-page-node-id="JpoGuzoHUVxrlwbGtBA2Cx">列出 36栋401 实验室本学期所有任课教师及课程数</div>
+      </div>
+      <div class="example" onclick="fillQ(this)" data-page-node-id="TqrhX8FcL61po5fqlVAiml">
+        <div class="example-tag" data-page-node-id="JRX48OgmttvRd4aeQhLngG">// 02 · 统计类</div>
+        <div class="example-q" data-page-node-id="tLtNiulGziZl2njZDqTWms">统计本学期各实验室上课人时数,按人时数降序</div>
+      </div>
+      <div class="example" onclick="fillQ(this)" data-page-node-id="A0OYyGcU1ok0a7LLVouEzs">
+        <div class="example-tag" data-page-node-id="xZl8SGQY9jDlNS6Upxa1gs">// 03 · 筛选类</div>
+        <div class="example-q" data-page-node-id="2WgAf13TBVLIJrnoa2Jpyh">哪些实验项目学时数超过 4 学时?返回项目名和教师</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN -->
+  <section class="main" data-page-node-id="ksc6pKjtpOK1BeBMkyiIRB">
+
+    <!-- LEFT: RESULT -->
+    <div class="result-panel" data-page-node-id="Dhf4G00KRB9oqOLdoAKw7m">
+      <div class="result-header" data-page-node-id="AppJXhG1aJgMjEtJf3Ux0f">
+        <div class="result-title" data-page-node-id="JtxfXXhFV3gjOBSUSoUETh">
+          查询结果 <span class="num" id="rowCount" data-page-node-id="Tvb9KO2ZfVw1rzqKgz6ouA">6 条</span>
+        </div>
+        <div class="result-meta" data-page-node-id="RUa8UGhlWfbhVjsLaNgXYE">
+          <span data-page-node-id="JoHBrD3EanRIKXEokgOEAD">耗时 <span class="latency" id="latency" data-page-node-id="bStkqDT1EdP7mSd17yc9LZ">2.31s</span></span>
+          <span data-page-node-id="nISfMEa1Udxkadbx6zZuL1">SQL 已注入权限</span>
+        </div>
+        <div class="result-actions" data-page-node-id="XCj2wotYGUAh8Ftp7etwhY">
+          <button class="btn" data-page-node-id="n8DuVOjtDC6fCtGB5rGpAc">Excel</button>
+          <button class="btn" data-page-node-id="1AQDyoNGfJGcEXjhZKHHvh">PDF</button>
+        </div>
+      </div>
+
+      <div class="table-wrap" data-page-node-id="ADlY61doWJSaIOggkjc5eF">
+        <table class="result" data-page-node-id="rOfTJ8EyVJhv20X17yAw91">
+          <thead data-page-node-id="aHS7t68ygHAQjiFwxgPJQy">
+            <tr data-page-node-id="Veg7Wr35JFr9FLlOTLqxEq">
+              <th style="width:50px" data-page-node-id="gdM5ZAH633fXiT4eIUE4cN">#</th>
+              <th data-page-node-id="7opjHu2BY2B8FFqAjT6U0t">课程号</th>
+              <th data-page-node-id="ySoNBgo9zNDYFBKVFtJEZ6">课程名</th>
+              <th data-page-node-id="thbOkWpNqlzunMDIJDCGby">任课教师</th>
+              <th data-page-node-id="Djfp3d03kkOdTOD25cS7yE">实验室</th>
+              <th data-page-node-id="BkWcDdFUKSD3M5VCutSOW9">面向专业</th>
+              <th style="text-align:right" data-page-node-id="D4zkaPYHgb6TKKrWxaMhPt">项目数</th>
+            </tr>
+          </thead>
+          <tbody data-page-node-id="Cuu7xR3mueumRkotm7GBXt">
+            <tr data-page-node-id="s55ufush1oAg68PP5JNY73">
+              <td class="idx" data-page-node-id="TE9HFYjYx4ACcvdDHy9loL">001</td>
+              <td class="code" data-page-node-id="sCyIfU7u3CPvZRliM9AKq5">CS101</td>
+              <td data-page-node-id="tmZRdwHJ8Io5ftNCTLHDAR">数据结构实验</td>
+              <td class="teacher" data-page-node-id="xtRGwRCPgw8DzVxOddUE6b">张三</td>
+              <td data-page-node-id="NJU6d2kRyGoB0FGuTCqxTK">36-401</td>
+              <td data-page-node-id="0WljRXFPvDmlrcWHeGQ3jX">计算机科学与技术</td>
+              <td class="count" data-page-node-id="rmLvRZmo9Wkm7GZpO2wKYC">8</td>
+            </tr>
+            <tr data-page-node-id="yrne1DJdq659nU2hQdtig2">
+              <td class="idx" data-page-node-id="iiFOFj78LDH2LNKiFnYGf1">002</td>
+              <td class="code" data-page-node-id="q8VnEvOHZaD78FC9AvwmTR">CS201</td>
+              <td data-page-node-id="JbLB5vegUsD1NZjEmYg42l">操作系统实验</td>
+              <td class="teacher" data-page-node-id="UNHNH32U6z2tdXBTER2xfC">李四</td>
+              <td data-page-node-id="uKhcHEGYErJAgo516u5UAZ">36-401</td>
+              <td data-page-node-id="6pM8GrHr8X5TRY3wqqecbP">计算机科学与技术</td>
+              <td class="count" data-page-node-id="qSdTobNjHB0paZHwc0ARX4">6</td>
+            </tr>
+            <tr data-page-node-id="3EEEsQ2D5B6CTGJP9z11i4">
+              <td class="idx" data-page-node-id="1QdwpOAzVi6g9GcYXlhCF3">003</td>
+              <td class="code" data-page-node-id="p3F8PBpNrL9HfAJnXAlIgt">SE301</td>
+              <td data-page-node-id="xka0r9Ssz4WZ4gjfcRhrx1">软件工程实践</td>
+              <td class="teacher" data-page-node-id="eerXzNJQiqe8N2czqpAHJD">王五</td>
+              <td data-page-node-id="Cvet3abnMYtWn1G6hMCL6D">36-401</td>
+              <td data-page-node-id="lD7pn55MVRwwHPjbaSopjv">软件工程</td>
+              <td class="count" data-page-node-id="AZhFSPmbbFxwes2EglpK8b">5</td>
+            </tr>
+            <tr data-page-node-id="3jlNJZ9zeLu5eDchkWUS0G">
+              <td class="idx" data-page-node-id="InxH2CYNHucqkZ51CfFjs2">004</td>
+              <td class="code" data-page-node-id="D6BAym2V9nJ8q1z1GPFBwL">AI401</td>
+              <td data-page-node-id="7hJtIxXECl0aVTE3OCyDVd">机器学习实验</td>
+              <td class="teacher" data-page-node-id="fEY3f2FlzG2QNWzsCko3Uq">赵六</td>
+              <td data-page-node-id="gnqsBz3aAGDJChsCAlZ1b8">36-401</td>
+              <td data-page-node-id="MhmVWH7HMBcWPyGymTx6y0">人工智能</td>
+              <td class="count" data-page-node-id="vBufcePrjIkq8EpiHrfRRZ">7</td>
+            </tr>
+            <tr data-page-node-id="RPqy64fXzgmBli9wIZkatS">
+              <td class="idx" data-page-node-id="AdbaDDVcuSkMi7kmyAm3LS">005</td>
+              <td class="code" data-page-node-id="PK1slwgccf96klcHJbY0qX">DB501</td>
+              <td data-page-node-id="tUyWXDDGs1C9xf63b3fJiU">数据库系统实验</td>
+              <td class="teacher" data-page-node-id="2hFWXsoOsdY3prqBl7PehF">钱七</td>
+              <td data-page-node-id="EJJeA4p40c5xEV0pfRA9DA">36-401</td>
+              <td data-page-node-id="tphcomtNlIBNt1Vy9gQoIC">数据科学</td>
+              <td class="count" data-page-node-id="6Nvp4HoySOKmvLP9mtR0jV">4</td>
+            </tr>
+            <tr data-page-node-id="2cA6HEC8O9uelfUIqp8Yap">
+              <td class="idx" data-page-node-id="LX7HUIV0Jx0jMf44DtP36p">006</td>
+              <td class="code" data-page-node-id="TIpAxvkVIBxfnEDDsRGWUp">NET601</td>
+              <td data-page-node-id="FFuZ6JRfu5JXoETaL02iMh">计算机网络实验</td>
+              <td class="teacher" data-page-node-id="J3Parhl6vdbpvCu3dC5b1h">孙八</td>
+              <td data-page-node-id="8kBpEAuaOCv3ztF5aZJKoz">36-401</td>
+              <td data-page-node-id="3bLpG87WOWdmZ0F9ENCup7">网络工程</td>
+              <td class="count" data-page-node-id="jdD5l4VztxgReBZDm6X8Lr">5</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SQL DRAWER -->
+      <div class="sql-drawer" data-page-node-id="9l6C19Ip3LfGQ5mRNvhDEn">
+        <button class="sql-toggle" onclick="toggleSQL(this)" data-page-node-id="jP7l59rGRdma4jID8ydq64">
+          <span data-page-node-id="JrYDyrfqn7nP2JaT1Tp1x4">生成的 SQL · 自动注入数据权限</span>
+          <span class="arrow" data-page-node-id="6EgrgGZm8BuCWfL1Da6xxK">▾</span>
+        </button>
+        <div class="sql-body" data-page-node-id="alu4mLvLy2eXvOFjtd49vh">
+<pre data-page-node-id="8whMdnJTH7u9K3XvNriDva"><span class="kw" data-page-node-id="HMPJTGZKciyRCcgs1l5wbZ">SELECT</span>
+  c.course_code,
+  c.course_name,
+  u.real_name   <span class="kw" data-page-node-id="k3zxU3eVd0mpoQ3Ru248Yx">AS</span> teacher,
+  l.lab_code,
+  c.major,
+  <span class="kw" data-page-node-id="Ssj72igtQ2HgZU0LF8GVnT">COUNT</span>(e.id) <span class="kw" data-page-node-id="BxaNvanGxOuR042XXz4CI6">AS</span> project_count
+<span class="kw" data-page-node-id="wkiPROzPFzr7hPzrSAal36">FROM</span> <span class="tbl" data-page-node-id="CeMFdoKqwuY7fDDAVYacWl">course</span> c
+<span class="kw" data-page-node-id="t821CNFlcnfUJI7jrX3ZMF">JOIN</span> <span class="tbl" data-page-node-id="UKr3IP1lEOxEPIuB9DbSBm">schedule</span>    s <span class="kw" data-page-node-id="IPnRGjUHcmyrX081BGskkq">ON</span> s.course_code = c.course_code <span class="kw" data-page-node-id="WqdA27eWJbZ42pGoNlBTXd">AND</span> s.semester_id = c.semester_id
+<span class="kw" data-page-node-id="8rHw0Nx9930qxQwC3Kcs0G">JOIN</span> <span class="tbl" data-page-node-id="ulVMvOAh8B3j7Vas5Z4uPP">user</span>        u <span class="kw" data-page-node-id="SthPpWcPvZkmWxPUT78BrE">ON</span> u.id = c.teacher_id
+<span class="kw" data-page-node-id="RS3rtnOGR6MosYlkTAyLCa">JOIN</span> <span class="tbl" data-page-node-id="ltzrz9eAZhI9CHr2ZMHxA4">laboratory</span> l <span class="kw" data-page-node-id="OR5yB9DCRvHfoMVOCz1jZ7">ON</span> l.lab_code = s.lab_code
+<span class="kw" data-page-node-id="Vn547Y3zh3j9Ev35sKAi89">LEFT JOIN</span> <span class="tbl" data-page-node-id="uMwlwuBYbxjBku9yC4og2t">experiment</span> e <span class="kw" data-page-node-id="3svOwk6CtahGKX664w7hyb">ON</span> e.course_id = c.id
+<span class="kw" data-page-node-id="wHOLqUtjdJ1ssQtFj9Syv5">WHERE</span> c.semester_id = <span class="num" data-page-node-id="t408blOFQLIz302dDS5Zhj">5</span>           <span class="str" data-page-node-id="6PHCIsD1tYHMyGvzjmav3u">-- 自动按当前学期过滤</span>
+  <span class="kw" data-page-node-id="U9XeYW0yAV8F2zNi2GfKAN">AND</span> l.lab_code = <span class="str" data-page-node-id="4SX7KukhdLDtYVIDxHzlFh">'36-401'</span>
+  <span class="kw" data-page-node-id="yEB9lKMXhacRVLDF9wGyJZ">AND</span> c.teacher_id = <span class="num" data-page-node-id="UFbsOZFaa3JAgZPtmRDoVc">:current_user_id</span>  <span class="str" data-page-node-id="agu1dm0ocdMvfUoxkhceYo">-- ★ 权限注入</span>
+<span class="kw" data-page-node-id="uPKo88px009TIjSOKsWoB2">GROUP BY</span> c.id
+<span class="kw" data-page-node-id="69uWWEiUg28i9YGyAq131z">ORDER BY</span> c.course_code
+<span class="kw" data-page-node-id="p5kMd4178FXuMKzQvTo4OT">LIMIT</span> <span class="num" data-page-node-id="Cpd5PEKBwxoj4Gc68F1167">500</span>;</pre>
+        </div>
+      </div>
+
+      <!-- SUGGESTIONS -->
+      <div class="suggest" data-page-node-id="2kxuiLjjiwHo9281XNABXU">
+        <div class="suggest-label" data-page-node-id="EZUXB40Z9q5PFbSVvKHCTr">继续追问 · suggested follow-ups</div>
+        <div class="chips" data-page-node-id="3s4LapiDKJs9rDb4onmihO">
+          <div class="chip" data-page-node-id="tGoCbivC0JRVFK8fHQwe2x">统计这些课程的实验人时数合计</div>
+          <div class="chip" data-page-node-id="TAvO059FDqH1S7rSDUFCbP">列出 CS101 的所有实验项目详情</div>
+          <div class="chip" data-page-node-id="FSOP7usyCtHA7OA5m6pV1u">这些课程面向哪些专业?</div>
+          <div class="chip" data-page-node-id="5xtd5yWU8W4qOEuCULkOC4">本学期该实验室设备利用率?</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: HISTORY -->
+    <aside class="history" data-page-node-id="9yzNWyOHgCVXUIJWjVAbLD">
+      <div class="history-head" data-page-node-id="ihDtgMEnkF9Jzr9nJYN53x">
+        <div class="history-title" data-page-node-id="GyAYGh26dXmR7tHV3uuJpA">查询历史</div>
+        <div class="history-count" data-page-node-id="eVqNvZZCzruxyqTdEP1UcH">14</div>
+      </div>
+      <div class="timeline" data-page-node-id="WpjanSIYkSF03bjldPaV9n">
+        <div class="t-item active" data-page-node-id="iFWd5iXiqiib45mc0qrc7I">
+          <div class="t-time" data-page-node-id="JbePY1PAn9vl1KyLo37pYU">刚刚 · 09:48</div>
+          <div class="t-q" data-page-node-id="oAyxoXZeDkYqgEQlMlpLp1">列出 36栋401 实验室本学期所有课程</div>
+          <div class="t-meta" data-page-node-id="DzMXENBTizYdOsty1zFS6x"><span class="ok" data-page-node-id="PELMCPkfboP7hpWqgEPr9h">●</span><span data-page-node-id="2FWudZvTLXdSlD84cBo8w6">6 行 · 2.3s</span></div>
+        </div>
+        <div class="t-item" data-page-node-id="M2ovjvs9ISDOVWAe0yG6Qt">
+          <div class="t-time" data-page-node-id="a01UgcVspt2bq5Y8uvDelU">昨天 · 16:20</div>
+          <div class="t-q" data-page-node-id="HWfYsQv17QlH17EpnQ74gn">统计本学期各实验室人时数,按人时数降序</div>
+          <div class="t-meta" data-page-node-id="FffcknLjEURJV3T6sOVLt2"><span class="ok" data-page-node-id="afHsBBfLP72lQSri5tLrC8">●</span><span data-page-node-id="lDzs0al9jFwuiVXdOHhNFm">5 行 · 3.1s</span></div>
+        </div>
+        <div class="t-item" data-page-node-id="BPiq17vPGhBn3Z0Q93ox3Q">
+          <div class="t-time" data-page-node-id="VlV0RMLJlK57dqDIFjwpvn">昨天 · 10:42</div>
+          <div class="t-q" data-page-node-id="42fZ7he84vNEmDh3rPYMmG">哪些实验项目学时数超过 4 学时?</div>
+          <div class="t-meta" data-page-node-id="ZoPRzUGnLX8aBwZsxs0Nf1"><span class="ok" data-page-node-id="0L5S0WT732DCGRJdRUkJZa">●</span><span data-page-node-id="kAndgC4tYK7KX9T5pnnLCC">12 行 · 2.7s</span></div>
+        </div>
+        <div class="t-item" data-page-node-id="3xZXcOZK75Qlj8s0mVJPd8">
+          <div class="t-time" data-page-node-id="1lj7lIa9LjTzuM0YWOnuhk">9/05 · 周五</div>
+          <div class="t-q" data-page-node-id="14SmugLQ4DGaVuz51eD5D4">修改本学期的课程</div>
+          <div class="t-meta" data-page-node-id="9XKUHNXuSsrLG5ST5AfFqx"><span class="warn" data-page-node-id="2fappF7Zedf1BYXkYCaGt4">●</span><span data-page-node-id="WCF6ln4OAtWi47A9tB7dJJ">拒绝执行 · 44001</span></div>
+        </div>
+        <div class="t-item" data-page-node-id="TSEhtpazF2JiUf7umSTOGb">
+          <div class="t-time" data-page-node-id="h4GfqGwjkw4llTP55NrhIp">9/04 · 周四</div>
+          <div class="t-q" data-page-node-id="2nFFv74u2m98vUFPyK4z9p">显示张三老师本学期的实验项目</div>
+          <div class="t-meta" data-page-node-id="YOgECayKFOGa1KINHSPJN1"><span class="ok" data-page-node-id="VPm2aBqoKKnXcf09mgl8Ew">●</span><span data-page-node-id="tlp9SxCnPP7UL8eexGcDpu">23 行 · 1.8s</span></div>
+        </div>
+      </div>
+    </aside>
+
+  </section>
+
+  <!-- STATUS BAR -->
+  <footer class="statusbar" data-page-node-id="87qNfE2GNU0Jc3leHYD8yb">
+    <div class="seg" data-page-node-id="sYjmDNMZxYOKq1AK54mRnE">
+      <span data-page-node-id="NFaJDHQvYB3NxB5mwHWzER"><span class="dot ok" data-page-node-id="mm1P4IHffwfjGDzOowkMtp"></span>FastAPI · 8001 · 在线</span>
+      <span data-page-node-id="GOuLMLhsNkN80cNYF5zlTy"><span class="dot ok" data-page-node-id="tzWC0Wk1CKFZNLzM2OGU4t"></span>DeepSeek API · 余额充足</span>
+      <span data-page-node-id="zg3YNFFCwDh9gkneZq7vKO"><span class="dot ready" data-page-node-id="2bEP7PxXZRh44cJeX3CuEB"></span>Schema 缓存 · 已加载</span>
+    </div>
+    <div class="seg" data-page-node-id="t95F55lcCJJAB3bMtw1kuO">
+      <span data-page-node-id="Nwp1ctgq7Fj3f7fVYyol1H">权限: ADMIN · 本会话查询次数 8/10</span>
+      <span data-page-node-id="SO7ukX5zXbsMFxkvtjGcVa">数据源: ltpms_db (READ)</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+function fillQ(el){
+  const text = el.querySelector('.example-q').textContent;
+  const input = document.getElementById('q');
+  input.value = text;
+  input.focus();
+}
+function toggleSQL(btn){
+  btn.classList.toggle('open');
+  btn.nextElementSibling.classList.toggle('open');
+}
+function doQuery(){
+  const btn = document.getElementById('qbtn');
+  const label = btn.querySelector('.label');
+  if (btn.classList.contains('loading')) return;
+  btn.classList.add('loading');
+  label.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
+  setTimeout(() => {
+    btn.classList.remove('loading');
+    label.textContent = '查询 / RUN';
+    // simulate latency update
+    const ms = (1500 + Math.random()*2500).toFixed(2);
+    document.getElementById('latency').textContent = (ms/1000).toFixed(2) + 's';
+  }, 2400);
+}
+// Keyboard shortcut: ⌘K / Ctrl+K
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('q').focus();
+  }
+});
+</script>
+</body>
+</html>

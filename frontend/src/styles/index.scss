@@ -1,0 +1,115 @@
+/** 全局基础样式 */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+
+/* 数字列：等宽数字 */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 等宽字体（SQL / 编号） */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* 页面通用容器 */
+.page-container {
+  padding: var(--content-pad);
+  max-width: var(--container-max);
+}
+
+/* 页头：标题 + 操作区 */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+
+  &__title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.35;
+  }
+
+  &__desc {
+    margin-top: var(--space-1);
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+}
+
+/* 筛选栏 */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+/* 统计卡片 */
+.stat-card {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+
+  &__label {
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+
+  &__value {
+    margin-top: var(--space-2);
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* SQL 代码块（NL2SQL 结果） */
+.sql-block {
+  margin: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.sql-block__comment {
+  color: var(--sql-block-comment);
+}

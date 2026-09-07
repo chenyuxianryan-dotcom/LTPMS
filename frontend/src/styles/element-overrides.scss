@@ -1,0 +1,71 @@
+/**
+ * Element Plus 主题覆盖 — 对齐 UI 设计系统 V1.1
+ * 主色 #1E40AF / #2563EB，圆角 6px，仅覆盖与 Tokens 不一致的部分。
+ */
+
+/* 主色：Element Plus 变量映射到品牌 Token */
+:root {
+  --el-color-primary: var(--brand-600);
+  --el-color-primary-light-3: var(--brand-500);
+  --el-color-primary-light-5: #6b9cf5;
+  --el-color-primary-light-7: #a8c4f9;
+  --el-color-primary-light-8: var(--brand-100);
+  --el-color-primary-light-9: var(--brand-50);
+  --el-color-primary-dark-2: var(--brand-700);
+  --el-color-success: var(--success-500);
+  --el-color-warning: var(--warning-500);
+  --el-color-danger: var(--danger-500);
+  --el-color-error: var(--danger-500);
+  --el-color-info: var(--text-tertiary);
+  --el-border-radius-base: var(--radius-md);
+  --el-border-color: var(--border-default);
+  --el-border-color-light: var(--border-subtle);
+  --el-border-color-lighter: var(--border-subtle);
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-secondary);
+  --el-text-color-secondary: var(--text-tertiary);
+  --el-text-color-placeholder: var(--text-quaternary);
+  --el-bg-color-page: var(--bg-canvas);
+  --el-fill-color-light: var(--bg-subtle);
+  --el-fill-color-lighter: var(--bg-subtle);
+  --el-font-family: var(--font-sans);
+  --el-box-shadow-light: var(--shadow-sm);
+}
+
+/* 按钮：focus 环对齐设计系统 */
+.el-button:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* 表格：表头 muted 底、行 hover subtle、仅水平分割线 */
+.el-table {
+  --el-table-header-bg-color: var(--bg-muted);
+  --el-table-header-text-color: var(--text-secondary);
+  --el-table-row-hover-bg-color: var(--bg-subtle);
+  --el-table-border-color: var(--border-subtle);
+}
+
+.el-table th.el-table__cell {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* 卡片：radius 8 + 细边框 */
+.el-card {
+  --el-card-border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+/* 弹窗：radius 12 + 分层阴影 */
+.el-dialog,
+.el-drawer {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+}
+
+/* 分页数字对齐 */
+.el-pagination {
+  --el-pagination-button-color: var(--text-secondary);
+}

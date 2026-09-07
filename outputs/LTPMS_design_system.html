@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light" data-page-node-id="MNOtwf6jnt1MJ9WH6nE6fk">
+<head data-page-node-id="M50gEpbiBKdnkECejwPEHr">
+<meta charset="UTF-8" data-page-node-id="34Q17JHD1Gzh3g9mtWfhqD">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="aMzypTbotNf3ewjJriSxQP">
+<title>LTPMS Design System V1.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" data-page-node-id="LeR4x8Nt2HDj30pnpSqERs">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-page-node-id="ZQGXytDpLNqErw9FKdjPGe">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" data-page-node-id="WVRIxWYl2xxUjEHR898Z9U">
+<style>
+/* ============ TOKENS ============ */
+:root {
+  /* Color - Brand */
+  --brand-50:#EFF6FF; --brand-100:#DBEAFE; --brand-200:#BFDBFE;
+  --brand-300:#93C5FD; --brand-400:#60A5FA; --brand-500:#3B82F6;
+  --brand-600:#2563EB; --brand-700:#1E40AF; --brand-800:#1E3A8A; --brand-900:#1E3A8A;
+
+  /* Color - Surface */
+  --bg-canvas:#FAFAFA; --bg-elevated:#FFFFFF; --bg-muted:#F5F5F5;
+  --bg-subtle:#F9FAFB; --bg-overlay:rgba(15,23,42,0.6);
+
+  /* Border */
+  --border-subtle:#F1F5F9; --border-default:#E2E8F0;
+  --border-strong:#CBD5E1; --border-focus:#2563EB;
+
+  /* Text */
+  --text-primary:#0F172A; --text-secondary:#475569;
+  --text-tertiary:#64748B; --text-quaternary:#94A3B8;
+  --text-inverse:#FFFFFF; --text-link:#2563EB;
+
+  /* Semantic */
+  --success-50:#ECFDF5; --success-500:#10B981; --success-600:#059669; --success-700:#047857;
+  --warning-50:#FFFBEB; --warning-500:#F59E0B; --warning-600:#D97706;
+  --danger-50:#FEF2F2;  --danger-500:#EF4444;  --danger-600:#DC2626;
+  --info-50:#EFF6FF;    --info-500:#3B82F6;    --info-600:#2563EB;
+
+  /* Typography */
+  --font-sans:"IBM Plex Sans","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+  --text-xs:12px; --text-sm:13px; --text-base:14px; --text-md:15px;
+  --text-lg:16px; --text-xl:18px; --text-2xl:20px; --text-3xl:24px;
+  --text-4xl:30px; --text-5xl:36px;
+  --weight-regular:400; --weight-medium:500; --weight-semibold:600; --weight-bold:700;
+
+  /* Spacing */
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+  --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px;
+  --space-12:48px; --space-16:64px;
+
+  /* Radius */
+  --radius-xs:2px; --radius-sm:4px; --radius-md:6px;
+  --radius-lg:8px; --radius-xl:12px; --radius-2xl:16px; --radius-full:9999px;
+
+  /* Shadow */
+  --shadow-xs:0 1px 1px rgba(15,23,42,0.04);
+  --shadow-sm:0 1px 2px rgba(15,23,42,0.06),0 1px 1px rgba(15,23,42,0.04);
+  --shadow-md:0 4px 6px -1px rgba(15,23,42,0.08),0 2px 4px -2px rgba(15,23,42,0.04);
+  --shadow-lg:0 10px 15px -3px rgba(15,23,42,0.08),0 4px 6px -4px rgba(15,23,42,0.04);
+  --shadow-xl:0 20px 25px -5px rgba(15,23,42,0.10),0 8px 10px -6px rgba(15,23,42,0.04);
+
+  /* Motion */
+  --duration-fast:120ms; --duration-normal:200ms; --duration-slow:320ms;
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  --ease-in-out:cubic-bezier(0.4,0,0.2,1);
+
+  /* Layout */
+  --sidebar-width:240px; --header-height:56px; --container-max:1440px;
+}
+[data-theme="dark"] {
+  --bg-canvas:#0F172A; --bg-elevated:#1E293B; --bg-muted:#1E293B;
+  --bg-subtle:#0F172A;
+  --border-subtle:#1E293B; --border-default:#334155; --border-strong:#475569;
+  --text-primary:#F1F5F9; --text-secondary:#CBD5E1;
+  --text-tertiary:#94A3B8; --text-quaternary:#64748B;
+  --success-50:#064E3B; --warning-50:#78350F; --danger-50:#7F1D1D; --info-50:#1E3A8A;
+}
+
+/* ============ RESET ============ */
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { font-size:14px; -webkit-text-size-adjust:100%; }
+body {
+  font-family:var(--font-sans);
+  color:var(--text-primary);
+  background:var(--bg-canvas);
+  font-weight:var(--weight-regular);
+  font-size:var(--text-base);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  transition:background var(--duration-normal) var(--ease-out),color var(--duration-normal) var(--ease-out);
+}
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.01ms !important; } }
+
+/* ============ DEMO SHELL ============ */
+.demo-shell { max-width:var(--container-max); margin:0 auto; padding:var(--space-10) var(--space-8); }
+.demo-header {
+  display:flex; justify-content:space-between; align-items:flex-end;
+  padding-bottom:var(--space-6); border-bottom:1px solid var(--border-default);
+  margin-bottom:var(--space-12);
+}
+.demo-title {
+  font-size:var(--text-4xl); font-weight:var(--weight-semibold);
+  letter-spacing:-0.02em;
+}
+.demo-title small {
+  display:block; font-size:var(--text-sm); font-weight:var(--weight-regular);
+  color:var(--text-tertiary); margin-top:var(--space-2);
+  font-family:var(--font-mono); letter-spacing:0;
+}
+.demo-theme-toggle {
+  display:flex; gap:var(--space-1);
+  padding:var(--space-1);
+  background:var(--bg-muted); border-radius:var(--radius-md);
+  border:1px solid var(--border-default);
+}
+.demo-theme-toggle button {
+  border:none; background:transparent;
+  padding:var(--space-2) var(--space-4);
+  font-family:var(--font-sans); font-size:var(--text-sm);
+  color:var(--text-secondary);
+  border-radius:var(--radius-sm); cursor:pointer;
+  transition:all var(--duration-fast) var(--ease-out);
+}
+.demo-theme-toggle button.active {
+  background:var(--bg-elevated); color:var(--text-primary);
+  box-shadow:var(--shadow-sm);
+}
+
+/* ============ TOC ============ */
+.toc {
+  display:flex; gap:var(--space-3); flex-wrap:wrap;
+  padding:var(--space-4); background:var(--bg-elevated);
+  border:1px solid var(--border-default); border-radius:var(--radius-lg);
+  margin-bottom:var(--space-12);
+  font-size:var(--text-sm);
+}
+.toc a {
+  color:var(--text-link); text-decoration:none; padding:var(--space-1) var(--space-3);
+  border-radius:var(--radius-sm);
+}
+.toc a:hover { background:var(--brand-50); }
+
+/* ============ SECTION ============ */
+.section { margin-bottom:var(--space-16); }
+.section-header {
+  display:flex; align-items:baseline; gap:var(--space-3);
+  margin-bottom:var(--space-6);
+  padding-bottom:var(--space-3);
+  border-bottom:1px solid var(--border-default);
+}
+.section-num {
+  font-family:var(--font-mono); font-size:var(--text-xs);
+  color:var(--brand-600); letter-spacing:0.1em;
+  padding:var(--space-1) var(--space-2);
+  background:var(--brand-50); border-radius:var(--radius-xs);
+}
+.section-title {
+  font-size:var(--text-2xl); font-weight:var(--weight-semibold);
+  letter-spacing:-0.01em;
+}
+.section-desc {
+  margin-bottom:var(--space-6); color:var(--text-secondary);
+  font-size:var(--text-md); max-width:780px;
+}
+
+/* ============ TOKEN DISPLAY ============ */
+.token-grid {
+  display:grid; gap:var(--space-4);
+  grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+}
+.token-card {
+  background:var(--bg-elevated);
+  border:1px solid var(--border-default); border-radius:var(--radius-lg);
+  overflow:hidden;
+  transition:all var(--duration-normal) var(--ease-out);
+}
+.token-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
+.token-swatch { height:64px; }
+.token-info { padding:var(--space-3) var(--space-4); }
+.token-name { font-family:var(--font-mono); font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--text-primary); }
+.token-value { font-family:var(--font-mono); font-size:var(--text-xs); color:var(--text-tertiary); margin-top:2px; }
+.token-use { font-size:var(--text-xs); color:var(--text-tertiary); margin-top:var(--space-2); }
+
+/* ============ TYPE SCALE ============ */
+.type-row {
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding:var(--space-4) 0; border-bottom:1px solid var(--border-subtle);
+}
+.type-row:last-child { border-bottom:none; }
+.type-meta { font-family:var(--font-mono); font-size:var(--text-xs); color:var(--text-tertiary); flex-shrink:0; }
+
+/* ============ SPACING ============ */
+.space-row {
+  display:flex; align-items:center; gap:var(--space-4);
+  padding:var(--space-3) 0;
+}
+.space-bar { height:12px; background:var(--brand-600); border-radius:2px; }
+
+/* ============ SHADOW ============ */
+.shadow-grid {
+  display:grid; gap:var(--space-6);
+  grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+}
+.shadow-card {
+  background:var(--bg-elevated);
+  border-radius:var(--radius-lg);
+  padding:var(--space-6);
+  border:1px solid var(--border-default);
+}
+.shadow-card-name { font-family:var(--font-mono); font-size:var(--text-sm); font-weight:var(--weight-medium); margin-bottom:var(--space-2); }
+.shadow-card-val { font-family:var(--font-mono); font-size:var(--text-xs); color:var(--text-tertiary); }
+
+/* ============ COMPONENT PREVIEW ============ */
+.preview {
+  background:var(--bg-elevated);
+  border:1px solid var(--border-default);
+  border-radius:var(--radius-lg);
+  padding:var(--space-6);
+  margin-bottom:var(--space-4);
+}
+.preview-title {
+  font-size:var(--text-sm); font-weight:var(--weight-medium);
+  color:var(--text-tertiary); margin-bottom:var(--space-4);
+  font-family:var(--font-mono); letter-spacing:0.05em; text-transform:uppercase;
+}
+.preview-row { display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:center; }
+.preview-col { display:flex; flex-direction:column; gap:var(--space-3); }
+
+/* ============ BUTTON ============ */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2);
+  font-family:var(--font-sans); font-weight:var(--weight-medium);
+  border:1px solid transparent; border-radius:var(--radius-md);
+  cursor:pointer; user-select:none;
+  transition:all var(--duration-fast) var(--ease-out);
+  white-space:nowrap; text-decoration:none;
+}
+.btn:focus-visible { outline:2px solid var(--border-focus); outline-offset:2px; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity:0.5; cursor:not-allowed; pointer-events:none; }
+
+.btn--sm { height:28px; padding:0 var(--space-3); font-size:var(--text-sm); }
+.btn--md { height:36px; padding:0 var(--space-4); font-size:var(--text-base); }
+.btn--lg { height:44px; padding:0 var(--space-5); font-size:var(--text-md); }
+
+.btn--primary { background:var(--brand-600); color:var(--text-inverse); }
+.btn--primary:hover { background:var(--brand-700); box-shadow:var(--shadow-sm); }
+.btn--primary:active { background:var(--brand-800); }
+
+.btn--secondary { background:var(--bg-elevated); color:var(--text-primary); border-color:var(--border-default); }
+.btn--secondary:hover { border-color:var(--border-strong); background:var(--bg-subtle); }
+
+.btn--tertiary { background:transparent; color:var(--brand-600); }
+.btn--tertiary:hover { background:var(--brand-50); }
+
+.btn--danger { background:var(--danger-600); color:var(--text-inverse); }
+.btn--danger:hover { background:var(--danger-500); }
+
+.btn--ghost { background:transparent; color:var(--text-secondary); }
+.btn--ghost:hover { background:var(--bg-muted); color:var(--text-primary); }
+
+/* ============ INPUT ============ */
+.input {
+  height:36px; padding:0 var(--space-3);
+  background:var(--bg-subtle);
+  border:1px solid var(--border-default); border-radius:var(--radius-md);
+  font-family:var(--font-sans); font-size:var(--text-base);
+  color:var(--text-primary);
+  transition:all var(--duration-fast) var(--ease-out);
+  width:100%;
+}
+.input::placeholder { color:var(--text-quaternary); }
+.input:hover { border-color:var(--border-strong); }
+.input:focus { outline:none; background:var(--bg-elevated); border-color:var(--border-focus); box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+.input[aria-invalid="true"] { border-color:var(--danger-500); }
+.input:disabled { background:var(--bg-muted); color:var(--text-tertiary); cursor:not-allowed; }
+
+.input-group { display:flex; flex-direction:column; gap:var(--space-1); max-width:280px; }
+.input-label { font-size:var(--text-sm); font-weight:var(--weight-medium); color:var(--text-secondary); }
+.input-hint { font-size:var(--text-xs); color:var(--text-tertiary); }
+.input-error { font-size:var(--text-xs); color:var(--danger-600); }
+
+/* ============ SELECT ============ */
+.select {
+  height:36px; padding:0 var(--space-8) 0 var(--space-3);
+  background:var(--bg-subtle) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 12px center;
+  border:1px solid var(--border-default); border-radius:var(--radius-md);
+  font-family:var(--font-sans); font-size:var(--text-base);
+  color:var(--text-primary);
+  appearance:none;
+  cursor:pointer;
+  transition:all var(--duration-fast) var(--ease-out);
+}
+.select:hover { border-color:var(--border-strong); }
+.select:focus { outline:none; background-color:var(--bg-elevated); border-color:var(--border-focus); box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+
+/* ============ CHECKBOX / RADIO / SWITCH ============ */
+.cb {
+  width:16px; height:16px;
+  border:1.5px solid var(--border-strong); border-radius:var(--radius-xs);
+  background:var(--bg-elevated);
+  cursor:pointer; position:relative;
+  appearance:none; flex-shrink:0;
+  transition:all var(--duration-fast) var(--ease-out);
+}
+.cb:hover { border-color:var(--brand-600); }
+.cb:checked { background:var(--brand-600); border-color:var(--brand-600); }
+.cb:checked::after {
+  content:""; position:absolute; left:4px; top:1px;
+  width:4px; height:8px;
+  border:solid white; border-width:0 1.5px 1.5px 0; transform:rotate(45deg);
+}
+.cb:focus-visible { outline:2px solid var(--border-focus); outline-offset:2px; }
+
+.rd {
+  width:16px; height:16px;
+  border:1.5px solid var(--border-strong); border-radius:50%;
+  background:var(--bg-elevated);
+  cursor:pointer; position:relative;
+  appearance:none; flex-shrink:0;
+}
+.rd:hover { border-color:var(--brand-600); }
+.rd:checked { border-color:var(--brand-600); }
+.rd:checked::after {
+  content:""; position:absolute; inset:3px;
+  background:var(--brand-600); border-radius:50%;
+}
+.rd:focus-visible { outline:2px solid var(--border-focus); outline-offset:2px; }
+
+.sw {
+  position:relative; width:36px; height:20px;
+  background:var(--bg-muted); border-radius:var(--radius-full);
+  cursor:pointer;
+  transition:background var(--duration-normal) var(--ease-out);
+  flex-shrink:0;
+}
+.sw::after {
+  content:""; position:absolute; top:2px; left:2px;
+  width:16px; height:16px;
+  background:white; border-radius:50%;
+  box-shadow:var(--shadow-sm);
+  transition:transform var(--duration-normal) var(--ease-out);
+}
+.sw[aria-checked="true"] { background:var(--brand-600); }
+.sw[aria-checked="true"]::after { transform:translateX(16px); }
+.sw:focus-visible { outline:2px solid var(--border-focus); outline-offset:2px; }
+
+/* ============ TAG ============ */
+.tag {
+  display:inline-flex; align-items:center; gap:var(--space-1);
+  padding:1px var(--space-2); border-radius:var(--radius-xs);
+  font-size:12px; font-weight:var(--weight-medium);
+  line-height:1.6;
+}
+.tag--neutral { background:var(--bg-muted); color:var(--text-secondary); }
+.tag--brand   { background:var(--brand-50); color:var(--brand-700); }
+.tag--success { background:var(--success-50); color:var(--success-700); }
+.tag--warning { background:var(--warning-50); color:var(--warning-600); }
+.tag--danger  { background:var(--danger-50); color:var(--danger-600); }
+
+/* ============ AVATAR ============ */
+.avatar {
+  display:inline-grid; place-items:center;
+  width:36px; height:36px; border-radius:50%;
+  font-size:var(--text-sm); font-weight:var(--weight-semibold);
+  color:var(--brand-700);
+  background:var(--brand-100);
+  flex-shrink:0;
+  font-family:var(--font-sans);
+}
+.avatar--sm { width:24px; height:24px; font-size:11px; }
+.avatar--lg { width:48px; height:48px; font-size:var(--text-base); }
+
+/* ============ CARD ============ */
+.card {
+  background:var(--bg-elevated);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-lg);
+  padding:var(--space-6);
+  box-shadow:var(--shadow-sm);
+  transition:all var(--duration-normal) var(--ease-out);
+}
+.card--hover:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
+.card-title { font-size:var(--text-xl); font-weight:var(--weight-semibold); margin-bottom:var(--space-2); }
+.card-desc { color:var(--text-secondary); font-size:var(--text-base); }
+
+/* ============ TABLE ============ */
+.table-wrap { overflow-x:auto; border:1px solid var(--border-default); border-radius:var(--radius-lg); background:var(--bg-elevated); }
+table.t { width:100%; border-collapse:collapse; font-size:var(--text-md); }
+table.t thead th {
+  text-align:left; padding:var(--space-3) var(--space-4);
+  background:var(--bg-muted);
+  color:var(--text-secondary); font-weight:var(--weight-semibold);
+  font-size:12px; letter-spacing:0.04em; text-transform:uppercase;
+  border-bottom:1px solid var(--border-default);
+  white-space:nowrap;
+}
+table.t tbody td {
+  padding:var(--space-3) var(--space-4);
+  border-bottom:1px solid var(--border-subtle);
+  color:var(--text-primary);
+}
+table.t tbody tr:last-child td { border-bottom:none; }
+table.t tbody tr:hover { background:var(--bg-subtle); }
+table.t td.right { text-align:right; font-variant-numeric:tabular-nums; }
+table.t td.mono { font-family:var(--font-mono); font-size:var(--text-sm); color:var(--brand-700); }
+
+/* ============ ALERT ============ */
+.alert {
+  display:flex; align-items:flex-start; gap:var(--space-3);
+  padding:var(--space-3) var(--space-4);
+  border-radius:var(--radius-md);
+  border-left:3px solid;
+  font-size:var(--text-base);
+}
+.alert--success { background:var(--success-50); border-color:var(--success-500); color:var(--success-700); }
+.alert--warning { background:var(--warning-50); border-color:var(--warning-500); color:var(--warning-600); }
+.alert--danger  { background:var(--danger-50);  border-color:var(--danger-500);  color:var(--danger-600); }
+.alert--info    { background:var(--info-50);    border-color:var(--info-500);    color:var(--info-600); }
+
+/* ============ EMPTY STATE ============ */
+.empty {
+  text-align:center; padding:var(--space-12) var(--space-6);
+  color:var(--text-secondary);
+}
+.empty-icon {
+  width:64px; height:64px; margin:0 auto var(--space-4);
+  border-radius:var(--radius-full);
+  background:var(--bg-muted);
+  display:grid; place-items:center;
+  color:var(--text-quaternary);
+}
+.empty-title { font-size:var(--text-lg); font-weight:var(--weight-semibold); color:var(--text-primary); margin-bottom:var(--space-2); }
+.empty-desc { font-size:var(--text-base); color:var(--text-secondary); margin-bottom:var(--space-6); }
+
+/* ============ PAGINATION ============ */
+.pagination { display:flex; align-items:center; justify-content:space-between; padding:var(--space-3) 0; font-size:var(--text-sm); }
+.pagination-info { color:var(--text-tertiary); }
+.pagination-pages { display:flex; gap:2px; }
+.pg {
+  min-width:32px; height:32px; padding:0 var(--space-2);
+  display:inline-grid; place-items:center;
+  background:transparent; border:1px solid transparent; border-radius:var(--radius-sm);
+  font-size:var(--text-sm); color:var(--text-secondary);
+  cursor:pointer;
+  transition:all var(--duration-fast) var(--ease-out);
+}
+.pg:hover { background:var(--bg-muted); color:var(--text-primary); }
+.pg--active { background:var(--brand-600); color:white; }
+.pg--active:hover { background:var(--brand-700); }
+
+/* ============ TOAST ============ */
+.toast {
+  position:fixed; top:var(--space-6); left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:var(--space-3);
+  padding:var(--space-3) var(--space-5);
+  background:var(--bg-elevated); border:1px solid var(--border-default);
+  border-radius:var(--radius-md); box-shadow:var(--shadow-lg);
+  font-size:var(--text-base);
+  z-index:1000;
+  animation:toast-in var(--duration-normal) var(--ease-out);
+}
+.toast--success { border-left:3px solid var(--success-500); }
+.toast--danger  { border-left:3px solid var(--danger-500); }
+@keyframes toast-in { from { opacity:0; transform:translate(-50%,-8px); } to { opacity:1; transform:translate(-50%,0); } }
+
+/* ============ SKELETON ============ */
+.skel {
+  background:linear-gradient(90deg, var(--bg-muted) 0%, var(--bg-subtle) 50%, var(--bg-muted) 100%);
+  background-size:200% 100%;
+  animation:skel 1.5s linear infinite;
+  border-radius:var(--radius-sm);
+  height:12px;
+}
+@keyframes skel { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+
+/* ============================================================ */
+/* ============ PAGE DEMO: NLQuery (新设计系统版) ============ */
+/* ============================================================ */
+.page-demo {
+  background:var(--bg-canvas);
+  border:1px solid var(--border-default); border-radius:var(--radius-lg);
+  overflow:hidden;
+  box-shadow:var(--shadow-md);
+}
+
+/* Topbar */
+.pd-topbar {
+  height:var(--header-height);
+  background:var(--bg-elevated);
+  border-bottom:1px solid var(--border-default);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 var(--space-6);
+}
+.pd-brand { display:flex; align-items:center; gap:var(--space-3); }
+.pd-logo {
+  width:28px; height:28px;
+  background:linear-gradient(135deg, var(--brand-600), var(--brand-800));
+  border-radius:var(--radius-md);
+  display:grid; place-items:center;
+  color:white; font-weight:var(--weight-bold); font-size:13px;
+  font-family:var(--font-mono);
+}
+.pd-title { font-size:var(--text-md); font-weight:var(--weight-semibold); }
+.pd-topbar-right { display:flex; align-items:center; gap:var(--space-3); }
+.pd-search-global {
+  display:flex; align-items:center; gap:var(--space-2);
+  padding:var(--space-1) var(--space-3);
+  background:var(--bg-muted); border-radius:var(--radius-md);
+  font-size:var(--text-sm); color:var(--text-tertiary);
+  border:1px solid var(--border-default);
+  min-width:200px;
+}
+.pd-user { display:flex; align-items:center; gap:var(--space-2); padding:var(--space-1) var(--space-2); border-radius:var(--radius-md); }
+.pd-user:hover { background:var(--bg-muted); }
+
+/* Layout */
+.pd-layout { display:grid; grid-template-columns:var(--sidebar-width) 1fr; min-height:680px; }
+.pd-sidebar {
+  background:var(--bg-elevated);
+  border-right:1px solid var(--border-default);
+  padding:var(--space-4) var(--space-2);
+}
+.pd-menu { display:flex; flex-direction:column; gap:2px; }
+.pd-menu-group { font-size:11px; color:var(--text-quaternary); text-transform:uppercase; letter-spacing:0.1em; padding:var(--space-3) var(--space-3) var(--space-2); font-weight:var(--weight-semibold); }
+.pd-menu-item {
+  display:flex; align-items:center; gap:var(--space-3);
+  padding:var(--space-2) var(--space-3);
+  border-radius:var(--radius-md);
+  color:var(--text-secondary);
+  font-size:var(--text-base); cursor:pointer;
+  transition:all var(--duration-fast) var(--ease-out);
+  text-decoration:none;
+}
+.pd-menu-item:hover { background:var(--bg-muted); color:var(--text-primary); }
+.pd-menu-item--active {
+  background:var(--brand-50); color:var(--brand-700);
+  font-weight:var(--weight-medium);
+  position:relative;
+}
+.pd-menu-item--active::before {
+  content:""; position:absolute; left:-9px; top:8px; bottom:8px;
+  width:2px; background:var(--brand-600); border-radius:1px;
+}
+.pd-menu-icon { width:16px; height:16px; flex-shrink:0; color:currentColor; }
+
+/* Main */
+.pd-main { padding:var(--space-6); overflow:hidden; }
+
+/* Page header */
+.pd-pageheader {
+  display:flex; justify-content:space-between; align-items:flex-start;
+  margin-bottom:var(--space-6);
+}
+.pd-breadcrumb { font-size:var(--text-sm); color:var(--text-tertiary); margin-bottom:var(--space-2); }
+.pd-breadcrumb a { color:var(--text-tertiary); text-decoration:none; }
+.pd-breadcrumb a:hover { color:var(--text-link); }
+.pd-breadcrumb span { margin:0 var(--space-2); }
+.pd-h1 { font-size:var(--text-3xl); font-weight:var(--weight-semibold); letter-spacing:-0.02em; }
+.pd-h1 small { font-size:var(--text-base); font-weight:var(--weight-regular); color:var(--text-tertiary); margin-left:var(--space-2); }
+
+/* Query hero */
+.pd-query-card {
+  background:var(--bg-elevated);
+  border:1px solid var(--border-default); border-radius:var(--radius-lg);
+  padding:var(--space-5);
+  box-shadow:var(--shadow-sm);
+  margin-bottom:var(--space-6);
+}
+.pd-query-helper {
+  font-size:var(--text-sm); color:var(--text-tertiary); margin-bottom:var(--space-3);
+  display:flex; align-items:center; gap:var(--space-2);
+}
+.pd-query-helper .kbd {
+  padding:1px 6px; border:1px solid var(--border-default); border-radius:var(--radius-xs);
+  font-family:var(--font-mono); font-size:11px; background:var(--bg-muted); color:var(--text-secondary);
+}
+.pd-query-row {
+  display:flex; gap:var(--space-2);
+  background:var(--bg-subtle); border:1px solid var(--border-default); border-radius:var(--radius-md);
+  padding:var(--space-1);
+  transition:all var(--duration-fast) var(--ease-out);
+}
+.pd-query-row:focus-within { background:var(--bg-elevated); border-color:var(--border-focus); box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+.pd-query-input {
+  flex:1; border:none; background:transparent; outline:none;
+  padding:var(--space-2) var(--space-3);
+  font-size:var(--text-base); color:var(--text-primary); font-family:var(--font-sans);
+}
+.pd-query-input::placeholder { color:var(--text-quaternary); }
+
+/* Example chips */
+.pd-examples { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-3); margin-bottom:var(--space-6); }
+.pd-example {
+  padding:var(--space-3); background:var(--bg-elevated);
+  border:1px solid var(--border-default); border-radius:var(--radius-md);
+  cursor:pointer; transition:all var(--duration-fast) var(--ease-out);
+  font-size:var(--text-sm); color:var(--text-secondary);
+  text-align:left;
+}
+.pd-example:hover { border-color:var(--brand-600); color:var(--text-primary); background:var(--brand-50); }
+
+/* Result layout */
+.pd-result-layout { display:grid; grid-template-columns:1fr 280px; gap:var(--space-6); }
+@media (max-width:1100px) { .pd-result-layout { grid-template-columns:1fr; } }
+
+.pd-result {
+  background:var(--bg-elevated);
+  border:1px solid var(--border-default); border-radius:var(--radius-lg);
+  overflow:hidden;
+}
+.pd-result-head {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:var(--space-3) var(--space-5);
+  border-bottom:1px solid var(--border-default); background:var(--bg-subtle);
+}
+.pd-result-title { font-weight:var(--weight-semibold); font-size:var(--text-md); display:flex; align-items:center; gap:var(--space-2); }
+.pd-result-title .count { font-family:var(--font-mono); font-size:var(--text-xs); color:var(--text-tertiary); padding:1px var(--space-2); background:var(--bg-muted); border-radius:var(--radius-xs); }
+.pd-result-meta { font-family:var(--font-mono); font-size:var(--text-xs); color:var(--text-tertiary); display:flex; gap:var(--space-4); align-items:center; }
+.pd-result-meta strong { color:var(--success-600); font-weight:var(--weight-medium); }
+
+/* History aside */
+.pd-history {
+  background:var(--bg-elevated);
+  border:1px solid var(--border-default); border-radius:var(--radius-lg);
+  padding:var(--space-4);
+  height:fit-content;
+}
+.pd-history-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4); }
+.pd-history-title { font-size:var(--text-md); font-weight:var(--weight-semibold); }
+.pd-history-item {
+  padding:var(--space-3) 0; border-bottom:1px solid var(--border-subtle);
+  cursor:pointer; transition:all var(--duration-fast) var(--ease-out);
+}
+.pd-history-item:last-child { border-bottom:none; }
+.pd-history-item:hover { background:var(--bg-subtle); padding-left:var(--space-2); padding-right:var(--space-2); margin:0 calc(-1 * var(--space-2)); border-radius:var(--radius-md); }
+.pd-history-time { font-family:var(--font-mono); font-size:11px; color:var(--text-tertiary); margin-bottom:2px; }
+.pd-history-q { font-size:var(--text-sm); color:var(--text-primary); line-height:1.4; margin-bottom:var(--space-1); }
+.pd-history-meta { font-family:var(--font-mono); font-size:11px; color:var(--text-tertiary); display:flex; gap:var(--space-2); }
+.pd-history-meta .ok { color:var(--success-600); }
+
+/* SQL drawer */
+.pd-sql {
+  border-top:1px solid var(--border-default);
+  background:var(--bg-muted);
+}
+.pd-sql-toggle {
+  width:100%; padding:var(--space-3) var(--space-5);
+  background:transparent; border:none;
+  display:flex; justify-content:space-between; align-items:center;
+  font-family:var(--font-mono); font-size:var(--text-xs);
+  color:var(--text-tertiary); letter-spacing:0.05em; text-transform:uppercase;
+  cursor:pointer;
+}
+.pd-sql-toggle:hover { color:var(--text-primary); }
+.pd-sql-body { max-height:0; overflow:hidden; transition:max-height var(--duration-normal) var(--ease-out); }
+.pd-sql-body.open { max-height:280px; }
+.pd-sql-body pre {
+  padding:0 var(--space-5) var(--space-4);
+  font-family:var(--font-mono); font-size:var(--text-sm);
+  line-height:1.6; color:var(--text-secondary);
+  white-space:pre-wrap; word-break:break-all;
+}
+.pd-sql-body .kw { color:var(--brand-700); font-weight:500; }
+.pd-sql-body .num { color:var(--danger-600); }
+.pd-sql-body .str { color:var(--success-700); }
+.pd-sql-body .ann { color:var(--text-quaternary); font-style:italic; }
+.pd-sql-body .hl { background:var(--warning-50); padding:1px 4px; border-radius:2px; color:var(--warning-600); font-weight:500; }
+
+/* Suggestions */
+.pd-suggest { padding:var(--space-4) var(--space-5); border-top:1px solid var(--border-default); }
+.pd-suggest-label { font-size:11px; color:var(--text-tertiary); margin-bottom:var(--space-3); text-transform:uppercase; letter-spacing:0.08em; font-weight:var(--weight-semibold); }
+.pd-chips { display:flex; gap:var(--space-2); flex-wrap:wrap; }
+.pd-chip {
+  padding:var(--space-1) var(--space-3);
+  background:var(--bg-muted); border:1px solid var(--border-default); border-radius:var(--radius-full);
+  font-size:var(--text-sm); color:var(--text-secondary); cursor:pointer;
+  transition:all var(--duration-fast) var(--ease-out);
+}
+.pd-chip:hover { background:var(--brand-50); border-color:var(--brand-600); color:var(--brand-700); }
+
+/* Accessibility check section */
+.a11y-grid {
+  display:grid; gap:var(--space-3);
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+}
+.a11y-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:var(--space-3) var(--space-4);
+  background:var(--bg-elevated); border:1px solid var(--border-default); border-radius:var(--radius-md);
+}
+.a11y-pair { display:flex; gap:var(--space-3); align-items:center; }
+.a11y-swatch { width:32px; height:32px; border-radius:var(--radius-xs); border:1px solid var(--border-subtle); }
+.a11y-ratio { font-family:var(--font-mono); font-weight:var(--weight-semibold); font-size:var(--text-base); }
+.a11y-ratio.pass { color:var(--success-600); }
+.a11y-ratio.aaa { color:var(--success-700); }
+</style>
+</head>
+<body data-page-node-id="tHGxQpgYeJZMS5HLJWfDsh">
+
+<div class="demo-shell" data-page-node-id="xkuA5dS5Au7dis0fUtLoLr">
+
+  <!-- Header -->
+  <header class="demo-header" data-page-node-id="lUbqVnASTjfNFykMeqsBDd">
+    <div data-page-node-id="SCMFo8Ukkxwyy00K7XjjnC">
+      <h1 class="demo-title" data-page-node-id="y965AHNV93CFRqEBBZcXW8">LTPMS Design System<small data-page-node-id="t8lbFhWmYCx4h7grgAaUyv">// V1.1 · 2026-09-07 · design-ui-designer</small></h1>
+    </div>
+    <div class="demo-theme-toggle" role="group" aria-label="主题切换" data-page-node-id="DOLX4sFNJvVvY4bleV9KZo">
+      <button class="active" data-theme-btn="light" data-page-node-id="OlFvmQkVKgnNUQueaTZhFT">☀ Light</button>
+      <button data-theme-btn="dark" data-page-node-id="gkQzwIBtZkouEvccUxgkVE">☾ Dark</button>
+    </div>
+  </header>
+
+  <!-- TOC -->
+  <nav class="toc" data-page-node-id="0smYmD61SdU5uy8wZHSFGN">
+    <a href="#tokens" data-page-node-id="ubyhgTarSA2JClr0VhZAIH">1. Tokens</a>
+    <a href="#buttons" data-page-node-id="BpfnEk5x1CKA91EP9qReuO">2. Buttons</a>
+    <a href="#forms" data-page-node-id="RRvJztQLWRdUSGJ1CJK7fM">3. Forms</a>
+    <a href="#data" data-page-node-id="54pHycHptQXj8FgIwgVA3D">4. Data Display</a>
+    <a href="#feedback" data-page-node-id="B7GdRbjeByULIry0tauu5M">5. Feedback</a>
+    <a href="#a11y" data-page-node-id="dTEL0GadQf48YMdSSwDVU5">6. A11y</a>
+    <a href="#page" data-page-node-id="2wF5F1gM8cEVRUXCPw5ElK">7. NLQuery 页面</a>
+  </nav>
+
+  <!-- ============ 1. TOKENS ============ -->
+  <section id="tokens" class="section" data-page-node-id="ewiZC0b1xtriKLwFHe0Mwt">
+    <div class="section-header" data-page-node-id="uzT64AtBH6EEsmLxAIycZP">
+      <span class="section-num" data-page-node-id="rSsOpXvUU8Ypc5uigqg2zZ">§ 01</span>
+      <h2 class="section-title" data-page-node-id="Se7Gfxb9gdyy8tF39fJ4HV">Design Tokens</h2>
+    </div>
+    <p class="section-desc" data-page-node-id="F1TlgDTgBuDOUkiERc7bXm">所有视觉决策落地为 :root 自定义属性，组件不直接写 hex / px / 字号。详见 <code data-page-node-id="HqrJXId5vMVqLiUnmI9eBa">frontend/src/styles/tokens.css</code>。</p>
+
+    <h3 style="font-size:var(--text-lg); font-weight:var(--weight-semibold); margin-bottom:var(--space-4);" data-page-node-id="SQ2sOFu2TPhJTvBuWypTBS">Color · Brand</h3>
+    <div class="token-grid" data-page-node-id="F1wDnyAKEXmtYyRyuoBBBL">
+      <div class="token-card" data-page-node-id="802HlwQhUpp9EhVrHDhlGB"><div class="token-swatch" style="background:var(--brand-50)" data-page-node-id="rRABiIrDzd6WPdQS2XVprA"></div><div class="token-info" data-page-node-id="2YylJEPMO2a28ecw9C2TJe"><div class="token-name" data-page-node-id="daXLgpEGM2DfpEfbpilpKV">brand-50</div><div class="token-value" data-page-node-id="t4G0kiBRdjERnRJNEjmmWS">#EFF6FF</div><div class="token-use" data-page-node-id="1K3LLrf2EQmD842qEBGtSf">hover bg</div></div></div>
+      <div class="token-card" data-page-node-id="3q7h0DuRbJE62hedu2zGMY"><div class="token-swatch" style="background:var(--brand-100)" data-page-node-id="CuuxYxX6B2wj2c5AuMCjB4"></div><div class="token-info" data-page-node-id="C0Orm6Q5ePMDghgaDzQgbn"><div class="token-name" data-page-node-id="OFX3VJr5FrkOK3zLFQjIp1">brand-100</div><div class="token-value" data-page-node-id="3sR03BTP4PQjJUW6NBYXbv">#DBEAFE</div><div class="token-use" data-page-node-id="ws5TSwFl33MTpzSlPIVhC4">link hover</div></div></div>
+      <div class="token-card" data-page-node-id="AlrNVSFuC23oujMa9iWFI3"><div class="token-swatch" style="background:var(--brand-500)" data-page-node-id="L5HUlaqZcMBW1c1MdLbETG"></div><div class="token-info" data-page-node-id="1mobVoMOoiFZYuHvGaa9zH"><div class="token-name" data-page-node-id="QUlW2sey4UnOAiZCCkMMoE">brand-500</div><div class="token-value" data-page-node-id="gE5m1H9pPOJulonFN9vjwR">#3B82F6</div><div class="token-use" data-page-node-id="40726mmCZ8TOLiFXrNWUPk">—</div></div></div>
+      <div class="token-card" data-page-node-id="E4vyrQRWg0teJVJplCkCdL"><div class="token-swatch" style="background:var(--brand-600)" data-page-node-id="7uCvmnVLRNdztyr4ckdSSM"></div><div class="token-info" data-page-node-id="JeTc7Jh8HhnsiGdObq3aR4"><div class="token-name" data-page-node-id="PoTkoDtCVh5eD81DcZNxOB">brand-600</div><div class="token-value" data-page-node-id="Ho9aRVlj2K4gkYskewGiPS">#2563EB</div><div class="token-use" data-page-node-id="SAAiRgkrQHSOelxpuejV7Q">链接、主按钮</div></div></div>
+      <div class="token-card" data-page-node-id="LuDlHV1ERQpppO5CDEB4WH"><div class="token-swatch" style="background:var(--brand-700)" data-page-node-id="lX6d8clyWKgXRbRJPRVggm"></div><div class="token-info" data-page-node-id="07UovJ5uDsqeP3RB17e7wc"><div class="token-name" data-page-node-id="EFahg01P7hKKNJ9v8eBLA5">brand-700 ★</div><div class="token-value" data-page-node-id="nldjprP7pV1s9cdVATDgJA">#1E40AF</div><div class="token-use" data-page-node-id="VPxuCTbDHTIESrhJi8BWcF">主品牌色</div></div></div>
+      <div class="token-card" data-page-node-id="yWI33dENAk4z75nLqG3nPk"><div class="token-swatch" style="background:var(--brand-800)" data-page-node-id="vKCusaBZ3GKkZE2t1u8i2g"></div><div class="token-info" data-page-node-id="9Frl7BRFzcSWNWRt2eT7dZ"><div class="token-name" data-page-node-id="1oCYLBg6sKFmeckLQGQIyz">brand-800</div><div class="token-value" data-page-node-id="KLmHZobVBX7szs0hsJ6tPO">#1E3A8A</div><div class="token-use" data-page-node-id="bBF12tQL2d3HpAmZ40iqBH">hover、标题</div></div></div>
+    </div>
+
+    <h3 style="font-size:var(--text-lg); font-weight:var(--weight-semibold); margin:var(--space-8) 0 var(--space-4);" data-page-node-id="7Oi7yFRYW7V8Akmk4xe8WE">Color · Semantic</h3>
+    <div class="token-grid" data-page-node-id="x7RBblvhLqW8DV9VS1olFH">
+      <div class="token-card" data-page-node-id="BBJVbAWFfSHH38A7IOryxC"><div class="token-swatch" style="background:var(--success-500)" data-page-node-id="kmiT13NyUorC17e4ibaN5v"></div><div class="token-info" data-page-node-id="9Ve7hp7ICx7zm9sDpa9uz3"><div class="token-name" data-page-node-id="6EdzxYhF9MKbP1zDcgkORQ">success-500</div><div class="token-value" data-page-node-id="TTiTVgEDBgbcYCs4HDT8do">#10B981</div><div class="token-use" data-page-node-id="iNDHnDc7GAlRx70mWbHecq">成功</div></div></div>
+      <div class="token-card" data-page-node-id="J6F2c8TZbgDiI8f31ILHHI"><div class="token-swatch" style="background:var(--warning-500)" data-page-node-id="lbs0dyJkh02WOEDH58oH3n"></div><div class="token-info" data-page-node-id="Bcl4yMVuBYgwzCzowFgisJ"><div class="token-name" data-page-node-id="thLUzJ1Q1ISZNDDpvtE2LL">warning-500</div><div class="token-value" data-page-node-id="lqKxSmwudmZCCCTn8NBB0r">#F59E0B</div><div class="token-use" data-page-node-id="ghTsFjAGq1m3K3DJG9SDtL">警告</div></div></div>
+      <div class="token-card" data-page-node-id="yo07tWwSAiaPLPhaEBELBp"><div class="token-swatch" style="background:var(--danger-500)" data-page-node-id="BMQUrGEhhsTueb0mHMZq80"></div><div class="token-info" data-page-node-id="MFn7fY3BwClgPHe5TvV5Kc"><div class="token-name" data-page-node-id="w1AXs0oNRfKm0NwEaV71tK">danger-500</div><div class="token-value" data-page-node-id="UmOfUaxhTYWhwzyrT4F4p5">#EF4444</div><div class="token-use" data-page-node-id="SNRkMTE1iCxSDT2dgqd3BU">错误</div></div></div>
+      <div class="token-card" data-page-node-id="jTj3QT2xcPcfgxLjJC5CtK"><div class="token-swatch" style="background:var(--info-500)" data-page-node-id="exXO4PlQyY9vM9T3EhXqBP"></div><div class="token-info" data-page-node-id="qTZaGu2FhUXECWI6w6G2bz"><div class="token-name" data-page-node-id="kdqvutfrMAL8AjLV0qCXAN">info-500</div><div class="token-value" data-page-node-id="M8HJw2uezPFBu3bjz59NCr">#3B82F6</div><div class="token-use" data-page-node-id="Po5hj8yPIXE4eNEzGzRFzG">信息</div></div></div>
+    </div>
+
+    <h3 style="font-size:var(--text-lg); font-weight:var(--weight-semibold); margin:var(--space-8) 0 var(--space-4);" data-page-node-id="8OYtFR9J3pckCejdvirGGU">Typography · Scale</h3>
+    <div class="preview" data-page-node-id="bGNdamJEx2qrD9FuSURE3t">
+      <div class="type-row" data-page-node-id="7kLKE4b0q5NAECeIq9aHfz"><span style="font-size:var(--text-5xl); font-weight:var(--weight-bold); line-height:var(--leading-tight);" data-page-node-id="8Cu46gs1Ux06sC8trs7rPp">实验数据查询</span><span class="type-meta" data-page-node-id="cPVeIwb2mdnsBcMkn1uo3k">--text-5xl · 36/700</span></div>
+      <div class="type-row" data-page-node-id="B9VuEBS6eDcX1NDBWRvDss"><span style="font-size:var(--text-4xl); font-weight:var(--weight-bold); line-height:var(--leading-tight);" data-page-node-id="aGip3YhhTGGKgQiiozKIBA">实验数据查询</span><span class="type-meta" data-page-node-id="smgnTqjcVDKRPEoVH4sifv">--text-4xl · 30/700</span></div>
+      <div class="type-row" data-page-node-id="5SPT0erwZl8uecjPS7qStM"><span style="font-size:var(--text-3xl); font-weight:var(--weight-semibold); line-height:var(--leading-snug);" data-page-node-id="H2spn8N3sj39bBUdDjZS7s">页面 H1 标题</span><span class="type-meta" data-page-node-id="31y6O2mS0FuqL8NvqvSbPK">--text-3xl · 24/600</span></div>
+      <div class="type-row" data-page-node-id="dHlvbkPlv6et0NG2WSnJHg"><span style="font-size:var(--text-2xl); font-weight:var(--weight-semibold); line-height:var(--leading-snug);" data-page-node-id="A5NK0guy20VqnJjfLlhPOU">页面 H2 标题</span><span class="type-meta" data-page-node-id="eQsCKY058tXAYwS2w0zZKH">--text-2xl · 20/600</span></div>
+      <div class="type-row" data-page-node-id="krTbz8faNmS38lGcm7sbVB"><span style="font-size:var(--text-xl); font-weight:var(--weight-semibold);" data-page-node-id="gkDaBPZjDZD0JL2Nnp55hO">卡片标题</span><span class="type-meta" data-page-node-id="CrLJgxe1NYoQf4Z5KLZVbg">--text-xl · 18/600</span></div>
+      <div class="type-row" data-page-node-id="pXrWFC7NECDNAc6KSRBIyf"><span style="font-size:var(--text-lg); font-weight:var(--weight-medium);" data-page-node-id="TbwblZS6gfZMRAG5sURDZT">表单标签 / 段落引导</span><span class="type-meta" data-page-node-id="nNhrxYWrhOwY2fymGFgsJa">--text-lg · 16/500</span></div>
+      <div class="type-row" data-page-node-id="Kx3qqoFBAkNYWuoRtPjTY5"><span style="font-size:var(--text-md);" data-page-node-id="KGXvOoZiDeD3ru6VEpd84w">表格主列文字</span><span class="type-meta" data-page-node-id="3XmZ9qNk45EYnvJp2NvIAf">--text-md · 15/400</span></div>
+      <div class="type-row" data-page-node-id="cVqFFA1srjcf7MEPwK0GzU"><span style="font-size:var(--text-base);" data-page-node-id="FlI4FfCYJvQtgogYXXYFsI">正文默认文字 / 按钮文字</span><span class="type-meta" data-page-node-id="7wSTQKdB3GqbJXo4oRvbdu">--text-base · 14/400</span></div>
+      <div class="type-row" data-page-node-id="jrR0O4X32mNvYL4U0wH3U9"><span style="font-size:var(--text-sm);" data-page-node-id="OMVoY3U9F5LD1UdZYRseQQ">表格次要列、时间戳</span><span class="type-meta" data-page-node-id="PxbiCXqnfHPdbEwAOwHs89">--text-sm · 13/400</span></div>
+      <div class="type-row" data-page-node-id="eTzj39PmGeZVzwYF6GhzFs"><span style="font-size:var(--text-xs); color:var(--text-tertiary);" data-page-node-id="uNXH6u9Wwh3LZHJmj2G7Ak">辅助说明 · 元信息</span><span class="type-meta" data-page-node-id="ynWgsFgCgyNcuxIXoYMY60">--text-xs · 12/400</span></div>
+    </div>
+
+    <h3 style="font-size:var(--text-lg); font-weight:var(--weight-semibold); margin:var(--space-8) 0 var(--space-4);" data-page-node-id="NPHzIVYM7sQKRBDtrCDqxf">Spacing · 4px 基准</h3>
+    <div class="preview" data-page-node-id="T1eDLxcbBHuuCeR8bMA4bT">
+      <div class="space-row" data-page-node-id="U8GEY0yVkUBWheqsTsrkXg"><span style="font-family:var(--font-mono); font-size:var(--text-xs); width:80px; color:var(--text-tertiary);" data-page-node-id="MO97mFROB5akxeGn80XfUQ">space-1 · 4px</span><div class="space-bar" style="width:4px" data-page-node-id="rfEudbGwDF9MRDGi1GEnVt"></div></div>
+      <div class="space-row" data-page-node-id="f08wJwDUx92YstXF7lHFo4"><span style="font-family:var(--font-mono); font-size:var(--text-xs); width:80px; color:var(--text-tertiary);" data-page-node-id="MW98gLycAGepNCZ58XycuF">space-2 · 8px</span><div class="space-bar" style="width:8px" data-page-node-id="uTtlM2SWTxJTJ94M26VkCq"></div></div>
+      <div class="space-row" data-page-node-id="xmzwasp4EH5SBy3DRgNlNB"><span style="font-family:var(--font-mono); font-size:var(--text-xs); width:80px; color:var(--text-tertiary);" data-page-node-id="s1WsGRvMg3ga0NDMNlNId2">space-3 · 12px</span><div class="space-bar" style="width:12px" data-page-node-id="u50XN5epqj23aj5qq74yNF"></div></div>
+      <div class="space-row" data-page-node-id="uQ0U0OKk2NTNX2mapq2ddk"><span style="font-family:var(--font-mono); font-size:var(--text-xs); width:80px; color:var(--text-tertiary);" data-page-node-id="Ds1bYtQyxxjvrKplQCBETd">space-4 · 16px</span><div class="space-bar" style="width:16px" data-page-node-id="ACLG6sLKFHh9sYjcgziFrl"></div></div>
+      <div class="space-row" data-page-node-id="GmMsm1BordeHZqbeKDNhjp"><span style="font-family:var(--font-mono); font-size:var(--text-xs); width:80px; color:var(--text-tertiary);" data-page-node-id="JgsnbnlXcLxxwA8llDAcCJ">space-6 · 24px</span><div class="space-bar" style="width:24px" data-page-node-id="H32vT0HPmYPShGNwNFpDUb"></div></div>
+      <div class="space-row" data-page-node-id="hrX3qCFpdUEZhWIdfINabi"><span style="font-family:var(--font-mono); font-size:var(--text-xs); width:80px; color:var(--text-tertiary);" data-page-node-id="kMBp0rh5iY5JqjGsvvrE0m">space-8 · 32px</span><div class="space-bar" style="width:32px" data-page-node-id="tHWNTrLkzmqLWPGa0C4zy6"></div></div>
+      <div class="space-row" data-page-node-id="ECnquIbsUgXCWw8rDXaoZG"><span style="font-family:var(--font-mono); font-size:var(--text-xs); width:80px; color:var(--text-tertiary);" data-page-node-id="khW8iBbJnlKy2upwVnjcUf">space-12 · 48px</span><div class="space-bar" style="width:48px" data-page-node-id="SNWypjIIpAkX0lZASXBTRI"></div></div>
+    </div>
+
+    <h3 style="font-size:var(--text-lg); font-weight:var(--weight-semibold); margin:var(--space-8) 0 var(--space-4);" data-page-node-id="51BoOHOKKiBKU4z83bnbIi">Shadow · 5 档</h3>
+    <div class="shadow-grid" data-page-node-id="35ZbGV8GTa5lLt7Y2tzN3t">
+      <div class="shadow-card" style="box-shadow:var(--shadow-xs);" data-page-node-id="HpSFACCASH7Kt5F1BMJw01"><div class="shadow-card-name" data-page-node-id="KkmpKsbK1FWttHZqghW2HH">shadow-xs</div><div class="shadow-card-val" data-page-node-id="F1hO2Mg3mxvov0WBBZR86l">0 1px 1px</div></div>
+      <div class="shadow-card" style="box-shadow:var(--shadow-sm);" data-page-node-id="7G301BEYZQnqu8OXP65Ep5"><div class="shadow-card-name" data-page-node-id="Qy13CXwQA1dlBBU8kueAGw">shadow-sm</div><div class="shadow-card-val" data-page-node-id="1IM99EoDwTKdbrLg1U9AXj">0 1px 2px · 默认</div></div>
+      <div class="shadow-card" style="box-shadow:var(--shadow-md);" data-page-node-id="lxW8RN1p5pVxOIzXL2W6CB"><div class="shadow-card-name" data-page-node-id="w1DheWJ8wuIZLmWNGbXFwR">shadow-md</div><div class="shadow-card-val" data-page-node-id="TAo2u89ndQkHITSsgK982T">0 4px 6px · hover</div></div>
+      <div class="shadow-card" style="box-shadow:var(--shadow-lg);" data-page-node-id="K0IoN45aaNzd9Xd5q9NGHe"><div class="shadow-card-name" data-page-node-id="hLEBDFPejx3ZzzkC1gnk9T">shadow-lg</div><div class="shadow-card-val" data-page-node-id="Sx3c6oEDhbVDNi4fFEpayG">0 10px 15px · dropdown</div></div>
+      <div class="shadow-card" style="box-shadow:var(--shadow-xl);" data-page-node-id="qm2g9o2AajKylBXs3KZbP6"><div class="shadow-card-name" data-page-node-id="Yv43Gf03bBswrhdLnOcXUr">shadow-xl</div><div class="shadow-card-val" data-page-node-id="CbRDcceubMcqXE7lQVvaHH">0 20px 25px · modal</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 2. BUTTONS ============ -->
+  <section id="buttons" class="section" data-page-node-id="WGCW5E0uHQQ4PXCOqjPxnm">
+    <div class="section-header" data-page-node-id="sAYGXCZ5XiOFRUXmsWSA3z">
+      <span class="section-num" data-page-node-id="8790taeiQ9REKD77nBarOW">§ 02</span>
+      <h2 class="section-title" data-page-node-id="7pMdF4vUF1Qv5zSdXkaTMW">Buttons</h2>
+    </div>
+    <p class="section-desc" data-page-node-id="nUcn4B5xGmNhYdVZSUwE99">5 种 variant × 3 种 size。每个按钮都有 default / hover / active / focus-visible / disabled / loading 状态。</p>
+
+    <div class="preview" data-page-node-id="Mi2UmnvfS3s1ner7ZnnETZ">
+      <div class="preview-title" data-page-node-id="grU4zQxp4Nwjq8wgCXvGFw">Variant 矩阵</div>
+      <div class="preview-row" data-page-node-id="KsP8CwKHGZHNMuv8BzheJy">
+        <button class="btn btn--primary btn--md" data-page-node-id="wUQp66BzRe5QSLqPeXM7R2">Primary</button>
+        <button class="btn btn--secondary btn--md" data-page-node-id="SBArGk3fpxzk27uh4yCDP4">Secondary</button>
+        <button class="btn btn--tertiary btn--md" data-page-node-id="sZ8xY6CXYd4pmCApwk9HOe">Tertiary</button>
+        <button class="btn btn--danger btn--md" data-page-node-id="FaEYj7tIZfRD7NtIi8dXeY">Danger</button>
+        <button class="btn btn--ghost btn--md" data-page-node-id="NTw6HPR2qDXjZf84tUz3QY">Ghost</button>
+      </div>
+    </div>
+
+    <div class="preview" data-page-node-id="6vGDIGOOGVywr0SfsuBcC8">
+      <div class="preview-title" data-page-node-id="0WXzxYntFJ8awMCe9oXyp8">Size</div>
+      <div class="preview-row" style="align-items:center;" data-page-node-id="kSkeOYCbfYdUijgHcBKjhf">
+        <button class="btn btn--primary btn--sm" data-page-node-id="3FVZKVMFq0z0DeZboHfFHB">Small</button>
+        <button class="btn btn--primary btn--md" data-page-node-id="BJzC24QvCnIgnY6dc8mMCf">Medium</button>
+        <button class="btn btn--primary btn--lg" data-page-node-id="DJbnjUVdFNnlsawxE3vnvo">Large</button>
+      </div>
+    </div>
+
+    <div class="preview" data-page-node-id="majJU3IlWjGlXiof9KOAKg">
+      <div class="preview-title" data-page-node-id="BOlofh5i9PNXaSsf4SI5cJ">States</div>
+      <div class="preview-row" data-page-node-id="fPhStsIyHJpWfANzYniAVM">
+        <button class="btn btn--primary btn--md" data-page-node-id="LLUaUx8a5ekIUKaYThhXn6">Default</button>
+        <button class="btn btn--primary btn--md" disabled data-page-node-id="QqPodY5rDcufYLuYLicXYD">Disabled</button>
+        <button class="btn btn--primary btn--md" style="background:var(--brand-700);" data-page-node-id="xfUpJQI68dbc0Cdk5K3jMl">Hover 模拟</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. FORMS ============ -->
+  <section id="forms" class="section" data-page-node-id="dXrRj4firT8UHz4GjRU0h8">
+    <div class="section-header" data-page-node-id="yVFvJdYZqsclUBbWfh1uhS">
+      <span class="section-num" data-page-node-id="pYtSxwjPqMaibquOJWIHE7">§ 03</span>
+      <h2 class="section-title" data-page-node-id="H3xmyRXgQBRkcWrwuNDW2c">Forms</h2>
+    </div>
+
+    <div class="preview" data-page-node-id="xX6cM7w7ghjfXKB01Nqrcv">
+      <div class="preview-title" data-page-node-id="pwUDs7X6VBV8ddVXkMa0cO">Input</div>
+      <div class="preview-row" style="gap:var(--space-6); align-items:flex-start;" data-page-node-id="JGIKCEgzEoknDhE8P2FOL0">
+        <div class="input-group" data-page-node-id="vjqcOHpqBgZGuDMUbs0P4q">
+          <label class="input-label" data-page-node-id="om2kgJ0Kw6tcFTMUIsORDp">实验名称</label>
+          <input class="input" placeholder="如：链表基本操作实验" data-page-node-id="XXTRLErxCEfCqPfpJGZyxp" />
+          <span class="input-hint" data-page-node-id="oLIfcldaJfZD7lM7F1PFbP">必填，2-50 字</span>
+        </div>
+        <div class="input-group" data-page-node-id="5HVSUCIjD3FTcMPxbmCohh">
+          <label class="input-label" data-page-node-id="TpK3gsmST9RePyr68K99li">错误态</label>
+          <input class="input" value="不合法值" aria-invalid="true" data-page-node-id="Ef0oWkLSXDMX9bWrxHcYmK" />
+          <span class="input-error" data-page-node-id="9wsqCPG7vo9TYvQvbq3x3w">格式不正确，请重新输入</span>
+        </div>
+        <div class="input-group" data-page-node-id="UABRLQNCuOHEw3ZVeEFEeu">
+          <label class="input-label" data-page-node-id="n2wp7BpQXFaXQOMmDEbT59">禁用</label>
+          <input class="input" value="不可编辑" disabled data-page-node-id="zPAyj54kjC0N4Wav1OutGK" />
+        </div>
+      </div>
+    </div>
+
+    <div class="preview" data-page-node-id="Dm17t0KKH4OkQy6y40T87s">
+      <div class="preview-title" data-page-node-id="GnqJhZVRsi3aWkUbiNuj2N">Select / Radio / Checkbox / Switch</div>
+      <div class="preview-row" style="gap:var(--space-6); align-items:flex-start;" data-page-node-id="s58a7RbBAVxUBuGtolxQJJ">
+        <select class="select" style="width:200px;" data-page-node-id="060LliRsrAWC6uru5xvXo2">
+          <option data-page-node-id="9FQBg5JSV0UpzTbZbExKFu">请选择学期</option>
+          <option data-page-node-id="539jkGpBf6ePnneXT4Tz5Q">2026-2027-1</option>
+          <option data-page-node-id="Z4uRIm2lUbXtjzLESiZeKq">2025-2026-2</option>
+        </select>
+        <div class="preview-row" style="gap:var(--space-4);" data-page-node-id="XwXdFevTRggn5wcQH3AmNs">
+          <input type="checkbox" class="cb" checked data-page-node-id="VcBlXDmuEuyFoGTJkLhdND">
+          <input type="checkbox" class="cb" data-page-node-id="zuhQ8HaE8rG5cUXVdpWO5q">
+        </div>
+        <div class="preview-row" style="gap:var(--space-4);" data-page-node-id="cemcBwcwWtLHme6TANl0ef">
+          <input type="radio" class="rd" name="r1" checked data-page-node-id="HTIGtjkufPgzyAKkGo4AjV">
+          <input type="radio" class="rd" name="r1" data-page-node-id="O8LqbGFdbvlnyLCSZammJ4">
+        </div>
+        <div class="preview-row" style="gap:var(--space-4);" data-page-node-id="eCVS42Bwii7v60uDEgDF4S">
+          <div class="sw" role="switch" aria-checked="true" tabindex="0" data-page-node-id="9MlAQomBH1bCoOlMWIpik7"></div>
+          <div class="sw" role="switch" aria-checked="false" tabindex="0" data-page-node-id="75YJfRb2Ft7G7ckmPTM5QH"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview" data-page-node-id="Y4DZYu4MbM13toYHjPBg2I">
+      <div class="preview-title" data-page-node-id="TzyAiIazaZKyCHu9aozdFU">Tag / Avatar</div>
+      <div class="preview-row" style="gap:var(--space-3);" data-page-node-id="vXhyei0VvlqVtPDy4YrJBR">
+        <span class="tag tag--neutral" data-page-node-id="hRWFY5Du6pyEDnTi2ahWFI">中性</span>
+        <span class="tag tag--brand" data-page-node-id="EAABHnKkGcnuVyYpI7bEQO">进行中</span>
+        <span class="tag tag--success" data-page-node-id="ALZeeyJHxGBq7M92Cr0zu4">已完成</span>
+        <span class="tag tag--warning" data-page-node-id="yQDzNcDhWEvbYCqphpRh6K">待审核</span>
+        <span class="tag tag--danger" data-page-node-id="RjNOFzJgdX46a8PWgiSclQ">错误</span>
+      </div>
+      <div class="preview-row" style="gap:var(--space-2); margin-top:var(--space-4);" data-page-node-id="EZL6HrhdqqeDgg1ACfDL47">
+        <div class="avatar avatar--sm" data-page-node-id="19GCfCeVlfJexchN26Rzsb">张</div>
+        <div class="avatar" style="background:var(--success-50); color:var(--success-700);" data-page-node-id="2EbqijcJvc8H2Y7oaNV75t">李</div>
+        <div class="avatar avatar--lg" style="background:var(--warning-50); color:var(--warning-600);" data-page-node-id="q4dBfI29GT8OvbAdEV7FaK">王</div>
+        <div class="avatar" style="background:var(--danger-50); color:var(--danger-600);" data-page-node-id="D6cGA2Vgt2zy25HrFXgOOo">赵</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. DATA DISPLAY ============ -->
+  <section id="data" class="section" data-page-node-id="pBCiPXOmVEvSTchKehPaRY">
+    <div class="section-header" data-page-node-id="9JpjaDcj7tokmidblRRl1b">
+      <span class="section-num" data-page-node-id="PNtmfAw4lq2REwNNLdeMg6">§ 04</span>
+      <h2 class="section-title" data-page-node-id="3TgnuRO3Yy7pQ1wrYEsUZZ">Data Display</h2>
+    </div>
+
+    <div class="preview" data-page-node-id="lQQRAeHgvavavjggh0HaCQ">
+      <div class="preview-title" data-page-node-id="iY7zqjAf5SYn3SlIyCUxT5">Table</div>
+      <div class="table-wrap" data-page-node-id="ZUyxzjBpQtFVK655A8TQjO">
+        <table class="t" data-page-node-id="pQ1RJQgn5fVNMyxDc1xaUM">
+          <thead data-page-node-id="Z9gfAhmxX9qPBDBX5siOgX">
+            <tr data-page-node-id="JAzjH4Ng4xwmr1D2imQmBc">
+              <th data-page-node-id="zG4VqHhEnjZZgOCPncwOUd">课程号</th><th data-page-node-id="lrCr9k8fXGKCfESlX5LArr">课程名</th><th data-page-node-id="sFnFeyIuyD7g8ODpxNLh9Z">任课教师</th><th data-page-node-id="4uHbLvOGc9K7pOh54HjvIJ">实验室</th><th class="right" data-page-node-id="OPWkgYMgpOGJPvAqqJo32x">项目数</th>
+            </tr>
+          </thead>
+          <tbody data-page-node-id="siPTX4mLRtKUjoLziGF6Ue">
+            <tr data-page-node-id="JvntSerIP4SAHQL4dm6HxC"><td class="mono" data-page-node-id="MC9zNRVAUSzY0skwz27Uk1">CS101</td><td data-page-node-id="iDsIabjweeQstjPok8K45K">数据结构实验</td><td data-page-node-id="MpbXvj7ICTeCbnZaT0hDUO">张三</td><td data-page-node-id="taly4eTA0AH1AILSPMl68Z">36-401</td><td class="right" data-page-node-id="SQTQmB77Jfqd8nypMMaMJ6">8</td></tr>
+            <tr data-page-node-id="CH0sfcZhETSIC1tTet0thC"><td class="mono" data-page-node-id="fwVX12XxEUfrcyO8zKFyn7">CS201</td><td data-page-node-id="VaJHUhuTNV3eitFtA1GbqO">操作系统实验</td><td data-page-node-id="oAiVRiYDQcJOAKRu9pJUSy">李四</td><td data-page-node-id="zA5xEDdHESG2Vz8EtFQDEu">36-401</td><td class="right" data-page-node-id="abtH7Xeq9t1Wm8Ec8qoR1P">6</td></tr>
+            <tr data-page-node-id="gZIAPVDs7Jey87aFClclse"><td class="mono" data-page-node-id="3Igbwjgt67YAQ2W3ybFFdQ">AI401</td><td data-page-node-id="Yejpz23LPkl5sbMXr9tbwt">机器学习实验</td><td data-page-node-id="lWeJGKVEJD3sYmyBDlaNlV">赵六</td><td data-page-node-id="36r0izbEjjf04ThpkZGJ7w">36-402</td><td class="right" data-page-node-id="BBLUBwlkkwcHDoeiVOvOoF">7</td></tr>
+            <tr data-page-node-id="t3sKo7hNviRaGoqKPdDxNz"><td class="mono" data-page-node-id="YzwQQ73LqYxKBwOjGbpFIT">NET601</td><td data-page-node-id="k35XA3lGXsihOjWlhj3cih">计算机网络实验</td><td data-page-node-id="GPrylrgZIzpliVLiMuaZnQ">孙八</td><td data-page-node-id="wsl2Lq74e47CunupRDCztC">36-403</td><td class="right" data-page-node-id="hBvKPWDZO9AxInLjDnsNGJ">5</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" style="margin-top:var(--space-3);" data-page-node-id="ABSNavcJdU0pKRISavWRRf">
+        <span class="pagination-info" data-page-node-id="oTWAGCQT09xJzdUBMU2fdI">共 86 条</span>
+        <div class="pagination-pages" data-page-node-id="FTrGAaaEPXDr4yTlRVaHfD">
+          <button class="pg" data-page-node-id="oh7epYkNBiVu5tCEHCiP9R">‹</button>
+          <button class="pg pg--active" data-page-node-id="GL4tW2740zeWdAhbJ7V1dZ">1</button>
+          <button class="pg" data-page-node-id="CF1hk0SxGyittV1Eliqc3u">2</button>
+          <button class="pg" data-page-node-id="7rFJgFOQIP9XntZHN3gbMm">3</button>
+          <button class="pg" data-page-node-id="NnUunCB1WzHDMiK54yw14M">…</button>
+          <button class="pg" data-page-node-id="jl2F2o1hfdVw5zT5HeWlnE">9</button>
+          <button class="pg" data-page-node-id="6i7oTL4tQAfRkuKuQRh75R">›</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview" data-page-node-id="HY8Eo1kWxLnGZr4TpXGiVX">
+      <div class="preview-title" data-page-node-id="1HoTPJPLUBVvmcwxd1Uew0">Card</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:var(--space-4);" data-page-node-id="EMgOl03vQXg6WawWJQojRG">
+        <div class="card card--hover" data-page-node-id="0lBgmGJCgWfVmXmpBBy9Ur">
+          <div class="card-title" data-page-node-id="9L34wT3XL61SRWB9FK5SoW">基础实验</div>
+          <div class="card-desc" data-page-node-id="JvL4wW9cpSvMTNSJPwxCDe">用于大一、大二专业基础课,验证性为主,学时较短。</div>
+        </div>
+        <div class="card card--hover" data-page-node-id="j8ge4azAM2g2SGh8cJpRUN">
+          <div class="card-title" data-page-node-id="BViVVBgeT4XjUSrHgoH61X">设计性实验</div>
+          <div class="card-desc" data-page-node-id="UaWEsyYkxSHIFdbiYa85QG">学生自主设计实验方案,综合运用多学科知识。</div>
+        </div>
+        <div class="card card--hover" data-page-node-id="zJDc5EZtF9qmWkkGcM5OIh">
+          <div class="card-title" data-page-node-id="gfQM6FiMMif1nHBEqvCSss">综合实验</div>
+          <div class="card-desc" data-page-node-id="r18BWWmN2ftAtKc3LG339K">跨学科综合,通常作为毕业设计前置环节。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5. FEEDBACK ============ -->
+  <section id="feedback" class="section" data-page-node-id="BenjX2j1eUSbS7tHYHezDW">
+    <div class="section-header" data-page-node-id="WCPAgTUpKAXZYReQ7zChNE">
+      <span class="section-num" data-page-node-id="huJePvl0qeC4CFPkBD5nM2">§ 05</span>
+      <h2 class="section-title" data-page-node-id="MkMDMXYdK3Kfhy0CaweIQl">Feedback</h2>
+    </div>
+
+    <div class="preview" data-page-node-id="nzNxT5yYu0iDHPJta3eDEb">
+      <div class="preview-title" data-page-node-id="ENmgdQG3dRV7AGUPFh9Hcb">Alert</div>
+      <div style="display:flex; flex-direction:column; gap:var(--space-3);" data-page-node-id="YAYbJDSA8lnrmEJLsyBMDz">
+        <div class="alert alert--success" data-page-node-id="fUxp8fKhMlUSlTAwuQHRB8"><strong data-page-node-id="5lRkoIiu7kORikpzsxJto9">保存成功</strong> · 实验项目已添加,实验编号 CS101-20261-005</div>
+        <div class="alert alert--warning" data-page-node-id="DKik1q0bqrJEaF5eMde3o1"><strong data-page-node-id="xq7YlN0vyKfOoPBUmvYJeK">注意</strong> · 本学期课表尚未导入,部分功能不可用</div>
+        <div class="alert alert--danger" data-page-node-id="Eu2MvCGwY8Ar3mFl4RkLB5"><strong data-page-node-id="0zMYVCvE4eZq3EuMHE0RHN">导入失败</strong> · 第 12 行"实验室编号 99-999"在实验室表中不存在,请修正后重新导入</div>
+        <div class="alert alert--info" data-page-node-id="iD8YJmzY9UtcIv5GjFI0S9"><strong data-page-node-id="S4xBZsyJ4pXPDnIDzg5vOO">提示</strong> · 系统将在 2026-09-08 自动提醒管理员创建新学期</div>
+      </div>
+    </div>
+
+    <div class="preview" data-page-node-id="zOrCz4fq2uicyi0XwzMWRo">
+      <div class="preview-title" data-page-node-id="l0ym2rc0FZ0zNamY9XdHk8">Empty State</div>
+      <div class="empty" data-page-node-id="4fv7y6zbASBSTHHCQsCKoL">
+        <div class="empty-icon" data-page-node-id="dLiHiKyUXkROwCGtFZrbJY">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-page-node-id="GWNTMkZE6OsMo9yocDUcXB"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" data-page-node-id="283axitO7M8EKh6nGBCfVE"/><polyline points="14 2 14 8 20 8" data-page-node-id="MzxqJkEy9EOiHeAfnGqSSt"/></svg>
+        </div>
+        <div class="empty-title" data-page-node-id="TVbGgmNStbtpuk9KhCiqh3">本课程暂无实验项目</div>
+        <div class="empty-desc" data-page-node-id="WOXt8hwvukESXQQFQIYSR1">点击下方按钮添加第一个实验,或从上学期复制已存在的项目。</div>
+        <button class="btn btn--primary btn--md" data-page-node-id="Jl2dPSTJv7riZhjIbgglIJ">+ 新建实验项目</button>
+      </div>
+    </div>
+
+    <div class="preview" data-page-node-id="dZZSZ9EDAgIVGsIp3jYJII">
+      <div class="preview-title" data-page-node-id="YzDNqC2PEuJIGAc2lEmIcA">Skeleton 骨架屏</div>
+      <div style="display:flex; flex-direction:column; gap:var(--space-2);" data-page-node-id="r9scc4VbzsIgrVuLPJFCfX">
+        <div class="skel" style="width:30%;" data-page-node-id="JIXAlOwgNLRBcBsDnRtPlp"></div>
+        <div class="skel" style="width:80%;" data-page-node-id="22jK3pxqmG9p3Sz6wFLFWJ"></div>
+        <div class="skel" style="width:65%;" data-page-node-id="j1nFLZWKh0rbEwgG0XKYFf"></div>
+        <div class="skel" style="width:90%; height:80px; margin-top:var(--space-3);" data-page-node-id="i6bge3F95A3CsxIf0wBaG3"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6. A11Y ============ -->
+  <section id="a11y" class="section" data-page-node-id="BBNM5BjSyWeODDeKGzdMB9">
+    <div class="section-header" data-page-node-id="6BWjcph8foDg2CryA1xk3I">
+      <span class="section-num" data-page-node-id="WyV8j1EUsycV0u3PdU2LVy">§ 06</span>
+      <h2 class="section-title" data-page-node-id="6kkqDRYVSCjm21OpBDCntf">Accessibility · WCAG AA 校验</h2>
+    </div>
+    <p class="section-desc" data-page-node-id="QsgwZez9l2NUfYv6trHD3b">所有 Text / 链接组合在白底/Canvas 上验证 ≥ 4.5:1。大字号场景（≥18px / 14px bold）需 ≥3:1，全部通过。</p>
+    <div class="a11y-grid" data-page-node-id="mY0HwupAGf01LvGod9gnt6">
+      <div class="a11y-row" data-page-node-id="UMy5hcSMonq83sXRjXmy9t"><div class="a11y-pair" data-page-node-id="mF6KAOkHyNiNnfgDAXS9Lb"><div class="a11y-swatch" style="background:var(--text-primary);" data-page-node-id="X4h6jGG3F1Py8yMHlYJ8pV"></div><span style="color:var(--text-primary);" data-page-node-id="XYZOEnYZOCA4m1O1NQE0iA">text-primary</span></div><span class="a11y-ratio aaa" data-page-node-id="4pMuGJtPkHZX5BF3L8TuRG">16.8:1 AAA</span></div>
+      <div class="a11y-row" data-page-node-id="8z1BNDMLulo6pLBsXAUuGj"><div class="a11y-pair" data-page-node-id="FuFr4NsYKGysQg5n7Gs1CI"><div class="a11y-swatch" style="background:var(--text-secondary);" data-page-node-id="ptJs23BH4llLNGD6cvs0YB"></div><span style="color:var(--text-secondary);" data-page-node-id="3HGpgpW5eB8RUKiAe9UuAS">text-secondary</span></div><span class="a11y-ratio aaa" data-page-node-id="q5lKtFm0fq8ICA9KAHGHYX">7.5:1 AAA</span></div>
+      <div class="a11y-row" data-page-node-id="2F6mX2jkeWBGYNfKwjE1Zr"><div class="a11y-pair" data-page-node-id="7pDCyYJfAqjZhipbCPt8sP"><div class="a11y-swatch" style="background:var(--text-tertiary);" data-page-node-id="c8qPUHX5bct04ZdCzCQsmM"></div><span style="color:var(--text-tertiary);" data-page-node-id="Xa1jSsoGnBUoHsz9tc2CQW">text-tertiary</span></div><span class="a11y-ratio pass" data-page-node-id="J81YLCQljL4ZTl8M9oXSbw">5.3:1 AA</span></div>
+      <div class="a11y-row" data-page-node-id="B5VRYYRJFAzadkqZ5FVqHS"><div class="a11y-pair" data-page-node-id="1V4gCpXuUWrHwMjbcVCDrA"><div class="a11y-swatch" style="background:var(--brand-600);" data-page-node-id="0t5sG3ZCRaBIDvV6H5j7fL"></div><span style="color:var(--brand-600);" data-page-node-id="BsavI6bL3cD8wU7jYBdaIA">brand-600 (link)</span></div><span class="a11y-ratio pass" data-page-node-id="1WuCf5WSRhjcAy8J7reUGy">6.4:1 AA</span></div>
+      <div class="a11y-row" data-page-node-id="rkzPXDCRFGY4tEPJ6DMRAu"><div class="a11y-pair" data-page-node-id="dJQjkQmz320QrrB0gxCD96"><div class="a11y-swatch" style="background:var(--success-600);" data-page-node-id="RbuA2EYh48nvBnziDB8kwn"></div><span style="color:var(--success-600);" data-page-node-id="rCjZOj5sMAk8vRRGKEvIu2">success-600</span></div><span class="a11y-ratio pass" data-page-node-id="FG5IUv6942oGjFLXF3gDfe">4.9:1 AA</span></div>
+      <div class="a11y-row" data-page-node-id="zF8z0OxD9C4PQ9D85GidbV"><div class="a11y-pair" data-page-node-id="plfUMCbyk8FFheQizdkwHQ"><div class="a11y-swatch" style="background:var(--danger-600);" data-page-node-id="ZyTEKgjt43FTs0oRRSSDeF"></div><span style="color:var(--danger-600);" data-page-node-id="qMHvlnsL74c8AEDZGJI0k0">danger-600</span></div><span class="a11y-ratio pass" data-page-node-id="8QJUguqy10DNwopXQAcdJq">5.7:1 AA</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 7. PAGE DEMO ============ -->
+  <section id="page" class="section" data-page-node-id="INJ7Om18W5OwntoP8o8fgR">
+    <div class="section-header" data-page-node-id="uMT216XCGJGNurjt75omGy">
+      <span class="section-num" data-page-node-id="oOLfbernntbJWWLIXsRQCv">§ 07</span>
+      <h2 class="section-title" data-page-node-id="OoUt7zlavPmF4UpJtqOCua">页面 Demo · 自然语言查询（新设计系统）</h2>
+    </div>
+    <p class="section-desc" data-page-node-id="SapgT4cqEm4k4ja0Nf1CnJ">用本设计系统重做的 NLQuery 页面。明亮主题、IBM Plex Sans、深靛蓝主色。与暗色科研控制台风格（V0 demo）形成对照,可按团队偏好选择。</p>
+
+    <div class="page-demo" data-page-node-id="sWJMq88P9E2wK2R170BN2G">
+
+      <!-- Topbar -->
+      <div class="pd-topbar" data-page-node-id="uEOaQXzulLDaNEY8wnA7j8">
+        <div class="pd-brand" data-page-node-id="2DyaKZPL3MxdSsvjDmJCeF">
+          <div class="pd-logo" data-page-node-id="5cpLqzKIZwFp2j7nZQ0goJ">L</div>
+          <div class="pd-title" data-page-node-id="KOlCjObbCZBcmBgPkH6OMn">LTPMS · 实验教学管理系统</div>
+        </div>
+        <div class="pd-topbar-right" data-page-node-id="rZHPKBR0P1H0fbyFIGLX4X">
+          <div class="pd-search-global" data-page-node-id="aRlBLSmIZ8mmm9t3hIt4BD">⌘K  搜索菜单...</div>
+          <div class="pd-user" data-page-node-id="UAmF6tyUGio1yzffen9OuU">
+            <div class="avatar avatar--sm" data-page-node-id="JhegH6cWqZHYCjHSdi3vt7">张</div>
+            <span style="font-size:var(--text-sm); font-weight:var(--weight-medium);" data-page-node-id="sgryLTXXqaspiNkrFAl8kf">张志远</span>
+            <span class="tag tag--brand" data-page-node-id="lvndpel9KnX94pLudhukJC">ADMIN</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layout -->
+      <div class="pd-layout" data-page-node-id="6yx6VREFii9KShQVuNZ9dA">
+
+        <!-- Sidebar -->
+        <aside class="pd-sidebar" data-page-node-id="5zmzFJujNLzGH3cs0Ez7Ru">
+          <div class="pd-menu" data-page-node-id="zATE0mPddrx2hYpqIdaGMj">
+            <div class="pd-menu-group" data-page-node-id="r0jkDa2j7tz8D38U1Bp6Tg">主导航</div>
+            <a class="pd-menu-item" href="#" data-page-node-id="zEO3zLziheZ9ZyIqp1JrgE"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="nh1Pm8ggvDA8LEKzEYNKdA"><rect x="3" y="3" width="7" height="7" data-page-node-id="jH68HNHOGb3mCebOhccB61"/><rect x="14" y="3" width="7" height="7" data-page-node-id="EBR7Wz2cuCEq4qmhciOKsY"/><rect x="14" y="14" width="7" height="7" data-page-node-id="Q7z623tjgxPxYihU1aU34r"/><rect x="3" y="14" width="7" height="7" data-page-node-id="b11S8jBUL4WhyYZDLGyi4j"/></svg>首页</a>
+            <a class="pd-menu-item" href="#" data-page-node-id="l5cLPSwDNb5b7NM9wtRupf"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="eVp5eaoSJZWcKH9W8WMXKd"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" data-page-node-id="Nl9qyeBn9rlFF9L3Fxlj1n"/></svg>实验室</a>
+            <a class="pd-menu-item" href="#" data-page-node-id="A9sE8OwWp2R4MrQswkCbY0"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="xHZpr2xgJYIHfxMnBHXX5O"><rect x="3" y="4" width="18" height="18" rx="2" data-page-node-id="qu6Sf3GBePxgp1cWDXR1wr"/><line x1="16" y1="2" x2="16" y2="6" data-page-node-id="rHbzQKzaedCQ0wVnzlhMUb"/><line x1="8" y1="2" x2="8" y2="6" data-page-node-id="vBxusehy22rLIYuaq52AUV"/><line x1="3" y1="10" x2="21" y2="10" data-page-node-id="o8DVKUVE9j6eBcGF9h6l4I"/></svg>学期</a>
+            <a class="pd-menu-item" href="#" data-page-node-id="CkltIlsLAd1iUljMsmHUb6"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="iKX9lbsUWBmaZHR7lVl4HW"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" data-page-node-id="uGpGlzFJV2xBhQjqM8PMVf"/><polyline points="14 2 14 8 20 8" data-page-node-id="tyvOHyoJcNBdF0MppBUSkd"/></svg>课表</a>
+            <a class="pd-menu-item" href="#" data-page-node-id="lkD7FDUqeLq45oDxhNLv2B"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="ivgV70uge5ePaS0EwUhTke"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" data-page-node-id="3MtFNZtYmAF3o6mCTVqb3s"/><circle cx="12" cy="7" r="4" data-page-node-id="SYd8GYJHkcI8MOD3MIb4T2"/></svg>教师</a>
+            <a class="pd-menu-item" href="#" data-page-node-id="oYoQCGA65jlkpoMpKRZmYS"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="R0ynFwBJaqHkCXwCWax9dy"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" data-page-node-id="a6DsCaUUznaA07lxgn49JD"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" data-page-node-id="HpEctVKMM14a9CzHfhtlLY"/></svg>课程</a>
+            <a class="pd-menu-item" href="#" data-page-node-id="Hp9u5p8u3XE2xZUaXXKDfq"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="NysDrv9GaLaAcMKKBRAGtN"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 1 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" data-page-node-id="2pAo2ZCt8msG0PME8O7qca"/></svg>实验项目</a>
+            <div class="pd-menu-group" style="margin-top:var(--space-4);" data-page-node-id="IUPDxxM6zGwPL23GuJykoG">数据</div>
+            <a class="pd-menu-item" href="#" data-page-node-id="95tWFUBQ47lFaBDVhwqK8d"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="RRkIOfm0GrHRD88LxQJIXA"><line x1="18" y1="20" x2="18" y2="10" data-page-node-id="BjcVNw0ogakKFPb4amV345"/><line x1="12" y1="20" x2="12" y2="4" data-page-node-id="BRHMpaqTeaqqVcHNLLLBnz"/><line x1="6" y1="20" x2="6" y2="14" data-page-node-id="aBegxX1k0fSH9tNUGsZuQK"/></svg>报表</a>
+            <a class="pd-menu-item pd-menu-item--active" href="#" data-page-node-id="O8L3llAiLG6E7JZRFUmvS7"><svg class="pd-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-page-node-id="WfPgSalcsAykh2sUV54Fir"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" data-page-node-id="MXqH8VswD8Rgttj0WGbHpy"/></svg>NL 查询</a>
+          </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="pd-main" data-page-node-id="3dtwgX7kM8JAxp5eiAGk2J">
+          <div class="pd-pageheader" data-page-node-id="ZtuyCpvsHRBaGgRsvvH11A">
+            <div data-page-node-id="fG2A1wfmjfF7QmQzGtJ1pU">
+              <div class="pd-breadcrumb" data-page-node-id="JFisIrHn7zRrGMNlOf7hVZ">
+                <a href="#" data-page-node-id="1uPm7aQW8aBf5rFB8K27HA">首页</a><span data-page-node-id="spo4kBwqlVuTPrjdmIyvwI">/</span><span data-page-node-id="b1ETvAQfSYHDsPe9FdFR8v">自然语言查询</span>
+              </div>
+              <h2 class="pd-h1" data-page-node-id="GHsidyEuqyVMkgsJ32uYSl">实验数据查询<small data-page-node-id="gdWYQo2EA6fY2hAF7py80A">// NL2SQL console</small></h2>
+            </div>
+            <button class="btn btn--secondary btn--md" data-page-node-id="jopyF9vQrQE8c8M513skW1">查询历史</button>
+          </div>
+
+          <!-- Query hero -->
+          <div class="pd-query-card" data-page-node-id="IXa8lBfCHX5Izzs18t5KA5">
+            <div class="pd-query-helper" data-page-node-id="AgBtBRhIvbuD0H9Kf6wjab">
+              <span class="kbd" data-page-node-id="oj9ZA7MQG5scSpNFVfw0LV">⌘</span><span class="kbd" data-page-node-id="iVTJpv9GQLy8FMCPTVowmW">K</span><span data-page-node-id="dfAqoGFxmsrz7hPbNrpIrQ">快速聚焦</span>
+              <span style="margin-left:auto;" data-page-node-id="BHcVcE5MVVXEr2PwbJKr1S">平均响应 2-8s · 上限 15s</span>
+            </div>
+            <div class="pd-query-row" data-page-node-id="Vbr9rJmjBBFMs43LOqTYVw">
+              <input class="pd-query-input" placeholder="试试问:列出 36栋401 实验室本学期所有任课教师及课程数..." data-page-node-id="NbarKhkDzIPuAo4xkucgZ8" />
+              <button class="btn btn--primary btn--md" data-page-node-id="LRHLWcnJi0pqfA1L5X80Eh">查询</button>
+            </div>
+          </div>
+
+          <!-- Examples -->
+          <div class="pd-examples" data-page-node-id="8CSgBKRN28L3TfZ5WwL9Pn">
+            <button class="pd-example" data-page-node-id="05melEXm4mOoCh83nex4eg">列出 36栋401 实验室本学期所有任课教师及课程数</button>
+            <button class="pd-example" data-page-node-id="QcDX4FUMbKE4PqIQewSFUC">统计本学期各实验室上课人时数,按人时数降序</button>
+            <button class="pd-example" data-page-node-id="T38yvqdXDvCq1hAsFplvav">哪些实验项目学时数超过 4 学时?返回项目名和教师</button>
+          </div>
+
+          <!-- Result -->
+          <div class="pd-result-layout" data-page-node-id="cYe4rqVqtR2EdjLjKzz4Ok">
+            <div class="pd-result" data-page-node-id="e47z6EtoHEpw8xzHSjyJIv">
+              <div class="pd-result-head" data-page-node-id="4j6Kvzydif30jwg3oeRQdS">
+                <div class="pd-result-title" data-page-node-id="5lrpOQPsVpH1fbcJ9CgEGa">
+                  查询结果 <span class="count" data-page-node-id="9hzR8DSpbVS3C3C5E8fpIY">6 条</span>
+                </div>
+                <div class="pd-result-meta" data-page-node-id="46qD73LO9wuBL6TGwCv7pP">
+                  <span data-page-node-id="eIPdhQZ4yVa4TRbvEpFm5G">耗时 <strong data-page-node-id="kxqqJ8rX0HtTEn1Bw8yjCZ">2.31s</strong></span>
+                  <span data-page-node-id="Cxd3b1ZAnSKE569YaoGqVK">权限:ADMIN · SQL 已注入</span>
+                </div>
+              </div>
+
+              <div class="table-wrap" style="border:none; border-radius:0;" data-page-node-id="vswq0S8lIum7ceKFfQB8HJ">
+                <table class="t" data-page-node-id="GVMMaLiZFyT7dCTWgdlclb">
+                  <thead data-page-node-id="VBpOBqTLlRYQYNz58zyg5l">
+                    <tr data-page-node-id="GAlChSxAEzeNt6LQLnGm0O">
+                      <th data-page-node-id="MjH0cQ0O5wXNQnud2uQ3vQ">课程号</th><th data-page-node-id="FHmPzrEuDUAxvOxEe2L61X">课程名</th><th data-page-node-id="5T08UWPrtFqC81oRoEVBSA">任课教师</th><th data-page-node-id="qSU6TvCt7tRjOLq4p9TRqe">实验室</th><th data-page-node-id="zi7xCQA58g8xQKScgJ2VkQ">面向专业</th><th class="right" data-page-node-id="dZ7O1t5gPnFwPj8lbh270a">项目数</th>
+                    </tr>
+                  </thead>
+                  <tbody data-page-node-id="A1lLT93TWuYBoz6YlwCfiW">
+                    <tr data-page-node-id="OFu0MoK4pEHyB7TMCyRBzT"><td class="mono" data-page-node-id="2rvKwGbH5qaEMsS6vqgJA7">CS101</td><td data-page-node-id="N8ZwwZ9SQjQqDfbj5bcE4f">数据结构实验</td><td data-page-node-id="pvwLHw2y4WPdtG00Vbs06G"><div style="display:flex;align-items:center;gap:var(--space-2);" data-page-node-id="CxkshMMkhxEt2Rd7OGB6B6"><div class="avatar avatar--sm" style="background:var(--brand-100);" data-page-node-id="sNOtFlaHN8GYQoPqnXOFzh">张</div>张三</div></td><td data-page-node-id="QOJV2ljfy4e12ypRIY1cPm">36-401</td><td data-page-node-id="Apmqmpio8sFAD0sROkkEop">计算机科学与技术</td><td class="right" data-page-node-id="HOs4t0a7GoII42NBCXZf6V">8</td></tr>
+                    <tr data-page-node-id="E1CDDvs1YGeog1EsYRGMLI"><td class="mono" data-page-node-id="85lztZNYWpBVOv2Xek8git">CS201</td><td data-page-node-id="b44f2uG2FMYzdAZnYyC9V7">操作系统实验</td><td data-page-node-id="Y7OvIVbX1LMuf16bijCkv4"><div style="display:flex;align-items:center;gap:var(--space-2);" data-page-node-id="muSvTXeOTmq2XtEe9WEZ2z"><div class="avatar avatar--sm" style="background:var(--success-50); color:var(--success-700);" data-page-node-id="IrMWvFHbkl6hFFSUt1TdHh">李</div>李四</div></td><td data-page-node-id="ErFffy8BCHatowLN6z17yR">36-401</td><td data-page-node-id="PS36GGEldmNPXTQk7pC8Qf">计算机科学与技术</td><td class="right" data-page-node-id="zKRWxzj9UaflSlW373cCuj">6</td></tr>
+                    <tr data-page-node-id="bxEBduYXVPD5Cahz89cGSm"><td class="mono" data-page-node-id="qyR9wJQSRAEb9K4TBm7pNM">SE301</td><td data-page-node-id="Jbdh1bFHpew8D3DoYvjc2N">软件工程实践</td><td data-page-node-id="9gH1Qcq2befqQURoCWySqF"><div style="display:flex;align-items:center;gap:var(--space-2);" data-page-node-id="G68BBthfd006VlImczAwNF"><div class="avatar avatar--sm" style="background:var(--warning-50); color:var(--warning-600);" data-page-node-id="eZTR2czC6w7DBdX5STziQw">王</div>王五</div></td><td data-page-node-id="uGt2gB5AgrZ9RveftQadLd">36-401</td><td data-page-node-id="UPPpqbcGPHEgVHOUxbKPfw">软件工程</td><td class="right" data-page-node-id="CIxtbv5aX0pSozwDOEl2MV">5</td></tr>
+                    <tr data-page-node-id="fhsTLLUUOEVeUSAHT4gn7t"><td class="mono" data-page-node-id="gX1pytzQpWrCy85cA6fB40">AI401</td><td data-page-node-id="zlt0foi8Qe7BvAFhKLHwi2">机器学习实验</td><td data-page-node-id="Bcdnb7QbJzOag5u6VM3huC"><div style="display:flex;align-items:center;gap:var(--space-2);" data-page-node-id="SAPkNlDJfDBugUOAT9NCWx"><div class="avatar avatar--sm" style="background:var(--danger-50); color:var(--danger-600);" data-page-node-id="0ZdPc9ncGI2HLMBQjsrP1G">赵</div>赵六</div></td><td data-page-node-id="gbsAvpOVnqdtLYEIKjjbHF">36-401</td><td data-page-node-id="9gzbI4mWgRsT8Nqu1YQ5O8">人工智能</td><td class="right" data-page-node-id="bKT3QuuD96L3bfQokjL6vM">7</td></tr>
+                    <tr data-page-node-id="XzdAiDU6OIn8KqicV8JOQx"><td class="mono" data-page-node-id="DBkzfi6ObBx76mslgH7e17">DB501</td><td data-page-node-id="FraDXyOvU00udcydgxMU96">数据库系统实验</td><td data-page-node-id="LZg5K5kzhoXXnDumV714GG"><div style="display:flex;align-items:center;gap:var(--space-2);" data-page-node-id="jrnHpIoepIT39TTA3bHdsh"><div class="avatar avatar--sm" style="background:var(--brand-200); color:var(--brand-800);" data-page-node-id="DL2L37BQHLnFCg3ygs8QFw">钱</div>钱七</div></td><td data-page-node-id="KBBAMiAFjwwyt8c85wGjkY">36-401</td><td data-page-node-id="GBWyDFric9h2R6l7BpJm8z">数据科学</td><td class="right" data-page-node-id="xiDbUTPXsF1ErwDGHSoenJ">4</td></tr>
+                    <tr data-page-node-id="T2T7GDpozXwS1v108eS0Ei"><td class="mono" data-page-node-id="UsKIdw6iZ9rtxpGal59QdG">NET601</td><td data-page-node-id="PPVqoUfON7fy5VbygdSWDh">计算机网络实验</td><td data-page-node-id="8L6NZXI7ZnbC24NJoY1UHY"><div style="display:flex;align-items:center;gap:var(--space-2);" data-page-node-id="03z3SzoBnFCusqyxA3zq9u"><div class="avatar avatar--sm" style="background:var(--brand-50); color:var(--brand-700);" data-page-node-id="OtXOEG1awjAMGe5xFcxEap">孙</div>孙八</div></td><td data-page-node-id="NECiIbREGPvA63NgLXRAeF">36-401</td><td data-page-node-id="zzywqzu45ygBWSkKNtdMue">网络工程</td><td class="right" data-page-node-id="IcFOhGvcOISi3xhtgfyOPE">5</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="pd-sql" data-page-node-id="5VCBNSc3C3PVAkr4BRNFJ0">
+                <button class="pd-sql-toggle" onclick="toggleSql(this)" data-page-node-id="DZ1ABb7bAkRds8CHmYS1Cd">
+                  <span data-page-node-id="RZkfsAl3dDubXBHJPnLmab">▾ 生成的 SQL · 自动注入数据权限</span>
+                  <span style="font-family:var(--font-mono); color:var(--brand-600);" data-page-node-id="BJq7IoboQUVhAejrTB0SvX">1 query · 6 rows</span>
+                </button>
+                <div class="pd-sql-body" data-page-node-id="iEVHHK4XjqEcYj22s24U34">
+<pre data-page-node-id="p4rbZu2xD6KFjF1UiYGyzS"><span class="kw" data-page-node-id="8t5DULCB73opA33kKZq5G0">SELECT</span> c.course_code, c.course_name, u.real_name <span class="kw" data-page-node-id="gFCFRJ7gHCfxDkKbGfyPS5">AS</span> teacher,
+       l.lab_code, c.major, <span class="kw" data-page-node-id="EUjFzjOYdIHeDKPHHlHmu6">COUNT</span>(e.id) <span class="kw" data-page-node-id="hpPXa3SFsQ6Z1eLEBH0uhD">AS</span> project_count
+  <span class="kw" data-page-node-id="8jwDyVIajuzpQCJbsVWCLk">FROM</span> course c
+  <span class="kw" data-page-node-id="AcgJ5HTzHkFy22aVB8XPk3">JOIN</span> schedule s <span class="kw" data-page-node-id="Vex9IIG1xG4QsP8tyNZIDk">ON</span> s.course_code = c.course_code <span class="kw" data-page-node-id="sKpdtOQRhCWDjduySHT3SH">AND</span> s.semester_id = c.semester_id
+  <span class="kw" data-page-node-id="AyyrKDSPmhLZLpUoxfYVjS">JOIN</span> user u <span class="kw" data-page-node-id="cP0ygcg3aNCtBgLDqClvCE">ON</span> u.id = c.teacher_id
+  <span class="kw" data-page-node-id="iI2r6lq35O0QkBgHTW4EoY">JOIN</span> laboratory l <span class="kw" data-page-node-id="Bvh83UpTcClR10Wgh7e1qA">ON</span> l.lab_code = s.lab_code
+  <span class="kw" data-page-node-id="EIOgFbqWjtkM20LQvGQD4F">LEFT JOIN</span> experiment e <span class="kw" data-page-node-id="9S8NGqDUtIuiFbObk4C8XL">ON</span> e.course_id = c.id
+ <span class="kw" data-page-node-id="JE4Sjr38ktwcp2yc4XkKwF">WHERE</span> c.semester_id = <span class="num" data-page-node-id="awrR2UsCm1fmc6WJrLIkea">5</span>
+   <span class="kw" data-page-node-id="GCrqnI2t0uwvLGEqhz3Zzz">AND</span> l.lab_code = <span class="str" data-page-node-id="yyAGCQsKFIYGqEnf1caJKX">'36-401'</span>
+   <span class="hl" data-page-node-id="VMnkDYSF5b7vlYSJdbFzNy">AND c.teacher_id = :current_user_id</span> <span class="ann" data-page-node-id="Wf7V36SEPjBBhrSshnvIHS">-- 权限注入</span>
+ <span class="kw" data-page-node-id="9cAcG9VPVGEOYkCo1Hhtwg">GROUP BY</span> c.id
+ <span class="kw" data-page-node-id="C1N1ipKnUxLSdt6Go2YezL">ORDER BY</span> c.course_code
+ <span class="kw" data-page-node-id="DbcxsUSkjnYUh27sczFvkx">LIMIT</span> <span class="num" data-page-node-id="iuBuDcJzjmn2mGiUlZ6DZh">500</span>;</pre>
+                </div>
+              </div>
+
+              <div class="pd-suggest" data-page-node-id="uetFyLc5vGMW2J1IcrbBsB">
+                <div class="pd-suggest-label" data-page-node-id="LsssOFtAhAePLDPHWlnyMG">→ 继续追问</div>
+                <div class="pd-chips" data-page-node-id="sNZQdmtZEeJGDOmXIMqglv">
+                  <span class="pd-chip" data-page-node-id="P6bsSZaa7zD2vM7C0HORkT">统计这些课程的实验人时数合计</span>
+                  <span class="pd-chip" data-page-node-id="kyunt69y6syAEvNf7KZUpw">列出 CS101 的所有实验项目详情</span>
+                  <span class="pd-chip" data-page-node-id="xsMUICFHSzxYCMPl69l6sg">这些课程面向哪些专业?</span>
+                  <span class="pd-chip" data-page-node-id="v4R0FC2TDtrADXavNJCqoH">本学期该实验室设备利用率?</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- History -->
+            <aside class="pd-history" data-page-node-id="pW95UqUStDrLLgV2RmxUTg">
+              <div class="pd-history-head" data-page-node-id="TZpYC77DyaZAkmyw525y5y">
+                <div class="pd-history-title" data-page-node-id="oCqegWA9VHQWqskdxXYhWa">查询历史</div>
+                <span class="tag tag--neutral" data-page-node-id="KjrSuSsG7kMkWTQZT1Sox7">14</span>
+              </div>
+              <div class="pd-history-item" data-page-node-id="QU9MIDtu0jBNLmZTDOAXC2">
+                <div class="pd-history-time" data-page-node-id="zzOUHylGVoywtUSaacMBlP">刚刚 · 09:48</div>
+                <div class="pd-history-q" data-page-node-id="XkOn9Etmkdzz5Mo4exdwCm">列出 36栋401 实验室本学期所有课程</div>
+                <div class="pd-history-meta" data-page-node-id="XvfHRGwiZtXf89QAxGG2Vy"><span class="ok" data-page-node-id="CF6LoavyA73JD5Ef37oAqH">●</span> 6 行 · 2.3s</div>
+              </div>
+              <div class="pd-history-item" data-page-node-id="Tr6f3Ccw577GY9J8p89Uat">
+                <div class="pd-history-time" data-page-node-id="eZN9crDPw2aOgzsBUOY14t">昨天 · 16:20</div>
+                <div class="pd-history-q" data-page-node-id="J3XykxS07HY2GkmAmLLptf">统计本学期各实验室人时数,按人时数降序</div>
+                <div class="pd-history-meta" data-page-node-id="EjhUFzjcJJYlGeUB4zaC5w"><span class="ok" data-page-node-id="I22UjrQSghFpJZNJ2SS4jt">●</span> 5 行 · 3.1s</div>
+              </div>
+              <div class="pd-history-item" data-page-node-id="Cnnjq2p1Ggb5X598nm7Rnn">
+                <div class="pd-history-time" data-page-node-id="k2gl4UCeyBzkUsNjPWQBHx">9/05 · 周五</div>
+                <div class="pd-history-q" data-page-node-id="MH4sBGJsXJaK2V3bXkGqmA">修改本学期的课程</div>
+                <div class="pd-history-meta" data-page-node-id="9u1H2f5fVbxiIkOPgHDTdF"><span style="color:var(--warning-600);" data-page-node-id="bHaeRq4GEPjN5H7UQBausX">●</span> 拒绝 · 44001</div>
+              </div>
+              <div class="pd-history-item" data-page-node-id="37qR3l6dgqDHOMRuMPrHu6">
+                <div class="pd-history-time" data-page-node-id="L69L9VYMhdYoDJuvW4fHvK">9/04 · 周四</div>
+                <div class="pd-history-q" data-page-node-id="JxsT3EekG2ql4YKGsphBNf">显示张三老师本学期的实验项目</div>
+                <div class="pd-history-meta" data-page-node-id="n980QwxzVUoZ3lg2fV3K2J"><span class="ok" data-page-node-id="WxcZT4HBo7VPjPd7cOuFDq">●</span> 23 行 · 1.8s</div>
+              </div>
+            </aside>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// Theme toggle
+document.querySelectorAll('[data-theme-btn]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const theme = btn.dataset.themeBtn;
+    document.documentElement.dataset.theme = theme;
+    document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+// Switch component
+document.querySelectorAll('.sw').forEach(sw => {
+  sw.addEventListener('click', () => sw.setAttribute('aria-checked', sw.getAttribute('aria-checked') === 'true' ? 'false' : 'true'));
+  sw.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      sw.click();
+    }
+  });
+});
+
+// SQL drawer
+function toggleSql(btn) {
+  const body = btn.nextElementSibling;
+  body.classList.toggle('open');
+  btn.querySelector('span').textContent = body.classList.contains('open') ? '▴ 生成的 SQL · 自动注入数据权限' : '▾ 生成的 SQL · 自动注入数据权限';
+}
+
+// Fill example
+document.querySelectorAll('.pd-example').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelector('.pd-query-input').value = btn.textContent;
+    document.querySelector('.pd-query-input').focus();
+  });
+});
+</script>
+</body>
+</html>

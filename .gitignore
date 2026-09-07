@@ -1,0 +1,31 @@
+# ===== 构建产物 =====
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# ===== 本地运行数据（MySQL 数据目录、临时验证文件，严禁入库） =====
+.tools/
+
+# ===== WorkBuddy 本地会话/记忆数据 =====
+.workbuddy/
+
+# ===== Office 临时锁文件 =====
+~$*
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.iml
+
+# ===== 环境与密钥 =====
+.env
+*.env
+!*.env.development
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+*.log
+
+# ===== Vite 临时文件 =====
+frontend/vite.config.ts.timestamp-*.mjs

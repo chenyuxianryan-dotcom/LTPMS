@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ltpms.mapper.ReportMapper">
+
+    <!-- 实验室课程项目统计 -->
+    <select id="selectCourseProjectStats" resultType="com.ltpms.dto.ReportDetailItem">
+        SELECT
+            s.lab_code AS labCode,
+            MAX(l.lab_name) AS labName,
+            c.course_code AS courseCode,
+            MAX(c.course_name) AS courseName,
+            MAX(u.real_name) AS teacherName,
+            COUNT(DISTINCT e.id) AS experimentCount,
+            NULL AS personHours
+        FROM schedule s
+        LEFT JOIN laboratory l ON s.lab_code = l.lab_code
+        LEFT JOIN course c ON s.course_code = c.course_code AND s.semester_id = c.semester_id
+        LEFT JOIN user u ON c.teacher_id = u.id
+        LEFT JOIN experiment e ON c.id = e.course_id
+        WHERE s.semester_id IN (
+            SELECT id FROM semester WHERE academic_year = #{academicYear}
+        )
+        <if test="teacherId != null">
+            AND c.teacher_id = #{teacherId}
+        </if>
+        GROUP BY s.lab_code, c.course_code
+        ORDER BY s.lab_code, c.course_code
+    </select>
+
+    <!-- 实验室人时数统计 -->
+    <select id="selectPersonHours" resultType="com.ltpms.dto.ReportDetailItem">
+        SELECT
+            s.lab_code AS labCode,
+            MAX(l.lab_name) AS labName,
+            c.course_code AS courseCode,
+            MAX(c.course_name) AS courseName,
+            MAX(u.real_name) AS teacherName,
+            COUNT(DISTINCT e.id) AS experimentCount,
+            SUM(c.total_hours * s.student_count) AS personHours
+        FROM schedule s
+        LEFT JOIN laboratory l ON s.lab_code = l.lab_code
+        LEFT JOIN course c ON s.course_code = c.course_code AND s.semester_id = c.semester_id
+        LEFT JOIN user u ON c.teacher_id = u.id
+        LEFT JOIN experiment e ON c.id = e.course_id
+        WHERE s.semester_id IN (
+            SELECT id FROM semester WHERE academic_year = #{academicYear}
+        )
+        <if test="teacherId != null">
+            AND c.teacher_id = #{teacherId}
+        </if>
+        GROUP BY s.lab_code, c.course_code
+        ORDER BY s.lab_code, c.course_code
+    </select>
+
+</mapper>

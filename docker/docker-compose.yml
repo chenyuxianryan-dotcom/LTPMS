@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: ltpms-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ltpms_db
+      MYSQL_USER: ltpms
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ../database/dict_data.sql:/docker-entrypoint-initdb.d/02-dict_data.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ltpms-backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+    container_name: ltpms-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ltpms_db
+      DB_USER: ltpms
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: 7200000
+      NLQ_SERVICE_URL: http://ltpms-nlq:8001
+      NLQ_INTERNAL_TOKEN: ${NLQ_INTERNAL_TOKEN}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  ltpms-nlq:
+    build:
+      context: ..
+      dockerfile: docker/nlq-service/Dockerfile
+    container_name: ltpms-nlq
+    expose:
+      - "8001"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ltpms_db
+      DB_USER: ltpms_readonly
+      DB_PASSWORD: ${NLQ_DB_PASSWORD}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_API_URL: https://api.deepseek.com/chat/completions
+      DEEPSEEK_MODEL: deepseek-chat
+      DEEPSEEK_TIMEOUT: 15
+      NLQ_INTERNAL_TOKEN: ${NLQ_INTERNAL_TOKEN}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  ltpms-frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend/Dockerfile
+    container_name: ltpms-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - ltpms-backend
+
+volumes:
+  mysql_data:
