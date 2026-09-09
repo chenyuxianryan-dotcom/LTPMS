@@ -76,7 +76,8 @@ public class AuthService {
                 user.getUsername(),
                 user.getRealName(),
                 user.getRole(),
-                user.getIsDefaultPwd()
+                user.getIsDefaultPwd(),
+                user.getAvatar()
         );
 
         return new LoginResponse(token, userInfo);
@@ -148,7 +149,8 @@ public class AuthService {
                 user.getUsername(),
                 user.getRealName(),
                 user.getRole(),
-                user.getIsDefaultPwd()
+                user.getIsDefaultPwd(),
+                user.getAvatar()
         );
     }
 }

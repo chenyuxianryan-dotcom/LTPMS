@@ -23,6 +23,8 @@ public class User {
     private String role;
     private String department;
     private String phone;
+    /** 头像：preset:avatar-XX（内置默认头像）或 /api/v1/files/avatar/xxx.png（本地上传），NULL=未设置 */
+    private String avatar;
     private Integer status;
     private Integer isDefaultPwd;
     private Integer failedAttempts;

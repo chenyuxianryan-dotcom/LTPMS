@@ -24,5 +24,7 @@ public class LoginResponse {
         private String realName;
         private String role;
         private Integer isDefaultPwd;
+        /** 头像标识（preset:avatar-XX 或上传文件 URL），可为空 */
+        private String avatar;
     }
 }

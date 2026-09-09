@@ -24,6 +24,8 @@ export interface IUserInfo {
   role: TRole;
   department?: string;
   isDefaultPwd?: boolean;
+  /** 头像：preset:avatar-XX（内置）或 /api/v1/files/avatar/x.png（上传）；空=按用户 ID 取默认 */
+  avatar?: string | null;
 }
 
 export interface ILoginResult {
@@ -75,6 +77,8 @@ export interface ITeacher {
   status: number;
   isDefaultPwd: number;
   createdAt: string;
+  /** 头像：preset:avatar-XX（内置）或 /api/v1/files/avatar/x.png（上传）；空=按用户 ID 取默认 */
+  avatar?: string | null;
 }
 
 export interface ICourse {

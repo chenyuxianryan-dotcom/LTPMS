@@ -234,6 +234,10 @@ function goCourseExperiments(cell: IStatCell): void {
 }
 
 onMounted(async () => {
+  // 刷新直达 /dashboard 时 fetchMe 可能未返回，role 为空会走错分支（教师接口对管理员 403）
+  if (!userStore.user) {
+    await userStore.fetchMe().catch(() => undefined);
+  }
   if (userStore.isAdmin) {
     adminOverview.value = await apiGetAdminOverview();
   } else {

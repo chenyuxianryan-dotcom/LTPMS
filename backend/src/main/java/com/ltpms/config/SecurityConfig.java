@@ -42,6 +42,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/login").permitAll()
+                // 头像等静态文件：img 标签无法带 Authorization 头，放行（仅图片资源，路径已做穿越防护）
+                .requestMatchers("/api/v1/files/avatar/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
             )

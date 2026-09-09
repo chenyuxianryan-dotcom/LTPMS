@@ -28,6 +28,9 @@ ltpms:
   jwt:
     secret: ${JWT_SECRET:please-change-me-in-production}
     expiration: ${JWT_EXPIRATION:7200000}
+  upload:
+    # 头像上传存储目录（相对后端工作目录）
+    avatar-dir: ${UPLOAD_AVATAR_DIR:./uploads/avatar}
   nlq:
     service-url: ${NLQ_SERVICE_URL:http://localhost:8001}
     internal-token: ${NLQ_INTERNAL_TOKEN:}

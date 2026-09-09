@@ -19,6 +19,7 @@ CREATE TABLE `user` (
     `role` ENUM('ADMIN','TEACHER') NOT NULL DEFAULT 'TEACHER' COMMENT '角色',
     `department` VARCHAR(64) DEFAULT NULL COMMENT '所属院系',
     `phone` VARCHAR(20) DEFAULT NULL COMMENT '联系电话',
+    `avatar` VARCHAR(255) DEFAULT NULL COMMENT '头像:preset:avatar-XX(内置)或/api/v1/files/avatar/x.png(上传);NULL=未设置(按用户ID取默认)',
     `status` TINYINT NOT NULL DEFAULT 1 COMMENT '0=禁用 1=启用',
     `is_default_pwd` TINYINT NOT NULL DEFAULT 1 COMMENT '1=默认密码（首次登录强制改密）',
     `failed_attempts` INT NOT NULL DEFAULT 0 COMMENT '连续登录失败次数',

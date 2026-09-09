@@ -13,6 +13,20 @@
     </div>
 
     <el-table v-loading="loading" :data="records" border stripe>
+      <el-table-column label="头像" width="76" align="center">
+        <template #default="{ row }">
+          <el-tooltip content="点击更换头像" placement="top">
+            <el-avatar
+              :size="40"
+              :src="resolveAvatarUrl(row.id, row.avatar)"
+              class="teacher-avatar"
+              @click="openAvatarPicker(row)"
+            >
+              {{ row.realName?.slice(0, 1) }}
+            </el-avatar>
+          </el-tooltip>
+        </template>
+      </el-table-column>
       <el-table-column prop="username" label="工号" width="120" />
       <el-table-column prop="realName" label="姓名" width="120" />
       <el-table-column prop="department" label="所属院系" min-width="160" />
@@ -46,6 +60,7 @@
       @size-change="loadData"
     />
 
+    <AvatarPickerDialog v-model="avatarPickerVisible" :user="pickerUser" @saved="onAvatarSaved" />
     <ImportDialog
       v-model="importVisible"
       title="教师导入"
@@ -60,8 +75,10 @@
 import { onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Search, Upload } from '@element-plus/icons-vue';
+import AvatarPickerDialog from '@/components/AvatarPickerDialog.vue';
 import ImportDialog from '@/components/ImportDialog.vue';
 import { apiListTeachers, apiResetTeacherPassword, apiUpdateTeacherStatus } from '@/api/teacher';
+import { resolveAvatarUrl } from '@/utils/avatar';
 import type { ITeacher } from '@/types/api';
 
 const keyword = ref('');
@@ -71,6 +88,8 @@ const total = ref(0);
 const loading = ref(false);
 const records = ref<ITeacher[]>([]);
 const importVisible = ref(false);
+const avatarPickerVisible = ref(false);
+const pickerUser = ref<{ id: number; realName: string; avatar?: string | null } | null>(null);
 
 async function loadData(): Promise<void> {
   loading.value = true;
@@ -86,6 +105,19 @@ async function loadData(): Promise<void> {
 function handleSearch(): void {
   page.value = 1;
   void loadData();
+}
+
+/** 打开头像选择器（管理员为教师更换头像） */
+function openAvatarPicker(row: ITeacher): void {
+  pickerUser.value = { id: row.id, realName: row.realName, avatar: row.avatar };
+  avatarPickerVisible.value = true;
+}
+
+function onAvatarSaved(avatar: string): void {
+  if (pickerUser.value) {
+    const row = records.value.find((r) => r.id === pickerUser.value?.id);
+    if (row) row.avatar = avatar;
+  }
 }
 
 async function handleStatusChange(row: ITeacher, value: string | number | boolean): Promise<void> {
@@ -113,5 +145,18 @@ onMounted(() => {
 .page-container__pagination {
   margin-top: var(--space-4);
   justify-content: flex-end;
+}
+
+// 教师头像：可点击更换
+.teacher-avatar {
+  cursor: pointer;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 0 0 3px var(--brand-100);
+    transform: scale(1.08);
+  }
 }
 </style>
