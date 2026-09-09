@@ -145,6 +145,9 @@ export interface INlqResult {
   columns?: string[];
   rows?: unknown[][];
   suggestions?: string[];
+  /** nlq-service(FastAPI) 实际返回 snake_case；rowCount/executionTime 为历史遗留别名 */
+  row_count?: number;
+  execution_time?: number;
   rowCount?: number;
   executionTime?: number;
   error?: string;
