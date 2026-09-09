@@ -7,6 +7,7 @@
 
     <!-- 上层：落地页覆盖层，撕成两半 -->
     <div
+      id="hero"
       class="landing-page__overlay"
       :class="{ 'is-shaking': shaking, 'is-leaving': leaving }"
     >
@@ -67,30 +68,57 @@
       </div>
     </div>
 
-    <!-- 功能描述区（标签卡点击后下滚至此） -->
-    <section class="landing-features">
-      <div class="landing-features__head">
-        <span class="landing-features__eyebrow">SYSTEM FEATURES</span>
-        <h2 class="landing-features__title">四大核心功能</h2>
-      </div>
-      <div class="landing-features__grid">
-        <article
-          v-for="f in FEATURES"
-          :id="f.anchor"
-          :key="f.anchor"
-          class="feature-card"
-          :style="{ '--rot': f.rot }"
-        >
-          <span class="feature-card__en">{{ f.en }}</span>
-          <h3 class="feature-card__title">{{ f.title }}</h3>
-          <p class="feature-card__desc">{{ f.desc }}</p>
-          <ul class="feature-card__list">
+    <!-- 功能描述页（每项功能独立一页，标签卡点击翻滚至此） -->
+    <template v-for="f in FEATURES" :key="f.anchor">
+      <section :id="f.anchor" class="feat-panel" :class="`feat-panel--${f.theme}`">
+        <span class="feat-panel__ghost" aria-hidden="true">{{ f.serial }}</span>
+        <div class="feat-sheet">
+          <i class="feat-sheet__tape feat-sheet__tape--l" aria-hidden="true" />
+          <i class="feat-sheet__tape feat-sheet__tape--r" aria-hidden="true" />
+          <header class="feat-sheet__head">
+            <span class="feat-sheet__form">{{ f.form }}</span>
+            <span class="feat-sheet__en">{{ f.en }}</span>
+          </header>
+          <h3 class="feat-sheet__title">{{ f.serial }} · {{ f.title }}</h3>
+          <p class="feat-sheet__desc">{{ f.desc }}</p>
+
+          <!-- 终端主题：NL2SQL 会话演示 -->
+          <div v-if="f.theme === 'terminal'" class="feat-term" aria-hidden="true">
+            <div class="feat-term__line">&gt; {{ f.term }}</div>
+            <div class="feat-term__line feat-term__line--ai">[AI] 生成 SQL · 注入数据权限 · 执行查询 (0.8s)</div>
+            <div class="feat-term__line feat-term__line--ok">✓ 查询完成 · 返回 128 行</div>
+            <div class="feat-term__line">&gt; <span class="feat-term__cursor">_</span></div>
+          </div>
+
+          <ul class="feat-sheet__list">
             <li v-for="point in f.points" :key="point">{{ point }}</li>
           </ul>
-        </article>
-      </div>
-      <button class="landing-features__top" type="button" @click="scrollTop">回到顶部 ↑</button>
-    </section>
+
+          <!-- 报表主题：迷你柱状图 -->
+          <div v-if="f.theme === 'report'" class="feat-bars" aria-hidden="true">
+            <i style="--h: 42%" /><i style="--h: 66%" /><i style="--h: 35%" /><i style="--h: 78%" /><i style="--h: 55%" />
+          </div>
+
+          <footer class="feat-sheet__foot">
+            <span>LTPMS · 实验教学项目管理系统</span>
+            <span class="feat-sheet__stamp">{{ f.stamp }}</span>
+          </footer>
+        </div>
+      </section>
+    </template>
+
+    <!-- 右侧分页圆点导航 -->
+    <div class="landing-page__dots" :class="{ 'is-hidden': tearing || leaving }">
+      <button
+        v-for="d in DOTS"
+        :key="d.id"
+        type="button"
+        class="landing-page__dot"
+        :class="{ 'is-active': activeSection === d.id }"
+        :aria-label="d.label"
+        @click="scrollToSection(d.id)"
+      />
+    </div>
 
     <!-- 电源开关（悬浮，任意位置可进入系统） -->
     <div class="landing-page__power" :class="{ 'is-hidden': tearing || leaving }">
@@ -151,41 +179,79 @@ const TAGS = [
   { title: '报表中心', en: 'REPORT', anchor: 'feature-report', pos: { left: '10%', bottom: '9%' }, rot: -1.5 },
 ] as const;
 
-// ---------- 功能描述数据（与标签卡一一对应） ----------
+// ---------- 功能描述页数据（每项功能独立一页，主题各异） ----------
 const FEATURES = [
   {
     anchor: 'feature-laboratory',
+    serial: '01',
+    form: 'FORM LT-01 · 实验室台账',
     en: 'LABORATORY',
     title: '实验室管理',
-    rot: '-0.6deg',
-    desc: '全校实验室台账，使用状态一目了然。',
-    points: ['实验室编号 / 名称 / 负责人 / 设备数统一维护', '启用 / 停用状态管理', '与课表联动，本学期占用情况实时可见'],
+    theme: 'paper-blue',
+    stamp: 'IN USE · 使用中',
+    desc: '全校实验室统一建档，一台一档，账实相符。从编号到负责人、从设备数到启用状态，每间实验室都有一页属于自己的档案。',
+    points: [
+      '实验室编号 / 名称 / 负责人 / 设备数统一维护',
+      '启用 / 停用状态管理，编号唯一性校验',
+      '与课表联动，本学期占用情况实时可见',
+    ],
   },
   {
     anchor: 'feature-experiment',
+    serial: '02',
+    form: 'FORM LT-02 · 实验记录卡',
     en: 'EXPERIMENT',
     title: '实验项目',
-    rot: '0.5deg',
-    desc: '教师按课程维护自己的实验项目库。',
-    points: ['实验编号自动生成（课程号-学期-流水号）', '类别 / 类型 / 学科等字段字典化配置', '支持 Excel 批量导入与从上学期一键复制'],
+    theme: 'paper-amber',
+    stamp: '已归档 · INDEXED',
+    desc: '实验项目按课程建卡，编号规则可追溯。类别、类型、学科全部字典化配置，像整理一叠实验记录卡一样井井有条。',
+    points: [
+      '实验编号自动生成（课程号-学期-流水号）',
+      '类别 / 类型 / 学科 / 要求等字段字典化配置',
+      '支持 Excel 批量导入与从上学期一键复制',
+    ],
   },
   {
     anchor: 'feature-ai',
+    serial: '03',
+    form: 'TERMINAL LT-03 · NL2SQL',
     en: 'AI QUERY',
     title: '智能查询',
-    rot: '-0.4deg',
-    desc: '用一句话查询实验教学数据（NL2SQL）。',
-    points: ['自然语言提问，自动生成 SQL 并返回结果', '数据权限自动注入，教师仅能查到本人任课范围', '登录后右下角悬浮机器人，随处快查'],
+    theme: 'terminal',
+    stamp: 'ONLINE · 在线',
+    term: '本学期我开设了哪些实验课程？',
+    desc: '自然语言直达数据，权限在语句生成之前注入。像操作一台老式终端一样，向系统提问。',
+    points: [
+      '一句话提问，自动生成 SQL 并返回结果表格',
+      '数据权限自动注入，教师仅能查到本人任课范围',
+      '登录后右下角悬浮机器人，随处快查',
+    ],
   },
   {
     anchor: 'feature-report',
+    serial: '04',
+    form: 'FORM LT-04 · 统计报表',
     en: 'REPORT',
     title: '报表中心',
-    rot: '0.6deg',
-    desc: '实验教学数据统计与报表输出。',
-    points: ['全校汇总与教师明细分层可见', '实验室使用情况 / 人时数多维统计', '结果支持导出与打印'],
+    theme: 'paper-grid',
+    stamp: '季度归档 · Q3',
+    desc: '把一学期的实验教学装订成一册报表。汇总、明细、人时数，按角色分层可见。',
+    points: [
+      '全校汇总与教师明细分层可见',
+      '实验室使用情况 / 人时数多维统计',
+      '结果支持导出与打印',
+    ],
   },
 ];
+
+// ---------- 右侧分页导航 ----------
+const DOTS = [
+  { id: 'hero', label: '首页' },
+  { id: 'feature-laboratory', label: '实验室管理' },
+  { id: 'feature-experiment', label: '实验项目' },
+  { id: 'feature-ai', label: '智能查询' },
+  { id: 'feature-report', label: '报表中心' },
+] as const;
 
 // ---------- 纸屑（撕裂时飘落） ----------
 const SCRAPS = [
@@ -203,18 +269,19 @@ const shaking = ref(false);
 const tearing = ref(false);
 const leaving = ref(false);
 const pageRef = ref<HTMLElement | null>(null);
+const activeSection = ref('hero');
 let busy = false;
+let sectionObserver: IntersectionObserver | null = null;
 
-/** 标签卡点击：下滚到对应功能描述卡 */
-function scrollToFeature(anchor: string): void {
+/** 平滑滚动到指定分页（标签卡 / 圆点导航共用） */
+function scrollToSection(id: string): void {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  document.getElementById(anchor)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  document.getElementById(id)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
 }
 
-/** 回到顶部 */
-function scrollTop(): void {
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  pageRef.value?.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+/** 标签卡点击：翻滚到对应功能描述页 */
+function scrollToFeature(anchor: string): void {
+  scrollToSection(anchor);
 }
 
 function goLogin(): void {
@@ -265,12 +332,31 @@ onMounted(() => {
       typeTimer = null;
     }
   }, 130);
+
+  // 分页圆点高亮：观察 hero 与四个功能页
+  sectionObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          activeSection.value = entry.target.id;
+        }
+      }
+    },
+    { root: pageRef.value, threshold: 0.55 },
+  );
+  for (const d of DOTS) {
+    const el = document.getElementById(d.id);
+    if (el) {
+      sectionObserver.observe(el);
+    }
+  }
 });
 
 onBeforeUnmount(() => {
   if (typeTimer) {
     clearInterval(typeTimer);
   }
+  sectionObserver?.disconnect();
 });
 </script>
 
@@ -282,6 +368,8 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   overflow-x: hidden;
   background: #10122a;
+  // 分页吸附：翻滚到各功能页时有"翻页"的驻停感
+  scroll-snap-type: y proximity;
 
   &::-webkit-scrollbar {
     width: 10px;
@@ -580,130 +668,333 @@ onBeforeUnmount(() => {
   color: rgb(255 255 255 / 62%);
 }
 
-// ---------- 功能描述区 ----------
-.landing-features {
+// ---------- 功能描述页（每项功能独立一页） ----------
+.feat-panel {
   position: relative;
   z-index: 10;
-  padding: 88px 6vw 96px;
-  background: linear-gradient(180deg, #10122a 0%, #181b3a 50%, #10122a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 92vh;
+  padding: 96px 6vw;
+  overflow: hidden;
+  scroll-snap-align: start;
 
-  &__head {
-    text-align: center;
+  &--paper-blue {
+    background: linear-gradient(180deg, #10122a 0%, #1a2340 55%, #10122a 100%);
   }
 
-  &__eyebrow {
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    letter-spacing: 0.32em;
-    color: rgb(255 217 138 / 72%);
+  &--paper-amber {
+    background: linear-gradient(180deg, #10122a 0%, #2a2338 55%, #10122a 100%);
   }
 
-  &__title {
-    margin-top: 12px;
-    font-size: clamp(24px, 2.6vw, 32px);
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: 0.12em;
-    text-shadow: 0 2px 12px rgb(0 0 0 / 40%);
+  &--terminal {
+    background: linear-gradient(180deg, #0a0f1e 0%, #0d1a24 55%, #0a0f1e 100%);
   }
 
-  &__grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 26px;
-    max-width: 1080px;
-    margin: 44px auto 0;
-
-    @media (max-width: 900px) {
-      grid-template-columns: 1fr;
-    }
+  &--paper-grid {
+    background: linear-gradient(180deg, #10122a 0%, #141c34 55%, #10122a 100%);
   }
 
-  &__top {
-    display: block;
-    margin: 48px auto 0;
-    padding: 10px 28px;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    letter-spacing: 0.2em;
-    color: #f3f0e8;
-    cursor: pointer;
-    background: transparent;
-    border: 1px solid rgb(255 255 255 / 32%);
-    border-radius: 999px;
-    transition:
-      border-color 0.3s ease,
-      color 0.3s ease,
-      transform 0.2s ease;
+  &__ghost {
+    position: absolute;
+    top: 4%;
+    right: 6%;
+    font-size: clamp(120px, 18vw, 220px);
+    font-weight: 800;
+    line-height: 1;
+    color: transparent;
+    pointer-events: none;
+    user-select: none;
+    -webkit-text-stroke: 1px rgb(255 217 138 / 20%);
+  }
 
-    &:hover {
-      color: #ffd98a;
-      border-color: rgb(255 217 138 / 60%);
-      transform: translateY(-2px);
-    }
+  &--terminal &__ghost {
+    -webkit-text-stroke: 1px rgb(126 226 168 / 22%);
   }
 }
 
-.feature-card {
-  padding: 26px 28px;
-  background: linear-gradient(165deg, rgb(250 247 238 / 97%) 0%, rgb(236 231 215 / 95%) 100%);
-  border: 1px solid rgb(120 110 84 / 55%);
-  border-radius: 10px;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 70%),
-    0 10px 26px rgb(0 0 0 / 28%);
-  scroll-margin-top: 28px;
-  transform: rotate(var(--rot, 0deg));
-  transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
+.feat-sheet {
+  position: relative;
+  width: min(880px, 100%);
+  padding: 46px 52px 34px;
+  transform: rotate(-0.4deg);
 
-  &:hover {
-    transform: rotate(var(--rot, 0deg)) translateY(-4px);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 70%),
-      0 16px 32px rgb(0 0 0 / 36%),
-      0 0 0 2px rgb(255 217 138 / 45%);
+  @media (max-width: 768px) {
+    padding: 32px 24px 26px;
   }
 
-  &__en {
+  // 纸卡主题共用
+  .feat-panel--paper-blue &,
+  .feat-panel--paper-amber &,
+  .feat-panel--paper-grid & {
+    background: linear-gradient(165deg, rgb(250 247 238 / 98%) 0%, rgb(236 231 215 / 96%) 100%);
+    border: 1px solid rgb(120 110 84 / 55%);
+    border-radius: 8px;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 70%),
+      0 24px 60px rgb(0 0 0 / 45%);
+  }
+
+  // 网格纹（报表）
+  .feat-panel--paper-grid & {
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0 27px, rgb(120 110 84 / 12%) 27px 28px),
+      linear-gradient(165deg, rgb(250 247 238 / 97%) 0%, rgb(238 233 218 / 95%) 100%);
+  }
+
+  // 终端主题
+  .feat-panel--terminal & {
+    background:
+      repeating-linear-gradient(0deg, rgb(255 255 255 / 3%) 0 2px, transparent 2px 4px),
+      #0c1522;
+    border: 1px solid #24483a;
+    border-radius: 10px;
+    box-shadow:
+      inset 0 0 40px rgb(0 0 0 / 55%),
+      0 0 32px rgb(126 226 168 / 12%),
+      0 24px 60px rgb(0 0 0 / 45%);
+    color: #7ee2a8;
+  }
+
+  &__tape {
+    position: absolute;
+    top: -12px;
+    width: 110px;
+    height: 26px;
+    background: rgb(255 217 138 / 32%);
+    border: 1px solid rgb(255 217 138 / 18%);
+
+    &--l {
+      left: -34px;
+      transform: rotate(-5deg);
+    }
+
+    &--r {
+      right: -34px;
+      transform: rotate(4deg);
+    }
+  }
+
+  &__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
     font-family: 'Courier New', monospace;
     font-size: 11px;
     letter-spacing: 0.22em;
+  }
+
+  .feat-panel--terminal &__head {
+    color: rgb(126 226 168 / 65%);
+  }
+
+  .feat-panel--paper-blue &__head,
+  .feat-panel--paper-amber &__head,
+  .feat-panel--paper-grid &__head {
     color: rgb(76 68 51 / 62%);
   }
 
   &__title {
-    margin-top: 6px;
-    font-size: 20px;
-    font-weight: 700;
-    color: #4c4433;
+    margin-top: 14px;
+    font-size: clamp(26px, 3vw, 36px);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+  }
+
+  .feat-panel--terminal &__title {
+    color: #b8f0cd;
+    text-shadow: 0 0 18px rgb(126 226 168 / 35%);
+  }
+
+  .feat-panel--paper-blue &__title,
+  .feat-panel--paper-amber &__title,
+  .feat-panel--paper-grid &__title {
+    color: #3f3826;
   }
 
   &__desc {
-    margin-top: 8px;
-    font-size: 14px;
+    margin-top: 12px;
+    max-width: 640px;
+    font-size: 15px;
+    line-height: 1.8;
+  }
+
+  .feat-panel--terminal &__desc {
+    color: rgb(184 240 205 / 82%);
+  }
+
+  .feat-panel--paper-blue &__desc,
+  .feat-panel--paper-amber &__desc,
+  .feat-panel--paper-grid &__desc {
     color: #6b6249;
   }
 
   &__list {
-    margin: 14px 0 0;
+    margin: 20px 0 0;
     padding: 0;
     list-style: none;
 
     li {
       position: relative;
-      padding: 5px 0 5px 18px;
-      font-size: 13px;
-      color: #57503c;
-
-      &::before {
-        content: '▪';
-        position: absolute;
-        left: 0;
-        color: #8a7b52;
-      }
+      padding: 7px 0 7px 26px;
+      font-size: 14px;
+      line-height: 1.6;
     }
+  }
+
+  .feat-panel--terminal &__list li {
+    color: rgb(184 240 205 / 88%);
+
+    &::before {
+      content: '▸';
+      position: absolute;
+      left: 2px;
+      color: #7ee2a8;
+    }
+  }
+
+  .feat-panel--paper-blue &__list li,
+  .feat-panel--paper-amber &__list li,
+  .feat-panel--paper-grid &__list li {
+    color: #57503c;
+
+    &::before {
+      content: '✓';
+      position: absolute;
+      left: 2px;
+      font-weight: 700;
+      color: #8a7b52;
+    }
+  }
+
+  &__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 26px;
+    padding-top: 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+  }
+
+  .feat-panel--terminal &__foot {
+    color: rgb(126 226 168 / 55%);
+    border-top: 1px dashed rgb(126 226 168 / 30%);
+  }
+
+  .feat-panel--paper-blue &__foot,
+  .feat-panel--paper-amber &__foot,
+  .feat-panel--paper-grid &__foot {
+    color: rgb(76 68 51 / 55%);
+    border-top: 1px dashed rgb(120 110 84 / 45%);
+  }
+
+  &__stamp {
+    padding: 2px 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+    opacity: 0.85;
+    transform: rotate(2deg);
+    white-space: nowrap;
+  }
+}
+
+// 终端会话演示
+.feat-term {
+  margin: 20px 0 4px;
+  padding: 16px 18px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.9;
+  background: #081018;
+  border: 1px solid #1e3a2c;
+  border-radius: 6px;
+
+  &__line {
+    color: #7ee2a8;
+
+    &--ai {
+      color: #ffd98a;
+    }
+
+    &--ok {
+      color: #9ad1ff;
+    }
+  }
+
+  &__cursor {
+    animation: landing-caret 0.9s steps(1) infinite;
+  }
+}
+
+// 报表迷你柱状图
+.feat-bars {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  height: 92px;
+  margin: 22px 0 4px;
+
+  i {
+    flex: 1;
+    height: var(--h);
+    background: linear-gradient(180deg, #4a95e6 0%, #2a7bc8 100%);
+    border-radius: 3px 3px 0 0;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 35%);
+  }
+}
+
+// 右侧分页圆点导航
+.landing-page__dots {
+  position: fixed;
+  right: 22px;
+  top: 50%;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transform: translateY(-50%);
+  transition: opacity 0.25s ease;
+
+  &.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+.landing-page__dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 50%;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease;
+
+  &:hover {
+    border-color: #ffd98a;
+  }
+
+  &.is-active {
+    background: #ffd98a;
+    border-color: #ffd98a;
+    transform: scale(1.2);
+    box-shadow: 0 0 8px rgb(255 217 138 / 70%);
   }
 }
 
