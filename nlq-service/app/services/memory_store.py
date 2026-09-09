@@ -5,6 +5,7 @@ last_context、common_queries）。低频小量读写，用同步 sqlite3 + 锁�
 不引入额外异步依赖。
 """
 
+import os
 import sqlite3
 import threading
 
@@ -12,6 +13,10 @@ import threading
 class MemoryStore:
     def __init__(self, db_path: str):
         self._lock = threading.Lock()
+        # 连接前确保父目录存在（运行时 data/ 可能尚未创建）
+        parent = os.path.dirname(os.path.abspath(db_path))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         with self._lock:
             self._conn.execute(

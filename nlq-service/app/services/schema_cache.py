@@ -47,7 +47,7 @@ class SchemaCache:
 
     async def _load_tables(self):
         sql = """
-        SELECT TABLE_NAME as name, COLUMN_NAME as column, COLUMN_TYPE as type
+        SELECT TABLE_NAME as `name`, COLUMN_NAME as `column`, COLUMN_TYPE as `type`
         FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE()
         ORDER BY TABLE_NAME, ORDINAL_POSITION

@@ -64,3 +64,14 @@ def test_persistence_across_reopen():
         s2 = MemoryStore(path)
         assert s2.get(9, "last_context") == "调 CS101 的实验项目"
         s2.close()
+
+
+def test_creates_missing_parent_dir():
+    # 回归：运行时 data/ 目录不存在时应自动创建（此前 sqlite3.connect 直接报 unable to open）
+    with tempfile.TemporaryDirectory(dir=".", prefix="tmp_mem_") as d:
+        path = os.path.join(d, "not_exist", "sub", "mem.db")
+        s = MemoryStore(path)
+        s.set(1, "k", "v")
+        assert s.get(1, "k") == "v"
+        s.close()
+        assert os.path.exists(path)

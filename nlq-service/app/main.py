@@ -5,12 +5,15 @@ from fastapi import FastAPI
 from app.config import settings
 from app.middleware.internal_auth import InternalAuthMiddleware
 from app.routers import nlq
+from app.services.builtin_tools import register_builtin_tools
 from app.utils.db import db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.connect()
+    # 启动时注册内置工具，否则 Agent 循环 tool_schemas() 为空、模型无法调用工具
+    register_builtin_tools()
     yield
     await db.disconnect()
 
