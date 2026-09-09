@@ -1,0 +1,8 @@
+name: experiment_stat
+description: 统计某学期实验项目数量与分布
+prompt: |
+  当用户询问某学期的实验项目数量、分布或统计情况时触发本技能。
+  调用 query_data 工具，传入形如「统计某学期的实验项目数量」的自然语言问题，
+  再用简洁的要点或表格呈现结果。
+allowed_tools:
+  - query_data

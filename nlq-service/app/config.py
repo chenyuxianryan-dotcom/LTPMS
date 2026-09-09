@@ -15,6 +15,8 @@ class Settings(BaseSettings):
 
     nlq_internal_token: str = ""
 
+    skills_dir: str = "skills"
+
     host: str = "0.0.0.0"
     port: int = 8001
 
