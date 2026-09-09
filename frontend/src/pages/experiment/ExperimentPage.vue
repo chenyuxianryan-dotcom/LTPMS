@@ -58,28 +58,28 @@
           <el-input v-model="form.experimentName" />
         </el-form-item>
         <el-form-item label="实验类别" prop="category">
-          <el-select v-model="form.category" style="width: 100%">
-            <el-option v-for="item in dictOptions.category" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
+          <el-select v-model="form.category" filterable allow-create default-first-option clearable placeholder="选择或输入自定义类别" style="width: 100%">
+            <el-option v-for="item in optionsFor('category')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
           </el-select>
         </el-form-item>
         <el-form-item label="实验类型" prop="type">
-          <el-select v-model="form.type" style="width: 100%">
-            <el-option v-for="item in dictOptions.type" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
+          <el-select v-model="form.type" filterable allow-create default-first-option clearable placeholder="选择或输入自定义类型" style="width: 100%">
+            <el-option v-for="item in optionsFor('type')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
           </el-select>
         </el-form-item>
         <el-form-item label="所属学科" prop="subject">
-          <el-select v-model="form.subject" style="width: 100%">
-            <el-option v-for="item in dictOptions.subject" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
+          <el-select v-model="form.subject" filterable allow-create default-first-option clearable placeholder="选择或输入自定义学科" style="width: 100%">
+            <el-option v-for="item in optionsFor('subject')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
           </el-select>
         </el-form-item>
         <el-form-item label="实验要求" prop="requirement">
-          <el-select v-model="form.requirement" style="width: 100%">
-            <el-option v-for="item in dictOptions.requirement" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
+          <el-select v-model="form.requirement" filterable allow-create default-first-option clearable placeholder="选择或输入自定义要求" style="width: 100%">
+            <el-option v-for="item in optionsFor('requirement')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
           </el-select>
         </el-form-item>
         <el-form-item label="实验者类别" prop="experimenterType">
-          <el-select v-model="form.experimenterType" style="width: 100%">
-            <el-option v-for="item in dictOptions.experimenter_type" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
+          <el-select v-model="form.experimenterType" filterable allow-create default-first-option clearable placeholder="选择或输入自定义类别" style="width: 100%">
+            <el-option v-for="item in optionsFor('experimenter_type')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
           </el-select>
         </el-form-item>
         <el-form-item label="每组人数" prop="groupSize">
@@ -143,6 +143,28 @@ const dictOptions = reactive<Record<string, IDictItem[]>>({
   requirement: [],
   experimenter_type: [],
 });
+
+/** 字典类型 → 表单字段名 映射 */
+const DICT_TO_FORM_KEY: Record<string, keyof typeof form> = {
+  category: 'category',
+  type: 'type',
+  subject: 'subject',
+  requirement: 'requirement',
+  experimenter_type: 'experimenterType',
+};
+
+/**
+ * 返回某字典类型的下拉选项；若当前表单值（含历史/手动输入的自定义值）不在字典中，
+ * 则动态补一个同文案选项，保证编辑时能正确回显。
+ */
+function optionsFor(dictType: string): IDictItem[] {
+  const options = [...(dictOptions[dictType] ?? [])];
+  const value = form[DICT_TO_FORM_KEY[dictType]] as string;
+  if (value && !options.some((item) => item.dictValue === value)) {
+    options.push({ id: 0, dictType, dictLabel: value, dictValue: value, sortOrder: 0, status: 1 } as IDictItem);
+  }
+  return options;
+}
 
 const EMPTY_FORM = {
   id: 0,

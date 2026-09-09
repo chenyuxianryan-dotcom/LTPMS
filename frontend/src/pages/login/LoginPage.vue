@@ -1,5 +1,9 @@
 <template>
   <div class="login-page">
+    <!-- 背景：复古电脑（blur 60% 档），撕裂破口后从这里露出 -->
+    <div class="login-page__bg" aria-hidden="true">
+      <img :src="bgComputer" alt="" />
+    </div>
     <el-card class="login-page__card">
       <div class="login-page__brand">
         <div class="login-page__brand-title">LTPMS</div>
@@ -40,6 +44,7 @@ import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue';
 import { useUserStore } from '@/store/user';
 import { ERROR_CODE } from '@/constants';
 import type { IBizError } from '@/utils/request';
+import bgComputer from '@/assets/login-computer.jpg';
 
 const router = useRouter();
 const currentRoute = useRoute();
@@ -99,18 +104,51 @@ async function redirectAfterLogin(): Promise<void> {
 
 <style scoped lang="scss">
 .login-page {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
-  background:
-    radial-gradient(ellipse at top, var(--brand-50), transparent 60%),
-    var(--bg-canvas);
+  overflow: hidden;
+  background: #14162e;
+
+  &__bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scale(1.06);
+      filter: blur(6px) brightness(0.66) saturate(1.05);
+    }
+
+    // 深色轻遮罩，保证卡片对比度
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        180deg,
+        rgb(10 12 32 / 46%) 0%,
+        rgb(10 12 32 / 18%) 45%,
+        rgb(10 12 32 / 52%) 100%
+      );
+    }
+  }
 
   &__card {
+    position: relative;
+    z-index: 1;
     width: 400px;
+    background: rgb(255 255 255 / 88%);
+    border: 1px solid rgb(255 255 255 / 55%);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 18px 48px rgb(0 0 0 / 35%);
+    backdrop-filter: blur(14px);
   }
 
   &__brand {

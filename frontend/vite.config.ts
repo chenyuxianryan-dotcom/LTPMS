@@ -15,6 +15,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        // 代理请求对后端并非真实跨域：静态覆盖 Origin，避免触发后端 CORS 白名单 403
+        headers: { Origin: 'http://localhost:8080' },
       },
     },
   },

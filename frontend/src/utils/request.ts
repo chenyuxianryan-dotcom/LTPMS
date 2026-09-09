@@ -2,7 +2,7 @@
  * axios 实例与拦截器
  * - 自动附带 Bearer Token（sessionStorage，会话级存储，避免敏感信息长期驻留）
  * - 统一解包 IResult；业务失败统一 ElMessage 提示
- * - 401 清除会话并跳转登录页
+ * - 401 清除会话并送回落地页（重新"开机"进入）
  */
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 import { ElMessage } from 'element-plus';
@@ -38,6 +38,13 @@ request.interceptors.response.use(
     if (result.code === 200) {
       return result.data as never;
     }
+    // 业务码 401（HTTP 200 + body code=401）：与 HTTP 401 同等处理，清会话送回落地页
+    if (result.code === 401) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      ElMessage.error('登录已过期，请重新登录');
+      window.location.href = '/';
+      return Promise.reject(createBizError(result.code, result.message));
+    }
     showBizError(result.code, result.message);
     return Promise.reject(createBizError(result.code, result.message));
   },
@@ -47,7 +54,7 @@ request.interceptors.response.use(
     if (status === 401) {
       sessionStorage.removeItem(TOKEN_KEY);
       ElMessage.error('登录已过期，请重新登录');
-      window.location.href = '/login';
+      window.location.href = '/';
       return Promise.reject(createBizError(401, message));
     }
     showBizError(status ?? 500, message);

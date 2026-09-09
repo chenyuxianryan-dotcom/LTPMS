@@ -9,6 +9,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -46,7 +48,8 @@ public class ScheduleController {
     }
 
     /**
-     * 从 Excel 文件批量导入课表（仅管理员）。
+     * 从 Excel 文件批量导入课表。
+     * <p>管理员：导入整学期课表（覆盖该学期全部旧课表）；教师：仅导入本人课表（强制归属本人，只覆盖本人旧课表）。
      *
      * @param semesterId 归属学期 ID
      * @param file       上传的 Excel 文件
@@ -54,21 +57,21 @@ public class ScheduleController {
      * @throws IOException 读取文件失败时抛出
      */
     @PostMapping("/import")
-    @RequireRole("ADMIN")
+    @RequireRole({"ADMIN", "TEACHER"})
     public Result<ScheduleService.ImportResult> importExcel(
             @RequestParam Long semesterId,
             @RequestParam("file") MultipartFile file) throws IOException {
-        return Result.success(scheduleService.importSchedule(semesterId, file));
+        return Result.success(scheduleService.importSchedule(semesterId, file, getCurrentUserId(), getCurrentRole()));
     }
 
     /**
-     * 下载课表 Excel 导入模板（仅管理员）。
+     * 下载课表 Excel 导入模板（管理员与教师均可）。
      *
      * @param response HTTP 响应，用于写入模板文件流
      * @throws IOException 写入响应流失败时抛出
      */
     @GetMapping("/import/template")
-    @RequireRole("ADMIN")
+    @RequireRole({"ADMIN", "TEACHER"})
     public void downloadTemplate(HttpServletResponse response) throws IOException {
         byte[] data = scheduleService.downloadTemplate();
         response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
@@ -88,5 +91,22 @@ public class ScheduleController {
     public Result<Void> batchDelete(@RequestBody Map<String, List<Long>> body) {
         scheduleService.batchDelete(body.get("ids"));
         return Result.success();
+    }
+
+    private Long getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getDetails() instanceof Long) {
+            return (Long) auth.getDetails();
+        }
+        return null;
+    }
+
+    private String getCurrentRole() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty()) {
+            String authority = auth.getAuthorities().iterator().next().getAuthority();
+            return authority.replace("ROLE_", "");
+        }
+        return null;
     }
 }

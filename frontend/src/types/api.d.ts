@@ -171,19 +171,48 @@ export interface IReportData {
 }
 
 /** 概览统计 */
+/** 方格图单元：一个实体对应一格（used=true 蓝色 / false 灰色） */
+export interface IStatCell {
+  id?: number;
+  code?: string;
+  name?: string;
+  used?: boolean;
+  extra?: string;
+}
+
+/** 排课周历单元：一周一格 */
+export interface IWeekCell {
+  week?: number;
+  used?: boolean;
+}
+
 export interface IAdminOverview {
   labCount?: number;
   courseCount?: number;
   experimentCount?: number;
   teacherCount?: number;
   semesterName?: string;
+  labCells?: IStatCell[];
+  courseCells?: IStatCell[];
+  experimentCells?: IStatCell[];
+  teacherCells?: IStatCell[];
   [key: string]: unknown;
 }
 
 export interface ITeacherOverview {
   courseCount?: number;
   experimentCount?: number;
-  recentQueries?: IQueryHistory[];
+  recentQueries?: IRecentQuery[];
   semesterName?: string;
+  myCourseCells?: IStatCell[];
+  myExperimentCells?: IStatCell[];
+  weekCells?: IWeekCell[];
   [key: string]: unknown;
+}
+
+/** 概览-最近查询条目 */
+export interface IRecentQuery {
+  question: string;
+  time: string;
+  success?: number;
 }

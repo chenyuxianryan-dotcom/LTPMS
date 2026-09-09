@@ -140,8 +140,17 @@ async function handleSubmit(): Promise<void> {
   if (!file.value) return;
   submitting.value = true;
   try {
-    const result = await upload(props.action, buildFormData());
-    ElMessage.success('导入完成');
+    const result = await upload<{ successCount?: number; failedCount?: number; errors?: { message: string }[] }>(
+      props.action,
+      buildFormData(),
+    );
+    const failed = result?.failedCount ?? 0;
+    if (failed > 0) {
+      const first = result?.errors?.length ? `，如：${result.errors[0].message}` : '';
+      ElMessage.warning(`导入完成：成功 ${result?.successCount ?? 0} 条，失败 ${failed} 条${first}`);
+    } else {
+      ElMessage.success('导入完成');
+    }
     emit('success', result);
     emitVisible(false);
   } finally {

@@ -78,6 +78,7 @@
     </el-container>
 
     <ChangePasswordDialog v-model="changePwdVisible" />
+    <NlqWidget />
   </el-container>
 </template>
 
@@ -87,6 +88,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ArrowDown, Bell, Box, Calendar, ChatDotRound, Clock, Collection, DataAnalysis, Notebook, Odometer, OfficeBuilding, User } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue';
+import NlqWidget from '@/components/NlqWidget.vue';
 import { apiGetUnreadCount, apiListNotifications, apiMarkAllNotificationsRead, apiMarkNotificationRead } from '@/api/notification';
 import { useUserStore } from '@/store/user';
 import { ROLE } from '@/constants';
@@ -106,8 +108,9 @@ const unreadCount = ref(0);
 const notifications = ref<INotification[]>([]);
 let unreadTimer: ReturnType<typeof setInterval> | null = null;
 
-/** 主菜单（与路由表一致），按角色过滤 */
+/** 主菜单（与路由表一致），按角色过滤；智能查询置顶为第一项 */
 const MENU_ITEMS: { path: string; title: string; icon: Component; roles?: string[] }[] = [
+  { path: '/nlq', title: '智能查询', icon: ChatDotRound },
   { path: '/dashboard', title: '概览', icon: Odometer },
   { path: '/laboratories', title: '实验室管理', icon: OfficeBuilding, roles: [ROLE.ADMIN] },
   { path: '/semesters', title: '学期管理', icon: Calendar, roles: [ROLE.ADMIN] },
@@ -116,7 +119,6 @@ const MENU_ITEMS: { path: string; title: string; icon: Component; roles?: string
   { path: '/courses', title: '课程管理', icon: Notebook },
   { path: '/experiments', title: '实验项目', icon: Box, roles: [ROLE.TEACHER] },
   { path: '/reports', title: '报表中心', icon: DataAnalysis },
-  { path: '/nlq', title: '智能查询', icon: ChatDotRound },
   { path: '/dicts', title: '字典管理', icon: Collection, roles: [ROLE.ADMIN] },
 ];
 
@@ -166,7 +168,7 @@ function handleUserCommand(command: string): void {
     ElMessageBox.confirm('确定退出登录吗？', '提示', { type: 'warning' })
       .then(() => {
         userStore.logout();
-        void router.push('/login');
+        void router.push('/');
       })
       .catch(() => undefined);
   }

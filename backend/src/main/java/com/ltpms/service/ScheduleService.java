@@ -59,20 +59,43 @@ public class ScheduleService {
     }
 
     /**
-     * 从 Excel 导入课表：解析、逐行校验、检查教师冲突，成功后覆盖该学期旧课表并生成课程记录。
+     * 从 Excel 导入课表：解析、逐行校验、检查教师冲突，成功后覆盖旧课表并生成课程记录。
+     * <p>教师调用时（role=TEACHER）仅导入本人课表：文件行必须为本人（教师工号留空或等于本人账号），
+     * 归属教师强制为当前登录教师，且只覆盖该学期本人已有课表，避免误删他人数据。
      *
-     * @param semesterId 归属学期 ID
-     * @param file       上传的 Excel 文件
+     * @param semesterId   归属学期 ID
+     * @param file         上传的 Excel 文件
+     * @param currentUserId 当前登录用户 ID
+     * @param role         当前登录用户角色（ADMIN / TEACHER）
      * @return 导入结果，含成功数量、失败数量与错误明细
      * @throws IOException 读取文件失败时抛出
      */
     @Transactional
-    public ImportResult importSchedule(Long semesterId, MultipartFile file) throws IOException {
-        Semester semester = new Semester();
-        semester.setId(semesterId);
+    public ImportResult importSchedule(Long semesterId, MultipartFile file, Long currentUserId, String role) throws IOException {
+        boolean forceOwn = "TEACHER".equals(role);
 
         List<ImportRow> rows = parseExcel(file);
         List<RowError> errors = new ArrayList<>();
+
+        // 教师导入：核对归属，强制注入本人 teacherId
+        if (forceOwn) {
+            User self = currentUserId == null ? null : userMapper.selectById(currentUserId);
+            if (self == null) {
+                return new ImportResult(0, rows.size(), List.of(new RowError(-1, "无法识别当前登录教师，请重新登录")));
+            }
+            for (int i = 0; i < rows.size(); i++) {
+                ImportRow row = rows.get(i);
+                boolean blankNo = row.getTeacherNo() == null || row.getTeacherNo().isEmpty();
+                if (blankNo || currentUserId.equals(row.getTeacherId())) {
+                    row.setTeacherNo(self.getUsername());
+                    row.setTeacherId(currentUserId);
+                } else {
+                    return new ImportResult(0, rows.size(), List.of(new RowError(-1,
+                            "文件包含非本人课表行（第 " + (i + 2) + " 行教师工号："
+                                    + row.getTeacherNo() + "），请仅上传本人授课课表")));
+                }
+            }
+        }
 
         // 逐行校验
         for (int i = 0; i < rows.size(); i++) {
@@ -98,8 +121,12 @@ public class ScheduleService {
             return new ImportResult(0, errors.size(), errors);
         }
 
-        // 删除该学期旧课表（覆盖语义）
-        deleteBySemester(semesterId);
+        // 覆盖旧课表：管理员整学期覆盖；教师仅覆盖本人课表
+        if (forceOwn) {
+            deleteByTeacherAndSemester(semesterId, currentUserId);
+        } else {
+            deleteBySemester(semesterId);
+        }
 
         // 保存 schedule
         for (ImportRow row : rows) {
@@ -225,6 +252,19 @@ public class ScheduleService {
     private void deleteBySemester(Long semesterId) {
         List<Schedule> schedules = scheduleMapper.selectList(
                 new LambdaQueryWrapper<Schedule>().eq(Schedule::getSemesterId, semesterId));
+        for (Schedule schedule : schedules) {
+            scheduleTimeMapper.delete(
+                    new LambdaQueryWrapper<ScheduleTime>().eq(ScheduleTime::getScheduleId, schedule.getId()));
+            scheduleMapper.deleteById(schedule.getId());
+        }
+    }
+
+    /** 删除某学期指定教师的课表记录（教师本人覆盖导入用）。 */
+    private void deleteByTeacherAndSemester(Long semesterId, Long teacherId) {
+        List<Schedule> schedules = scheduleMapper.selectList(
+                new LambdaQueryWrapper<Schedule>()
+                        .eq(Schedule::getSemesterId, semesterId)
+                        .eq(Schedule::getTeacherId, teacherId));
         for (Schedule schedule : schedules) {
             scheduleTimeMapper.delete(
                     new LambdaQueryWrapper<ScheduleTime>().eq(ScheduleTime::getScheduleId, schedule.getId()));

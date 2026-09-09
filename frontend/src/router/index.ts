@@ -5,6 +5,12 @@ import { ROLE } from '@/constants';
 
 const routes: RouteRecordRaw[] = [
   {
+    path: '/',
+    name: 'landing',
+    component: () => import('@/pages/landing/LandingPage.vue'),
+    meta: { title: '首页', public: true },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/pages/login/LoginPage.vue'),
@@ -95,15 +101,16 @@ router.beforeEach((to) => {
   document.title = meta.title ? `${meta.title} · LTPMS` : 'LTPMS · 实验教学项目管理系统';
 
   if (meta.public) {
-    // 已登录访问登录页 → 回首页
-    if (userStore.isLoggedIn && to.name === 'login') {
+    // 已登录访问登录页/落地页 → 回首页
+    if (userStore.isLoggedIn && (to.name === 'login' || to.name === 'landing')) {
       return '/dashboard';
     }
     return true;
   }
 
   if (!userStore.isLoggedIn) {
-    return { path: '/login', query: { redirect: to.fullPath } };
+    // 未登录先到落地页，撕裂进登录后再回原目标
+    return { path: '/', query: { redirect: to.fullPath } };
   }
 
   // 角色权限：未登录时先拉取用户信息再校验

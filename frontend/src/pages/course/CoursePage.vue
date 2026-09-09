@@ -8,7 +8,19 @@
       <el-select v-model="semesterId" placeholder="选择学期" style="width: 220px" @change="loadData">
         <el-option v-for="item in semesters" :key="item.id" :label="item.semesterName" :value="item.id" />
       </el-select>
+      <el-button v-if="!isAdmin" type="primary" :icon="Upload" :disabled="!semesterId" @click="importVisible = true">
+        导入我的课表
+      </el-button>
     </div>
+
+    <el-alert
+      v-if="!isAdmin"
+      type="info"
+      :closable="false"
+      show-icon
+      title="可导入本人授课课表 Excel：教师工号列留空或填写本人工号，系统自动归属到您名下，仅覆盖您本人已有课表"
+      class="course-page__notice"
+    />
 
     <el-table v-loading="loading" :data="records" border stripe>
       <el-table-column prop="courseCode" label="课程号" width="120" />
@@ -23,12 +35,23 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <ImportDialog
+      v-model="importVisible"
+      title="导入我的课表"
+      action="/schedules/import"
+      template-url="/schedules/import/template"
+      :extra-data="semesterId ? { semesterId } : undefined"
+      @success="loadData"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { Upload } from '@element-plus/icons-vue';
+import ImportDialog from '@/components/ImportDialog.vue';
 import { apiListCourses } from '@/api/course';
 import { apiListSemesters } from '@/api/semester';
 import { useUserStore } from '@/store/user';
@@ -42,6 +65,7 @@ const semesterId = ref<number | null>(null);
 const semesters = ref<ISemester[]>([]);
 const loading = ref(false);
 const records = ref<ICourse[]>([]);
+const importVisible = ref(false);
 
 async function loadData(): Promise<void> {
   if (!semesterId.value) return;
@@ -66,3 +90,9 @@ onMounted(async () => {
   await loadData();
 });
 </script>
+
+<style scoped lang="scss">
+.course-page__notice {
+  margin-bottom: var(--space-4);
+}
+</style>
