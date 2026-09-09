@@ -119,7 +119,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Clock, Collection, DataAnalysis, Notebook, Odometer, OfficeBuilding, User } from '@element-plus/icons-vue';
+import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Clock, Collection, DataAnalysis, Notebook, Odometer, OfficeBuilding, TrendCharts, User } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AvatarPickerDialog from '@/components/AvatarPickerDialog.vue';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue';
@@ -167,6 +167,7 @@ function toggleSidebar(): void {
 /** 主菜单（与路由表一致），按角色过滤；智能查询置顶为第一项 */
 const MENU_ITEMS: { path: string; title: string; icon: Component; roles?: string[] }[] = [
   { path: '/nlq', title: '智能查询', icon: ChatDotRound },
+  { path: '/insight', title: '数据智能', icon: TrendCharts },
   { path: '/dashboard', title: '概览', icon: Odometer },
   { path: '/laboratories', title: '实验室管理', icon: OfficeBuilding, roles: [ROLE.ADMIN] },
   { path: '/semesters', title: '学期管理', icon: Calendar, roles: [ROLE.ADMIN] },

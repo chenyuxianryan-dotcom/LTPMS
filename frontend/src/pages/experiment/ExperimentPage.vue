@@ -21,6 +21,7 @@
             </el-button>
           </span>
         </el-tooltip>
+        <el-button :icon="RefreshLeft" :disabled="!isCurrentSemester" @click="openMigration">上学期智能迁移</el-button>
         <el-button type="primary" :icon="Plus" :disabled="!courseId || !isCurrentSemester" @click="openCreate">新建实验项目</el-button>
         <el-button :icon="Upload" :disabled="!courseId || !isCurrentSemester" @click="importVisible = true">批量导入</el-button>
       </div>
@@ -44,10 +45,11 @@
       <el-table-column prop="requirement" label="要求" width="110" />
       <el-table-column prop="groupSize" label="每组人数" width="95" align="right" class-name="tabular-nums" />
       <el-table-column prop="hours" label="学时" width="80" align="right" class-name="tabular-nums" />
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column label="操作" width="210" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!isCurrentSemester" @click="openEdit(row)">编辑</el-button>
           <el-button link type="danger" :disabled="!isCurrentSemester" @click="handleDelete(row)">删除</el-button>
+          <el-button link type="success" @click="openMaterial(row)">材料清单</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -106,6 +108,50 @@
       :extra-data="courseId ? { courseId } : undefined"
       @success="loadExperiments"
     />
+
+    <!-- 上学期智能迁移草稿确认 -->
+    <el-dialog v-model="migrationVisible" title="上学期智能迁移" width="720px" :close-on-click-modal="false">
+      <div v-loading="migrationLoading">
+        <el-empty v-if="!migrationLoading && migrationDrafts.length === 0" description="上学期无可迁移的实验项目" :image-size="60" />
+        <template v-else>
+          <el-alert
+            v-if="migrationDrafts.length > 0"
+            :title="`共 ${migrationDrafts.length} 门课程可从上学期迁移，确认后批量复制实验项目（自动重编实验编号）`"
+            type="info"
+            show-icon
+            :closable="false"
+            class="experiment-page__migration-tip"
+          />
+          <el-table :data="migrationDrafts" border size="small" max-height="360">
+            <el-table-column prop="courseCode" label="课程号" width="120" />
+            <el-table-column prop="courseName" label="课程名" min-width="160" />
+            <el-table-column prop="previousSemesterName" label="上学期" width="130" />
+            <el-table-column prop="previousExperimentCount" label="可迁移实验数" width="110" align="right" class-name="tabular-nums" />
+            <el-table-column label="实验项目" min-width="220" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.experimentNames.join('、') }}</template>
+            </el-table-column>
+          </el-table>
+        </template>
+      </div>
+      <template #footer>
+        <el-button @click="migrationVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="migrationDrafts.length === 0" :loading="migrating" @click="handleMigrationConfirm">
+          确认迁移
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 材料清单 -->
+    <el-dialog v-model="materialVisible" :title="`材料清单 · ${materialTarget?.experimentName ?? ''}`" width="640px">
+      <div v-loading="materialLoading">
+        <el-empty v-if="!materialLoading && !materialText" description="暂无清单" :image-size="60" />
+        <pre v-else class="experiment-page__material">{{ materialText }}</pre>
+      </div>
+      <template #footer>
+        <el-button @click="materialVisible = false">关闭</el-button>
+        <el-button type="primary" :disabled="!materialText" @click="copyMaterial">复制清单</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -113,9 +159,19 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
-import { CopyDocument, Plus, Upload } from '@element-plus/icons-vue';
+import { CopyDocument, Plus, RefreshLeft, Upload } from '@element-plus/icons-vue';
 import ImportDialog from '@/components/ImportDialog.vue';
-import { apiCopyFromPrevious, apiCreateExperiment, apiDeleteExperiment, apiListExperiments, apiUpdateExperiment } from '@/api/experiment';
+import {
+  apiCopyFromPrevious,
+  apiCreateExperiment,
+  apiDeleteExperiment,
+  apiListExperiments,
+  apiMigrationConfirm,
+  apiMigrationPreview,
+  apiUpdateExperiment,
+  type IMigrationDraft,
+} from '@/api/experiment';
+import { apiNlqAgent } from '@/api/nlq';
 import { apiListCourses } from '@/api/course';
 import { apiListSemesters } from '@/api/semester';
 import { apiListDictsByType } from '@/api/dict';
@@ -135,6 +191,18 @@ const dialogVisible = ref(false);
 const importVisible = ref(false);
 const editing = ref(false);
 const formRef = ref<FormInstance>();
+
+// 上学期智能迁移
+const migrationVisible = ref(false);
+const migrationLoading = ref(false);
+const migrating = ref(false);
+const migrationDrafts = ref<IMigrationDraft[]>([]);
+
+// 材料清单
+const materialVisible = ref(false);
+const materialLoading = ref(false);
+const materialText = ref('');
+const materialTarget = ref<IExperiment | null>(null);
 
 const dictOptions = reactive<Record<string, IDictItem[]>>({
   category: [],
@@ -286,6 +354,59 @@ async function handleCopyFromPrevious(): Promise<void> {
   }
 }
 
+async function openMigration(): Promise<void> {
+  migrationVisible.value = true;
+  migrationLoading.value = true;
+  migrationDrafts.value = [];
+  try {
+    migrationDrafts.value = await apiMigrationPreview();
+  } catch {
+    // 错误由 request 拦截器统一提示
+  } finally {
+    migrationLoading.value = false;
+  }
+}
+
+async function handleMigrationConfirm(): Promise<void> {
+  migrating.value = true;
+  try {
+    const result = await apiMigrationConfirm();
+    ElMessage.success(`迁移完成：${result.courseCount} 门课程，共 ${result.experimentCount} 个实验项目`);
+    migrationVisible.value = false;
+    await loadExperiments();
+  } catch {
+    // 错误由 request 拦截器统一提示
+  } finally {
+    migrating.value = false;
+  }
+}
+
+async function openMaterial(row: IExperiment): Promise<void> {
+  materialTarget.value = row;
+  materialVisible.value = true;
+  materialLoading.value = true;
+  materialText.value = '';
+  try {
+    const result = await apiNlqAgent(
+      `帮我生成实验项目「${row.experimentName}」（类别：${row.category ?? '-'}，要求：${row.requirement ?? '-'}，每组人数：${row.groupSize ?? '-'}）所需的器材与耗材清单，按「名称 | 数量 | 备注」三列输出`,
+    );
+    materialText.value = result.answer || '未能生成清单，请稍后重试';
+  } catch {
+    materialText.value = '生成失败，请稍后重试';
+  } finally {
+    materialLoading.value = false;
+  }
+}
+
+async function copyMaterial(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(materialText.value);
+    ElMessage.success('已复制到剪贴板');
+  } catch {
+    ElMessage.warning('复制失败，请手动选择复制');
+  }
+}
+
 onMounted(async () => {
   semesters.value = await apiListSemesters();
   await loadDicts();
@@ -296,5 +417,21 @@ onMounted(async () => {
 <style scoped lang="scss">
 .experiment-page__notice {
   margin-bottom: var(--space-4);
+}
+
+.experiment-page__migration-tip {
+  margin-bottom: var(--space-3);
+}
+
+.experiment-page__material {
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 </style>

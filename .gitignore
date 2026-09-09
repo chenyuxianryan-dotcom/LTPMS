@@ -7,6 +7,9 @@ frontend/node_modules/
 .tools/
 backend/uploads/
 
+# ===== 生成的头像资源（AI 生成的 PNG，体积大，不入库） =====
+outputs/teacher_avatars/
+
 # ===== 测试临时目录（pytest 在项目内建的临时文件，测试中断可能残留） =====
 nlq-service/tmp_*/
 

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ltpms.common.BusinessException;
 import com.ltpms.common.ErrorCode;
 import com.ltpms.common.PageResult;
+import com.ltpms.dto.ScheduleImportRow;
 import com.ltpms.entity.*;
 import com.ltpms.mapper.*;
 import com.ltpms.util.ExcelUtil;
@@ -72,9 +73,26 @@ public class ScheduleService {
      */
     @Transactional
     public ImportResult importSchedule(Long semesterId, MultipartFile file, Long currentUserId, String role) throws IOException {
+        return doImport(semesterId, parseExcel(file), currentUserId, role);
+    }
+
+    /**
+     * 课表照片识别草稿落库：接收结构化行，复用 Excel 导入的校验与落库逻辑。
+     *
+     * @param semesterId    归属学期 ID
+     * @param rows          结构化课表行（来自 GLM-4V 识别）
+     * @param currentUserId 当前登录用户 ID
+     * @param role          当前登录用户角色
+     * @return 导入结果
+     */
+    @Transactional
+    public ImportResult importFromRows(Long semesterId, List<ScheduleImportRow> rows, Long currentUserId, String role) {
+        return doImport(semesterId, rows, currentUserId, role);
+    }
+
+    private ImportResult doImport(Long semesterId, List<ScheduleImportRow> rows, Long currentUserId, String role) {
         boolean forceOwn = "TEACHER".equals(role);
 
-        List<ImportRow> rows = parseExcel(file);
         List<RowError> errors = new ArrayList<>();
 
         // 教师导入：核对归属，强制注入本人 teacherId
@@ -84,7 +102,7 @@ public class ScheduleService {
                 return new ImportResult(0, rows.size(), List.of(new RowError(-1, "无法识别当前登录教师，请重新登录")));
             }
             for (int i = 0; i < rows.size(); i++) {
-                ImportRow row = rows.get(i);
+                ScheduleImportRow row = rows.get(i);
                 boolean blankNo = row.getTeacherNo() == null || row.getTeacherNo().isEmpty();
                 if (blankNo || currentUserId.equals(row.getTeacherId())) {
                     row.setTeacherNo(self.getUsername());
@@ -99,18 +117,18 @@ public class ScheduleService {
 
         // 逐行校验
         for (int i = 0; i < rows.size(); i++) {
-            ImportRow row = rows.get(i);
+            ScheduleImportRow row = rows.get(i);
             validateRow(row, i + 2, errors);
         }
 
         // 按 course_code 分组检查教师冲突
-        Map<String, List<ImportRow>> grouped = rows.stream()
+        Map<String, List<ScheduleImportRow>> grouped = rows.stream()
                 .filter(r -> r.getTeacherId() != null)
-                .collect(Collectors.groupingBy(ImportRow::getCourseCode));
+                .collect(Collectors.groupingBy(ScheduleImportRow::getCourseCode));
 
-        for (Map.Entry<String, List<ImportRow>> entry : grouped.entrySet()) {
+        for (Map.Entry<String, List<ScheduleImportRow>> entry : grouped.entrySet()) {
             Set<Long> teacherIds = entry.getValue().stream()
-                    .map(ImportRow::getTeacherId)
+                    .map(ScheduleImportRow::getTeacherId)
                     .collect(Collectors.toSet());
             if (teacherIds.size() > 1) {
                 errors.add(new RowError(-1, "课程 " + entry.getKey() + " 存在多位授课教师，请人工核实课表"));
@@ -129,12 +147,12 @@ public class ScheduleService {
         }
 
         // 保存 schedule
-        for (ImportRow row : rows) {
+        for (ScheduleImportRow row : rows) {
             Schedule schedule = new Schedule();
             schedule.setSemesterId(semesterId);
             schedule.setCourseCode(row.getCourseCode());
             schedule.setCourseName(row.getCourseName());
-            schedule.setTotalHours(row.getTotalHours());
+            schedule.setTotalHours(row.getTotalHours() != null ? BigDecimal.valueOf(row.getTotalHours()) : BigDecimal.ZERO);
             schedule.setTeacherId(row.getTeacherId());
             schedule.setLabCode(row.getLabCode());
             schedule.setClassNames(row.getClassNames());
@@ -144,12 +162,12 @@ public class ScheduleService {
         }
 
         // 生成 course 记录
-        int courseCount = generateCourses(semesterId, grouped);
+        generateCourses(semesterId, grouped);
 
         return new ImportResult(rows.size(), 0, Collections.emptyList());
     }
 
-    private void validateRow(ImportRow row, int rowNum, List<RowError> errors) {
+    private void validateRow(ScheduleImportRow row, int rowNum, List<RowError> errors) {
         if (row.getCourseCode() == null || row.getCourseCode().isEmpty()) {
             errors.add(new RowError(rowNum, "课程号不能为空"));
         }
@@ -169,11 +187,11 @@ public class ScheduleService {
         }
     }
 
-    private int generateCourses(Long semesterId, Map<String, List<ImportRow>> grouped) {
+    private int generateCourses(Long semesterId, Map<String, List<ScheduleImportRow>> grouped) {
         int count = 0;
-        for (Map.Entry<String, List<ImportRow>> entry : grouped.entrySet()) {
+        for (Map.Entry<String, List<ScheduleImportRow>> entry : grouped.entrySet()) {
             String courseCode = entry.getKey();
-            List<ImportRow> rows = entry.getValue();
+            List<ScheduleImportRow> rows = entry.getValue();
 
             Long existing = courseMapper.selectCount(
                     new LambdaQueryWrapper<Course>()
@@ -183,11 +201,11 @@ public class ScheduleService {
                 continue; // 存在即跳过
             }
 
-            ImportRow first = rows.get(0);
-            int totalStudentCount = rows.stream().mapToInt(ImportRow::getStudentCount).sum();
+            ScheduleImportRow first = rows.get(0);
+            int totalStudentCount = rows.stream().mapToInt(r -> r.getStudentCount() == null ? 0 : r.getStudentCount()).sum();
 
             Set<String> majors = new LinkedHashSet<>();
-            for (ImportRow row : rows) {
+            for (ScheduleImportRow row : rows) {
                 String major = MajorExtractor.extract(row.getClassNames());
                 if (major != null) {
                     majors.addAll(Arrays.asList(major.split(",")));
@@ -199,7 +217,7 @@ public class ScheduleService {
             course.setCourseName(first.getCourseName());
             course.setSemesterId(semesterId);
             course.setTeacherId(first.getTeacherId());
-            course.setTotalHours(first.getTotalHours());
+            course.setTotalHours(first.getTotalHours() != null ? BigDecimal.valueOf(first.getTotalHours()) : BigDecimal.ZERO);
             course.setMajor(majors.isEmpty() ? null : String.join(",", majors));
             courseMapper.insert(course);
             count++;
@@ -207,8 +225,8 @@ public class ScheduleService {
         return count;
     }
 
-    private List<ImportRow> parseExcel(MultipartFile file) throws IOException {
-        List<ImportRow> rows = new ArrayList<>();
+    private List<ScheduleImportRow> parseExcel(MultipartFile file) throws IOException {
+        List<ScheduleImportRow> rows = new ArrayList<>();
         try (InputStream is = file.getInputStream();
              Workbook workbook = new XSSFWorkbook(is)) {
             Sheet sheet = workbook.getSheetAt(0);
@@ -219,7 +237,7 @@ public class ScheduleService {
                 String teacherNo = ExcelUtil.getStringValue(row.getCell(3));
                 Long teacherId = findTeacherId(teacherNo);
 
-                ImportRow importRow = new ImportRow();
+                ScheduleImportRow importRow = new ScheduleImportRow();
                 importRow.setCourseCode(ExcelUtil.getStringValue(row.getCell(0)));
                 importRow.setCourseName(ExcelUtil.getStringValue(row.getCell(1)));
                 importRow.setTotalHours(ExcelUtil.getDoubleValue(row.getCell(2)));
@@ -325,39 +343,5 @@ public class ScheduleService {
      * Excel 单条行导入错误，包含行号与错误信息。
      */
     public record RowError(int rowNum, String message) {
-    }
-
-    private static class ImportRow {
-        private String courseCode;
-        private String courseName;
-        private BigDecimal totalHours;
-        private String teacherNo;
-        private Long teacherId;
-        private String labCode;
-        private String classNames;
-        private Integer studentCount;
-        private String rawScheduleText;
-
-        // Getters and setters
-        public String getCourseCode() { return courseCode; }
-        public void setCourseCode(String courseCode) { this.courseCode = courseCode; }
-        public String getCourseName() { return courseName; }
-        public void setCourseName(String courseName) { this.courseName = courseName; }
-        public BigDecimal getTotalHours() { return totalHours; }
-        public void setTotalHours(Double totalHours) {
-            this.totalHours = totalHours != null ? BigDecimal.valueOf(totalHours) : BigDecimal.ZERO;
-        }
-        public String getTeacherNo() { return teacherNo; }
-        public void setTeacherNo(String teacherNo) { this.teacherNo = teacherNo; }
-        public Long getTeacherId() { return teacherId; }
-        public void setTeacherId(Long teacherId) { this.teacherId = teacherId; }
-        public String getLabCode() { return labCode; }
-        public void setLabCode(String labCode) { this.labCode = labCode; }
-        public String getClassNames() { return classNames; }
-        public void setClassNames(String classNames) { this.classNames = classNames; }
-        public Integer getStudentCount() { return studentCount; }
-        public void setStudentCount(Integer studentCount) { this.studentCount = studentCount; }
-        public String getRawScheduleText() { return rawScheduleText; }
-        public void setRawScheduleText(String rawScheduleText) { this.rawScheduleText = rawScheduleText; }
     }
 }

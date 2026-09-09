@@ -174,9 +174,93 @@ public class ExperimentService {
             throw new BusinessException(ErrorCode.NO_PREVIOUS_EXPERIMENTS);
         }
 
+        return copyExperiments(previousCourse.getId(), currentCourse.getId());
+    }
+
+    /**
+     * 上学期智能迁移：预览目标学期各课程可从上学期复制的实验项目（不落库）。
+     *
+     * @param semesterId    目标学期 ID，为空时取当前学期
+     * @param currentUserId 当前用户 ID
+     * @param role          当前角色
+     * @return 迁移草稿列表（每门可迁移课程一条）
+     */
+    public List<MigrationDraft> previewMigration(Long semesterId, Long currentUserId, String role) {
+        Semester target = semesterId != null ? semesterMapper.selectById(semesterId) : getCurrentSemester();
+        if (target == null) {
+            return new ArrayList<>();
+        }
+
+        List<Course> targetCourses = courseMapper.selectList(
+                new LambdaQueryWrapper<Course>().eq(Course::getSemesterId, target.getId()));
+        if ("TEACHER".equals(role)) {
+            targetCourses = targetCourses.stream()
+                    .filter(c -> currentUserId.equals(c.getTeacherId()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        List<MigrationDraft> drafts = new ArrayList<>();
+        for (Course course : targetCourses) {
+            Course previousCourse = findPreviousCourse(course.getCourseCode(), target);
+            if (previousCourse == null) {
+                continue;
+            }
+            List<Experiment> previousExperiments = experimentMapper.selectList(
+                    new LambdaQueryWrapper<Experiment>()
+                            .eq(Experiment::getCourseId, previousCourse.getId())
+                            .orderByAsc(Experiment::getSortOrder));
+            if (previousExperiments.isEmpty()) {
+                continue;
+            }
+            Semester previousSemester = semesterMapper.selectById(previousCourse.getSemesterId());
+            drafts.add(new MigrationDraft(
+                    course.getId(), course.getCourseCode(), course.getCourseName(),
+                    previousCourse.getId(), previousSemester != null ? previousSemester.getSemesterName() : "",
+                    previousExperiments.size(),
+                    previousExperiments.stream().map(Experiment::getExperimentName).toList()));
+        }
+        return drafts;
+    }
+
+    /**
+     * 上学期智能迁移：批量把上学期实验项目复制到目标学期各课程，返回迁移结果。
+     *
+     * @param semesterId    目标学期 ID，为空时取当前学期
+     * @param currentUserId 当前用户 ID
+     * @param role          当前角色
+     * @return 迁移结果（成功课程数 + 成功实验项目总数）
+     */
+    @Transactional
+    public MigrationResult batchCopyFromPrevious(Long semesterId, Long currentUserId, String role) {
+        List<MigrationDraft> drafts = previewMigration(semesterId, currentUserId, role);
+        int courseCount = 0;
+        int experimentCount = 0;
+        for (MigrationDraft draft : drafts) {
+            Course course = courseMapper.selectById(draft.courseId());
+            if (course == null) {
+                continue;
+            }
+            checkPermission(course, currentUserId, role);
+            checkCurrentSemester(course.getSemesterId());
+            experimentCount += copyExperiments(draft.previousCourseId(), draft.courseId());
+            courseCount++;
+        }
+        return new MigrationResult(courseCount, experimentCount);
+    }
+
+    /** 复制一门课的实验项目到另一门课，返回复制的实验项目数。 */
+    private int copyExperiments(Long fromCourseId, Long toCourseId) {
+        List<Experiment> previousExperiments = experimentMapper.selectList(
+                new LambdaQueryWrapper<Experiment>()
+                        .eq(Experiment::getCourseId, fromCourseId)
+                        .orderByAsc(Experiment::getSortOrder));
+        Course targetCourse = courseMapper.selectById(toCourseId);
+        if (previousExperiments.isEmpty() || targetCourse == null) {
+            return 0;
+        }
         for (Experiment prev : previousExperiments) {
             Experiment experiment = new Experiment();
-            experiment.setCourseId(courseId);
+            experiment.setCourseId(toCourseId);
             experiment.setExperimentName(prev.getExperimentName());
             experiment.setCategory(prev.getCategory());
             experiment.setType(prev.getType());
@@ -186,11 +270,32 @@ public class ExperimentService {
             experiment.setGroupSize(prev.getGroupSize());
             experiment.setHours(prev.getHours());
             experiment.setSortOrder(prev.getSortOrder());
-            experiment.setExperimentCode(codeGenerator.generateExperimentCode(currentCourse));
+            experiment.setExperimentCode(codeGenerator.generateExperimentCode(targetCourse));
             experimentMapper.insert(experiment);
         }
-
         return previousExperiments.size();
+    }
+
+    /** 上学期迁移草稿（预览用，不落库）。 */
+    public record MigrationDraft(
+            Long courseId, String courseCode, String courseName,
+            Long previousCourseId, String previousSemesterName,
+            int previousExperimentCount, List<String> experimentNames) {
+    }
+
+    /** 上学期迁移结果（确认落库后返回）。 */
+    public record MigrationResult(int courseCount, int experimentCount) {
+    }
+
+    private Semester getCurrentSemester() {
+        List<Semester> all = semesterMapper.selectList(null);
+        LocalDate today = LocalDate.now();
+        for (Semester semester : all) {
+            if (!today.isBefore(semester.getStartDate()) && !today.isAfter(semester.getEndDate())) {
+                return semester;
+            }
+        }
+        return all.isEmpty() ? null : all.get(0);
     }
 
     private Course findPreviousCourse(String courseCode, Semester currentSemester) {

@@ -47,6 +47,19 @@ public class NlqController {
     }
 
     /**
+     * 课表照片识别：base64 图片 → 结构化课表行草稿（GLM-4V 通道）。
+     *
+     * @param body 请求体，含 image_base64 字段
+     * @return 识别结果 {success, rows, error}
+     */
+    @PostMapping("/recognize-schedule")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<Map<String, Object>> recognizeSchedule(@RequestBody Map<String, String> body) {
+        String imageBase64 = body.get("image_base64");
+        return Result.success(nlqService.recognizeSchedulePhoto(imageBase64));
+    }
+
+    /**
      * 分页查询当前用户的查询历史。
      *
      * @param page 页码，默认 1

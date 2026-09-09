@@ -76,6 +76,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '智能查询', icon: 'ChatDotRound' },
       },
       {
+        path: 'insight',
+        name: 'insight',
+        component: () => import('@/pages/insight/InsightPage.vue'),
+        meta: { title: '数据智能', icon: 'TrendCharts' },
+      },
+      {
         path: 'dicts',
         name: 'dicts',
         component: () => import('@/pages/dict/DictPage.vue'),

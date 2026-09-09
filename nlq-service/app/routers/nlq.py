@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.services.agent_service import run_agent_query
 from app.services.query_service import execute_query
 from app.services.schema_cache import schema_cache
+from app.services.vision import recognize_schedule_photo
 
 router = APIRouter()
 
@@ -32,6 +33,16 @@ class QueryResponse(BaseModel):
     suggestions: list[str] | None = None
     row_count: int | None = None
     execution_time: int | None = None
+    error: str | None = None
+
+
+class RecognizeRequest(BaseModel):
+    image_base64: str
+
+
+class RecognizeResponse(BaseModel):
+    success: bool
+    rows: list[dict]
     error: str | None = None
 
 
@@ -73,6 +84,17 @@ async def agent(
     """多轮 Agent 对话入口：加载技能与长期记忆，返回最终答案与工具调用轨迹。"""
     return await run_agent_query(
         request.question, x_user_role, x_user_id, history=request.history
+    )
+
+
+@router.post("/recognize-schedule", response_model=RecognizeResponse)
+async def recognize_schedule(request: RecognizeRequest):
+    """课表照片识别：base64 图片 → 结构化课表行草稿（走 GLM-4V 通道）。"""
+    result = await recognize_schedule_photo(request.image_base64)
+    return RecognizeResponse(
+        success=result["success"],
+        rows=result["rows"],
+        error=result["error"],
     )
 
 

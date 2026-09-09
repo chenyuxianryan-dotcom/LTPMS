@@ -3,6 +3,7 @@ package com.ltpms.controller;
 import com.ltpms.annotation.RequireRole;
 import com.ltpms.common.PageResult;
 import com.ltpms.common.Result;
+import com.ltpms.dto.ScheduleImportRequest;
 import com.ltpms.entity.Schedule;
 import com.ltpms.service.ScheduleService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -62,6 +63,23 @@ public class ScheduleController {
             @RequestParam Long semesterId,
             @RequestParam("file") MultipartFile file) throws IOException {
         return Result.success(scheduleService.importSchedule(semesterId, file, getCurrentUserId(), getCurrentRole()));
+    }
+
+    /**
+     * 课表照片识别草稿落库：接收结构化行，复用 Excel 导入的校验与落库逻辑。
+     * 前端完成识别草稿预览与人工修正后调用。
+     *
+     * @param semesterId 归属学期 ID
+     * @param request    结构化课表行
+     * @return 导入结果
+     */
+    @PostMapping("/import/rows")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<ScheduleService.ImportResult> importRows(
+            @RequestParam Long semesterId,
+            @RequestBody ScheduleImportRequest request) {
+        return Result.success(scheduleService.importFromRows(
+                semesterId, request.getRows(), getCurrentUserId(), getCurrentRole()));
     }
 
     /**

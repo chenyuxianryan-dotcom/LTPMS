@@ -118,6 +118,30 @@ public class ExperimentController {
         return Result.success(experimentService.copyFromPrevious(courseId, getCurrentUserId(), getCurrentRole()));
     }
 
+    /**
+     * 上学期智能迁移：预览可从上学期复制的实验项目（不落库）。
+     *
+     * @param semesterId 目标学期 ID，可选
+     * @return 迁移草稿列表
+     */
+    @GetMapping("/migration/preview")
+    public Result<List<ExperimentService.MigrationDraft>> migrationPreview(
+            @RequestParam(required = false) Long semesterId) {
+        return Result.success(experimentService.previewMigration(semesterId, getCurrentUserId(), getCurrentRole()));
+    }
+
+    /**
+     * 上学期智能迁移：确认后批量复制上学期实验项目到目标学期。
+     *
+     * @param semesterId 目标学期 ID，可选
+     * @return 迁移结果（课程数 + 实验项目数）
+     */
+    @PostMapping("/migration/confirm")
+    public Result<ExperimentService.MigrationResult> migrationConfirm(
+            @RequestParam(required = false) Long semesterId) {
+        return Result.success(experimentService.batchCopyFromPrevious(semesterId, getCurrentUserId(), getCurrentRole()));
+    }
+
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getDetails() instanceof Long) {

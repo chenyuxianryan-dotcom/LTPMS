@@ -10,6 +10,7 @@
           <el-option v-for="item in semesters" :key="item.id" :label="item.semesterName" :value="item.id" />
         </el-select>
         <el-button type="primary" :icon="Upload" :disabled="!semesterId" @click="importVisible = true">导入课表</el-button>
+        <el-button type="success" plain :icon="Camera" :disabled="!semesterId" @click="photoImportVisible = true">拍照导入</el-button>
         <el-button type="danger" plain :disabled="selectedIds.length === 0" @click="handleBatchDelete">
           批量删除（{{ selectedIds.length }}）
         </el-button>
@@ -48,14 +49,22 @@
       :extra-data="semesterId ? { semesterId } : undefined"
       @success="loadData"
     />
+
+    <SchedulePhotoImportDialog
+      v-if="semesterId"
+      v-model="photoImportVisible"
+      :semester-id="semesterId"
+      @success="loadData"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Upload } from '@element-plus/icons-vue';
+import { Camera, Upload } from '@element-plus/icons-vue';
 import ImportDialog from '@/components/ImportDialog.vue';
+import SchedulePhotoImportDialog from '@/components/SchedulePhotoImportDialog.vue';
 import { apiBatchDeleteSchedules, apiListSchedules } from '@/api/schedule';
 import { apiListSemesters } from '@/api/semester';
 import type { ISchedule, ISemester } from '@/types/api';
@@ -69,6 +78,7 @@ const loading = ref(false);
 const records = ref<ISchedule[]>([]);
 const selectedIds = ref<number[]>([]);
 const importVisible = ref(false);
+const photoImportVisible = ref(false);
 
 async function loadSemesters(): Promise<void> {
   semesters.value = await apiListSemesters();

@@ -148,6 +148,35 @@ public class NlqService {
     }
 
     /**
+     * 课表照片识别：转发 base64 图片到 NL2SQL 服务的 /recognize-schedule 端点（GLM-4V 通道）。
+     *
+     * @param imageBase64 课表照片的 base64 编码（不含 data: 前缀）
+     * @return 识别结果 {success, rows, error}
+     * @throws BusinessException 当视觉服务调用失败时抛出
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> recognizeSchedulePhoto(String imageBase64) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Token", nlqProperties.getInternalToken());
+
+        Map<String, Object> body = Map.of("image_base64", imageBase64);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    nlqProperties.getServiceUrl() + "/recognize-schedule", entity, Map.class);
+            return response.getBody();
+        } catch (RestClientResponseException e) {
+            log.error("NL2SQL recognize-schedule service error: {}", e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (Exception e) {
+            log.error("NL2SQL recognize-schedule request failed", e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        }
+    }
+
+    /**
      * 分页查询当前用户的自然语言查询历史。
      *
      * @param userId 当前用户 ID
