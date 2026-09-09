@@ -45,11 +45,12 @@
       <el-table-column prop="requirement" label="要求" width="110" />
       <el-table-column prop="groupSize" label="每组人数" width="95" align="right" class-name="tabular-nums" />
       <el-table-column prop="hours" label="学时" width="80" align="right" class-name="tabular-nums" />
-      <el-table-column label="操作" width="210" fixed="right">
+      <el-table-column label="操作" width="270" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!isCurrentSemester" @click="openEdit(row)">编辑</el-button>
           <el-button link type="danger" :disabled="!isCurrentSemester" @click="handleDelete(row)">删除</el-button>
           <el-button link type="success" @click="openMaterial(row)">材料清单</el-button>
+          <el-button link type="success" @click="openArchive(row)">AI 档案</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -152,6 +153,14 @@
         <el-button type="primary" :disabled="!materialText" @click="copyMaterial">复制清单</el-button>
       </template>
     </el-dialog>
+
+    <!-- 实验项目数字档案（AI 生成，共用 ArchiveDialog） -->
+    <ArchiveDialog
+      v-model="archiveVisible"
+      entity-type="experiment"
+      :entity-id="archiveTarget?.id ?? null"
+      :entity-title="archiveTarget?.experimentName ?? ''"
+    />
   </div>
 </template>
 
@@ -203,6 +212,15 @@ const materialVisible = ref(false);
 const materialLoading = ref(false);
 const materialText = ref('');
 const materialTarget = ref<IExperiment | null>(null);
+
+// 数字档案
+const archiveVisible = ref(false);
+const archiveTarget = ref<IExperiment | null>(null);
+
+function openArchive(row: IExperiment): void {
+  archiveTarget.value = row;
+  archiveVisible.value = true;
+}
 
 const dictOptions = reactive<Record<string, IDictItem[]>>({
   category: [],

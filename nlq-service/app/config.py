@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     skills_dir: str = "skills"
     memory_db_path: str = "data/agent_memory.db"
 
+    # MCP Server（V3）：只读数据工具对外暴露；mcp_enabled=False 时拒绝启动（生产默认关）
+    mcp_enabled: bool = True
+    mcp_host: str = "127.0.0.1"
+    mcp_port: int = 8800
+    mcp_token: str = ""  # SSE 模式访问令牌；为空则不校验（仅限本机演示）
+    mcp_max_rows: int = 100
+
     host: str = "0.0.0.0"
     port: int = 8001
 

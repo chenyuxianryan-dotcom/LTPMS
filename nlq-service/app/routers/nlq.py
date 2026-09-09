@@ -2,11 +2,23 @@ from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel
 
 from app.services.agent_service import run_agent_query
+from app.services.archive_service import ArchiveCache, generate_archive
+from app.services.narrative_service import generate_narrative
 from app.services.query_service import execute_query
 from app.services.schema_cache import schema_cache
 from app.services.vision import recognize_schedule_photo
 
 router = APIRouter()
+
+# 数字档案缓存（data/archive_cache.db，TTL 24h；惰性单例，避免导入期副作用）
+_archive_cache: ArchiveCache | None = None
+
+
+def _get_archive_cache() -> ArchiveCache:
+    global _archive_cache
+    if _archive_cache is None:
+        _archive_cache = ArchiveCache("data/archive_cache.db")
+    return _archive_cache
 
 
 class QueryRequest(BaseModel):
@@ -43,6 +55,31 @@ class RecognizeRequest(BaseModel):
 class RecognizeResponse(BaseModel):
     success: bool
     rows: list[dict]
+    error: str | None = None
+
+
+class ArchiveRequest(BaseModel):
+    entity_type: str  # laboratory | experiment
+    entity_id: int
+
+
+class ArchiveResponse(BaseModel):
+    success: bool
+    text: str = ""
+    cached: bool = False
+    stats: dict | None = None
+    error: str | None = None
+
+
+class NarrativeRequest(BaseModel):
+    kind: str  # annual_report | teaching_summary
+
+
+class NarrativeResponse(BaseModel):
+    success: bool
+    text: str = ""
+    numbers: dict = {}
+    scope: str = ""
     error: str | None = None
 
 
@@ -94,6 +131,36 @@ async def recognize_schedule(request: RecognizeRequest):
     return RecognizeResponse(
         success=result["success"],
         rows=result["rows"],
+        error=result["error"],
+    )
+
+
+@router.post("/archive", response_model=ArchiveResponse)
+async def archive(request: ArchiveRequest):
+    """实验台数字档案：聚合真实统计 → AI 生成档案文本（缓存 TTL 24h）。"""
+    result = await generate_archive(request.entity_type, request.entity_id, cache=_get_archive_cache())
+    return ArchiveResponse(
+        success=result["success"],
+        text=result["text"],
+        cached=result["cached"],
+        stats=result["stats"],
+        error=result["error"],
+    )
+
+
+@router.post("/narrative", response_model=NarrativeResponse)
+async def narrative(
+    request: NarrativeRequest,
+    x_user_id: int = Header(..., alias="X-User-Id"),
+    x_user_role: str = Header(..., alias="X-User-Role"),
+):
+    """叙事报告/教学总结：报表数字 Python 聚合（权限分层），LLM 只做语言包装。"""
+    result = await generate_narrative(request.kind, x_user_role, x_user_id)
+    return NarrativeResponse(
+        success=result["success"],
+        text=result["text"],
+        numbers=result["numbers"],
+        scope=result["scope"],
         error=result["error"],
     )
 

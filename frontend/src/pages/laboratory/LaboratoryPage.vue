@@ -25,9 +25,10 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="success" @click="openArchive(row)">AI 档案</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -75,6 +76,14 @@
       template-url="/laboratories/import/template"
       @success="loadData"
     />
+
+    <!-- 实验台数字档案（AI 生成，无档案降级显示统计） -->
+    <ArchiveDialog
+      v-model="archiveVisible"
+      entity-type="laboratory"
+      :entity-id="archiveTarget?.id ?? null"
+      :entity-title="archiveTarget ? `${archiveTarget.labCode} ${archiveTarget.labName}` : ''"
+    />
   </div>
 </template>
 
@@ -82,6 +91,7 @@
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
 import { Plus, Search, Upload } from '@element-plus/icons-vue';
+import ArchiveDialog from '@/components/ArchiveDialog.vue';
 import ImportDialog from '@/components/ImportDialog.vue';
 import { apiCreateLaboratory, apiDeleteLaboratory, apiListLaboratories, apiUpdateLaboratory } from '@/api/laboratory';
 import type { ILaboratory } from '@/types/api';
@@ -131,6 +141,14 @@ function openEdit(row: ILaboratory): void {
   editing.value = true;
   Object.assign(form, row);
   dialogVisible.value = true;
+}
+
+const archiveVisible = ref(false);
+const archiveTarget = ref<ILaboratory | null>(null);
+
+function openArchive(row: ILaboratory): void {
+  archiveTarget.value = row;
+  archiveVisible.value = true;
 }
 
 async function handleSave(): Promise<void> {

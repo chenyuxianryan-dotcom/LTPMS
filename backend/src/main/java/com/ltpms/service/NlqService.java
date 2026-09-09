@@ -177,6 +177,72 @@ public class NlqService {
     }
 
     /**
+     * 实验台数字档案：转发到 NL2SQL 服务的 /archive 端点（AI 生成档案，数字来自真实统计）。
+     *
+     * @param entityType 实体类型（laboratory | experiment）
+     * @param entityId   实体 ID
+     * @return 档案结果 {success, text, cached, stats, error}
+     * @throws BusinessException 当档案服务调用失败时抛出
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> archive(String entityType, Long entityId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Token", nlqProperties.getInternalToken());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("entity_type", entityType);
+        body.put("entity_id", entityId);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    nlqProperties.getServiceUrl() + "/archive", entity, Map.class);
+            return response.getBody();
+        } catch (RestClientResponseException e) {
+            log.error("NL2SQL archive service error: {}", e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (Exception e) {
+            log.error("NL2SQL archive request failed", e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        }
+    }
+
+    /**
+     * 叙事报告/教学总结：转发到 NL2SQL 服务的 /narrative 端点。
+     * 权限分层由 NL2SQL 服务按透传的用户身份处理（教师个人口径/管理员全校口径）。
+     *
+     * @param kind   报告类型（annual_report | teaching_summary）
+     * @param userId 当前用户 ID
+     * @param role   当前用户角色
+     * @return 叙事结果 {success, text, numbers, scope, error}
+     * @throws BusinessException 当叙事服务调用失败时抛出
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> narrative(String kind, Long userId, String role) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Token", nlqProperties.getInternalToken());
+        headers.set("X-User-Id", String.valueOf(userId));
+        headers.set("X-User-Role", role);
+
+        Map<String, Object> body = Map.of("kind", kind);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    nlqProperties.getServiceUrl() + "/narrative", entity, Map.class);
+            return response.getBody();
+        } catch (RestClientResponseException e) {
+            log.error("NL2SQL narrative service error: {}", e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (Exception e) {
+            log.error("NL2SQL narrative request failed", e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        }
+    }
+
+    /**
      * 分页查询当前用户的自然语言查询历史。
      *
      * @param userId 当前用户 ID

@@ -1,0 +1,10 @@
+name: narrative_report
+description: 叙事报告/教学总结生成（把报表数据变成有温度的叙事文档）
+prompt: |
+  当用户要求生成年度报告、实验教学叙事报告、教学总结，或要求把报表数据写成一段总结文字时触发本技能。
+  先调用 query_data 获取真实的报表统计数据（教师只统计本人任教数据，管理员统计全校口径；
+  数字必须来自真实查询结果），再把统计数字原样传给 generate_text，
+  要求其只做语言包装、不得编造或推算任何数字。最终输出叙事化报告。
+allowed_tools:
+  - query_data
+  - generate_text

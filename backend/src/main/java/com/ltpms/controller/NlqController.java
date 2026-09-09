@@ -60,6 +60,35 @@ public class NlqController {
     }
 
     /**
+     * 实验台数字档案：AI 生成实验室/实验项目的「一句话简介 + 历史 + 使用统计」。
+     *
+     * @param body 请求体，含 entity_type（laboratory | experiment）与 entity_id
+     * @return 档案结果 {success, text, cached, stats, error}
+     */
+    @PostMapping("/archive")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<Map<String, Object>> archive(@RequestBody Map<String, Object> body) {
+        String entityType = String.valueOf(body.get("entity_type"));
+        Long entityId = body.get("entity_id") == null ? null : Long.valueOf(String.valueOf(body.get("entity_id")));
+        return Result.success(nlqService.archive(entityType, entityId));
+    }
+
+    /**
+     * 叙事报告/教学总结：报表数字真实聚合，AI 只做语言包装。
+     * 教师强制个人口径的教学总结；管理员可为全校年度叙事报告或教学总结。
+     *
+     * @param body 请求体，含 kind（annual_report | teaching_summary）
+     * @return 叙事结果 {success, text, numbers, scope, error}
+     */
+    @PostMapping("/narrative")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<Map<String, Object>> narrative(@RequestBody Map<String, String> body) {
+        return Result.success(nlqService.narrative(
+                body.getOrDefault("kind", "teaching_summary"),
+                getCurrentUserId(), getCurrentRole()));
+    }
+
+    /**
      * 分页查询当前用户的查询历史。
      *
      * @param page 页码，默认 1

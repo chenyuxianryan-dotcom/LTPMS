@@ -9,3 +9,7 @@ python-dotenv==1.0.1
 aiomysql==0.2.0
 cryptography>=42.0.0
 pyyaml==6.0.3
+# MCP Server（V3）：官方 SDK v1 含 FastMCP；勿升 2.x（FastMCP 已改名）
+# starlette 必须与 fastapi 0.115 共存（<0.39），mcp 1.x 依赖兼容
+mcp>=1.30.0,<2
+starlette==0.38.6

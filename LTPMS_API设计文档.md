@@ -393,6 +393,19 @@ NL2SQL 同理：教师问"全校共开设多少门课" → 允许执行，返回
 
 > 注：NL2SQL 请求链路为 前端 → Spring Boot（JWT鉴权）→ FastAPI（内部令牌）→ MySQL（只读账号）。`/query` 结果强制 LIMIT 500 保护。
 
+**阶段3 新增接口（智能化升级 V3）：**
+
+| 方法 | 路径 | 说明 | 角色 | 参数 |
+|------|------|------|------|------|
+| POST | `/api/v1/nlq/agent` | 多轮 Agent 对话（阿实） | ADMIN/TEACHER | `{question, history?}` → `{answer, steps, steps_used, error}` |
+| POST | `/api/v1/nlq/recognize-schedule` | 课表照片识别（GLM-4V） | ADMIN/TEACHER | `{image_base64}` → `{success, rows, error}` |
+| POST | `/api/v1/nlq/archive` | 实验台数字档案（AI 生成，缓存 24h） | ADMIN/TEACHER | `{entity_type: laboratory\|experiment, entity_id}` → `{success, text, cached, stats, error}` |
+| POST | `/api/v1/nlq/narrative` | 叙事报告/教学总结 | ADMIN/TEACHER | `{kind: annual_report\|teaching_summary}` → `{success, text, numbers, scope, error}` |
+
+> - `/archive`：统计数字由 Python 真实聚合，LLM 只做语言包装；生成失败时前端降级展示 `stats`。
+> - `/narrative`：权限分层沿用 `aggregate_only` 语义——TEACHER 强制个人口径（kind 归一为 teaching_summary），ADMIN 全校口径。
+> - **MCP Server（V3）**：独立进程 `python -m mcp_server.server`（在 nlq-service 目录下），stdio/SSE 两种暴露方式，只读工具 `query_laboratories / query_courses / query_experiments / query_schedules`；安全开关 `MCP_ENABLED`、SSE 令牌 `MCP_TOKEN`、行数上限 `MCP_MAX_ROWS`（默认 100）。`ltpms_readonly` 为全校级只读、未按角色隔离，MCP 仅用于本地演示。
+
 **NL2SQL查询请求/响应详细定义：**
 
 ```
