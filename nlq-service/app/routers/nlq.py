@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel
 
+from app.services.agent_service import run_agent_query
 from app.services.query_service import execute_query
 from app.services.schema_cache import schema_cache
 
@@ -9,6 +10,18 @@ router = APIRouter()
 
 class QueryRequest(BaseModel):
     question: str
+
+
+class AgentRequest(BaseModel):
+    question: str
+    history: list[dict] | None = None
+
+
+class AgentResponse(BaseModel):
+    answer: str
+    steps: list[dict]
+    steps_used: int
+    error: str | None = None
 
 
 class QueryResponse(BaseModel):
@@ -49,6 +62,18 @@ async def schema():
         "schema": await schema_cache.get_schema_text(),
         "dictionary": await schema_cache.get_dict_text(),
     }
+
+
+@router.post("/agent", response_model=AgentResponse)
+async def agent(
+    request: AgentRequest,
+    x_user_id: int = Header(..., alias="X-User-Id"),
+    x_user_role: str = Header(..., alias="X-User-Role"),
+):
+    """多轮 Agent 对话入口：加载技能与长期记忆，返回最终答案与工具调用轨迹。"""
+    return await run_agent_query(
+        request.question, x_user_role, x_user_id, history=request.history
+    )
 
 
 def generate_suggestions(question: str, columns: list[str] | None = None) -> list[str]:

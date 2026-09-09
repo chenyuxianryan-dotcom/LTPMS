@@ -238,3 +238,39 @@ async def test_agent_injects_memory_into_system_prompt():
     system = chat_fn.calls[0]["messages"][0]["content"]
     assert "上次在调 CS101 的实验项目" in system
     assert "简洁" in system
+
+
+@pytest.mark.asyncio
+async def test_agent_multi_tool_calls_in_sequence():
+    """验收门：连续 2+ 次工具调用后给出最终答案（多步 Agent 链路）。"""
+    calls = []
+
+    async def tool_a(**kw):
+        calls.append("a")
+        return {"r": 1}
+
+    async def tool_b(**kw):
+        calls.append("b")
+        return {"r": 2}
+
+    register_tool(
+        Tool("a", "工具A", {"type": "object", "properties": {}}, executor=tool_a)
+    )
+    register_tool(
+        Tool("b", "工具B", {"type": "object", "properties": {}}, executor=tool_b)
+    )
+
+    chat_fn = _make_fake_chat(
+        [
+            _tool_call_message("a", "{}", "call_a"),
+            _tool_call_message("b", "{}", "call_b"),
+            _text_message("两步查完，最终答案"),
+        ]
+    )
+    result = await agent_loop.run_agent("q", "ADMIN", 1, chat_fn=chat_fn)
+
+    assert result["steps_used"] == 2
+    assert [s["tool"] for s in result["steps"]] == ["a", "b"]
+    assert calls == ["a", "b"]
+    assert result["answer"] == "两步查完，最终答案"
+    assert result["error"] is None

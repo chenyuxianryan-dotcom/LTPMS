@@ -1,6 +1,6 @@
 <template>
   <div class="nlq-widget">
-    <!-- 迷你面板：v-show 折叠不销毁，输入与结果自然保留 -->
+    <!-- 迷你面板：v-show 折叠不销毁，对话历史自然保留 -->
     <transition name="nlq-widget-pop">
       <div
         v-show="open"
@@ -9,88 +9,70 @@
         :style="panelStyle"
       >
         <div class="nlq-widget__panel-head">
-          <span class="nlq-widget__panel-title">智能查询</span>
-          <span class="nlq-widget__panel-sub">自然语言查数据 · 自动注入数据权限</span>
+          <span class="nlq-widget__panel-title">阿实</span>
+          <span class="nlq-widget__panel-sub">复古 × AI 实验助教 · 多轮对话查数据</span>
           <el-button text :icon="Close" aria-label="收起" class="nlq-widget__panel-close" @click="open = false" />
         </div>
 
-        <el-input
-          v-model="question"
-          type="textarea"
-          :rows="2"
-          resize="none"
-          placeholder="例如：本学期我开设的实验项目有多少学时？"
-          :disabled="querying"
-          @keydown.ctrl.enter="handleQuery"
-          @keydown.meta.enter="handleQuery"
-        />
-
-        <!-- 示例标签区在上、查询键独立一行居右：避免长标签把按钮挤出面板（横向溢出 Bug 根治） -->
-        <div class="nlq-widget__actions">
-          <div class="nlq-widget__examples">
+        <!-- 对话区（老式终端风） -->
+        <div ref="convoRef" class="nlq-widget__convo">
+          <!-- 空态欢迎 + 示例标签 -->
+          <div v-if="messages.length === 0 && !thinking" class="nlq-widget__welcome">
+            <div class="nlq-widget__welcome-line">> 我是阿实，你的实验助教。</div>
+            <div class="nlq-widget__welcome-line">> 可以直接问我，比如：</div>
             <el-tag
               v-for="example in examples"
               :key="example"
               class="nlq-widget__example-tag"
               effect="plain"
-              @click="question = example"
+              @click="draft = example"
             >
               {{ example }}
             </el-tag>
           </div>
-          <div class="nlq-widget__actions-row">
-            <el-button type="primary" size="small" :loading="querying" @click="handleQuery">查询</el-button>
+
+          <div
+            v-for="(msg, index) in messages"
+            :key="index"
+            class="nlq-widget__msg"
+            :class="`is-${msg.role}`"
+          >
+            <div class="nlq-widget__msg-bubble">{{ msg.content }}</div>
+            <!-- 工具过程折叠展示 -->
+            <div v-if="msg.steps && msg.steps.length" class="nlq-widget__steps">
+              <div v-for="(step, si) in msg.steps" :key="si" class="nlq-widget__step">
+                <span class="nlq-widget__step-dot" />
+                调用了 <code>{{ step.tool }}</code> 工具
+              </div>
+            </div>
+          </div>
+
+          <div v-if="thinking" class="nlq-widget__msg is-assistant">
+            <div class="nlq-widget__msg-bubble nlq-widget__msg-bubble--typing">
+              阿实正在思考<span class="nlq-widget__cursor">▌</span>
+            </div>
           </div>
         </div>
 
-        <!-- 加载中 -->
-        <div v-if="querying" class="nlq-widget__state nlq-widget__state--loading">
-          <span class="nlq-widget__dot" /><span class="nlq-widget__dot" /><span class="nlq-widget__dot" />
-          <span class="nlq-widget__state-text">AI 正在解析问题，约需数秒…</span>
-        </div>
-
-        <!-- 失败 / 无法执行 -->
-        <div v-else-if="errorText" class="nlq-widget__state nlq-widget__state--error">
-          <el-icon><WarningFilled /></el-icon>
-          <span class="nlq-widget__state-text">{{ errorText }}</span>
-        </div>
-
-        <!-- 成功结果 -->
-        <template v-else-if="result">
-          <el-alert
-            v-if="!result.success"
-            type="warning"
-            :closable="false"
-            show-icon
-            :title="result.error ?? '该问题无法安全执行'"
-            class="nlq-widget__alert"
+        <!-- 输入区 -->
+        <div class="nlq-widget__input-row">
+          <el-input
+            v-model="draft"
+            placeholder="问问阿实…（Enter 发送）"
+            :disabled="thinking"
+            class="nlq-widget__input"
+            @keyup.enter="send"
           />
-          <template v-else>
-            <div class="nlq-widget__meta">
-              <el-tag effect="light" size="small">返回 {{ result.rowCount ?? previewRows.length }} 条</el-tag>
-              <el-tag v-if="result.executionTime" type="info" effect="light" size="small">
-                耗时 {{ (result.executionTime / 1000).toFixed(1) }}s
-              </el-tag>
-            </div>
-            <el-table :data="previewRows" border stripe size="small" max-height="200" class="nlq-widget__table">
-              <el-table-column
-                v-for="(col, index) in result.columns ?? []"
-                :key="String(col)"
-                :prop="`c${index}`"
-                :label="String(col)"
-                min-width="110"
-                show-overflow-tooltip
-              >
-                <template #default="{ row }">{{ row[index] }}</template>
-              </el-table-column>
-            </el-table>
-            <div class="nlq-widget__panel-foot">
-              <el-link type="primary" :underline="false" @click="goFullPage">
-                查看完整结果<el-icon class="nlq-widget__foot-icon"><ArrowRight /></el-icon>
-              </el-link>
-            </div>
-          </template>
-        </template>
+          <el-button
+            type="primary"
+            size="small"
+            :loading="thinking"
+            class="nlq-widget__send"
+            @click="send"
+          >
+            发送
+          </el-button>
+        </div>
       </div>
     </transition>
 
@@ -104,7 +86,7 @@
       }"
       :style="fabStyle"
       type="button"
-      aria-label="智能查询"
+      aria-label="阿实智能助手"
       @pointerdown="onFabPointerDown"
       @pointermove="onFabPointerMove"
       @pointerup="onFabPointerUp"
@@ -145,69 +127,75 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { ArrowRight, Close, WarningFilled } from '@element-plus/icons-vue';
-import { apiNlqQuery } from '@/api/nlq';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Close } from '@element-plus/icons-vue';
+import { apiNlqAgent } from '@/api/nlq';
 import { ERROR_CODE, NLQ_EXAMPLES } from '@/constants';
-import type { INlqResult } from '@/types/api';
+import type { IAgentStep } from '@/types/api';
 import type { IBizError } from '@/utils/request';
 
-/**
- * 全局悬浮智能查询机器人：右下角悬浮球 + 迷你面板，
- * 直连 /nlq/query；收起只折叠不销毁（输入/结果保留）。
- * 交互：全视口拖拽、松手贴左右边缘吸附、位置 localStorage 记忆，
- * 面板弹出方向（水平左/右 + 垂直上/下）自动跟随机器人位置。
- * 降级策略：不做服务在线探测，失败即复用错误码文案提示。
- */
-const router = useRouter();
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  steps?: IAgentStep[];
+}
 
+/**
+ * 全局悬浮「阿实」智能助手：右下角悬浮球 + 多轮对话式复古终端迷你面板。
+ * 直连 /nlq/agent；收起只折叠不销毁（对话历史保留）。
+ * 交互：全视口拖拽、松手贴左右边缘吸附、位置 localStorage 记忆，
+ * 面板弹出方向自动跟随机器人位置。失败复用错误码文案提示。
+ */
 const open = ref(false);
-const question = ref('');
-const querying = ref(false);
-const result = ref<INlqResult | null>(null);
-const errorText = ref('');
+const draft = ref('');
+const thinking = ref(false);
+const messages = ref<ChatMessage[]>([]);
+const convoRef = ref<HTMLElement | null>(null);
 
 const examples = NLQ_EXAMPLES.slice(0, 3);
 
-/** 后端 rows 是二维数组，转成 el-table 需要的对象行（与 NlqPage 同构） */
-const previewRows = computed<Record<string, unknown>[]>(() => {
-  const rows = (result.value?.rows ?? []).slice(0, 5);
-  return rows.map((row) => {
-    const rowObject: Record<string, unknown> = {};
-    row.forEach((cell, index) => {
-      rowObject[`c${index}`] = cell;
-    });
-    return rowObject;
-  });
-});
+async function send(): Promise<void> {
+  const q = draft.value.trim();
+  if (!q || thinking.value) return;
+  draft.value = '';
 
-async function handleQuery(): Promise<void> {
-  const q = question.value.trim();
-  if (!q || querying.value) return;
-  querying.value = true;
-  result.value = null;
-  errorText.value = '';
+  // 当前发送前的对话作为多轮历史传给后端（只传 role/content，不传工具轨迹）
+  const history = messages.value.map((m) => ({ role: m.role, content: m.content }));
+  messages.value.push({ role: 'user', content: q });
+  thinking.value = true;
+  scrollToBottom();
+
   try {
-    result.value = await apiNlqQuery(q);
+    const res = await apiNlqAgent(q, history);
+    messages.value.push({
+      role: 'assistant',
+      content: res.answer || '（未获得回复）',
+      steps: res.steps ?? [],
+    });
   } catch (err) {
     const bizError = err as IBizError;
-    if (bizError.code === ERROR_CODE.NLQ_UNSAFE) {
-      errorText.value = '该问题涉及写操作或危险语句，仅支持查询';
-    } else if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT) {
-      errorText.value = 'AI 服务暂时不可用，请稍后重试';
-    } else if (bizError.code === 429) {
-      errorText.value = '查询过于频繁（每分钟最多 10 次），请稍后再试';
-    } else {
-      errorText.value = bizError.message || '查询失败，请稍后重试';
-    }
+    messages.value.push({
+      role: 'assistant',
+      content: resolveErrorText(bizError),
+      steps: [],
+    });
   } finally {
-    querying.value = false;
+    thinking.value = false;
+    scrollToBottom();
   }
 }
 
-function goFullPage(): void {
-  router.push('/nlq');
+function resolveErrorText(bizError: IBizError): string {
+  if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT) return 'AI 服务暂时不可用，请稍后重试';
+  if (bizError.code === 429) return '查询过于频繁（每分钟最多 10 次），请稍后再试';
+  return bizError.message || '查询失败，请稍后重试';
+}
+
+async function scrollToBottom(): Promise<void> {
+  await nextTick();
+  if (convoRef.value) {
+    convoRef.value.scrollTop = convoRef.value.scrollHeight;
+  }
 }
 
 // ---------- 拖拽 + 贴边吸附 + 位置记忆 ----------
@@ -347,7 +335,6 @@ onBeforeUnmount(() => {
   bottom: 24px;
   z-index: 2000;
 
-  // 拖拽后悬浮球脱离右下角锚点，改为视口固定定位（left/top 由内联样式给出）
   &__panel {
     position: absolute;
     right: 0;
@@ -358,7 +345,7 @@ onBeforeUnmount(() => {
     width: 380px;
     max-height: min(62vh, 560px);
     padding: var(--space-4, 14px);
-    overflow-y: auto;
+    overflow: hidden;
     background: var(--el-bg-color, #fff);
     border: 1px solid var(--border-subtle, #e4e7ed);
     border-radius: 14px;
@@ -373,6 +360,7 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: baseline;
     gap: var(--space-2, 8px);
+    flex-shrink: 0;
   }
 
   &__panel-title {
@@ -395,95 +383,145 @@ onBeforeUnmount(() => {
     height: 22px;
   }
 
-  &__panel-foot {
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  &__foot-icon {
-    margin-left: 2px;
-  }
-
-  // 纵向布局：示例标签在上（自动换行），查询键独立一行居右，杜绝横向溢出
-  &__actions {
+  // 对话区：老式终端风（磷光绿）
+  &__convo {
     display: flex;
     flex-direction: column;
     gap: var(--space-2, 8px);
-    min-width: 0;
+    min-height: 200px;
+    max-height: 320px;
+    padding: var(--space-3, 10px);
+    overflow-y: auto;
+    background: #0c1f16;
+    border: 1px solid #1e3a2b;
+    border-radius: 10px;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #2c4a38;
+      border-radius: 3px;
+    }
   }
 
-  &__examples {
+  &__welcome {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px;
+  }
+
+  &__welcome-line {
+    font-family: var(--el-font-family-mono, 'Courier New', monospace);
+    font-size: 13px;
+    color: #6ee7a0;
   }
 
   &__example-tag {
+    align-self: flex-start;
     max-width: 100%;
     overflow: hidden;
     cursor: pointer;
+    color: #6ee7a0;
+    background: rgb(110 231 160 / 8%);
+    border-color: #2c4a38;
     text-overflow: ellipsis;
     white-space: nowrap;
 
     &:hover {
-      color: var(--el-color-primary, #378add);
-      border-color: var(--el-color-primary-light-5, #94c2ee);
+      color: #a7f3c9;
+      border-color: #4ade80;
     }
   }
 
-  &__actions-row {
+  &__msg {
     display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
+    max-width: 88%;
+
+    &.is-user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    &.is-assistant {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
   }
 
-  &__state {
+  &__msg-bubble {
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    .is-user & {
+      color: #0c1f16;
+      background: #6ee7a0;
+      border-radius: 10px 10px 2px 10px;
+    }
+
+    .is-assistant & {
+      color: #d1fae5;
+      background: #153126;
+      border: 1px solid #2c4a38;
+      border-radius: 10px 10px 10px 2px;
+    }
+
+    &--typing {
+      color: #6ee7a0 !important;
+    }
+  }
+
+  &__cursor {
+    display: inline-block;
+    animation: nlq-widget-blink 1.1s step-end infinite;
+    color: #4ade80;
+  }
+
+  &__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 4px;
+  }
+
+  &__step {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: var(--space-3, 10px) var(--space-4, 14px);
-    border-radius: 8px;
+    gap: 5px;
+    font-size: 11px;
+    color: #86efac;
 
-    &--loading {
-      justify-content: center;
-      color: var(--el-color-primary, #378add);
-      background: var(--el-color-primary-light-9, #ecf5fe);
-    }
-
-    &--error {
-      color: var(--el-color-danger, #f56c6c);
-      background: var(--el-color-danger-light-9, #fef0f0);
+    code {
+      font-family: var(--el-font-family-mono, 'Courier New', monospace);
+      color: #a7f3c9;
     }
   }
 
-  &__state-text {
-    font-size: 13px;
-  }
-
-  &__dot {
-    width: 5px;
-    height: 5px;
-    margin-right: 2px;
-    animation: nlq-widget-blink 1.2s infinite;
-    background: currentColor;
+  &__step-dot {
+    width: 4px;
+    height: 4px;
+    background: #4ade80;
     border-radius: 50%;
-
-    &:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    &:nth-child(3) {
-      animation-delay: 0.4s;
-    }
   }
 
-  &__meta {
+  &__input-row {
     display: flex;
-    gap: 6px;
+    gap: var(--space-2, 8px);
+    flex-shrink: 0;
   }
 
-  &__table {
-    width: 100%;
+  &__input {
+    flex: 1;
+  }
+
+  &__send {
+    flex-shrink: 0;
   }
 
   &__fab {
@@ -529,7 +567,6 @@ onBeforeUnmount(() => {
       cursor: grabbing;
       filter: brightness(1.08);
 
-      .nlq-widget__bot-wrap,
       .nlq-widget__bot {
         animation: none;
       }
@@ -550,7 +587,6 @@ onBeforeUnmount(() => {
   &__bot {
     width: 32px;
     height: 32px;
-    // 闲置悬浮（整体轻微上下漂浮）
     animation: nlq-widget-float 3.2s ease-in-out infinite;
   }
 
@@ -651,7 +687,7 @@ onBeforeUnmount(() => {
   .nlq-widget__bot,
   .nlq-widget__antenna,
   .nlq-widget__eye,
-  .nlq-widget__dot,
+  .nlq-widget__cursor,
   .nlq-widget__fab--active,
   .nlq-widget-pop-enter-active,
   .nlq-widget-pop-leave-active {

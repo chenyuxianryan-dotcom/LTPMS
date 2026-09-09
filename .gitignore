@@ -10,6 +10,9 @@ backend/uploads/
 # ===== 测试临时目录（pytest 在项目内建的临时文件，测试中断可能残留） =====
 nlq-service/tmp_*/
 
+# ===== Agent 长期记忆库（运行时 SQLite 数据，严禁入库） =====
+nlq-service/data/
+
 # ===== WorkBuddy 本地会话/记忆数据 =====
 .workbuddy/
 

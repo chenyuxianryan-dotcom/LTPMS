@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -95,6 +96,55 @@ public class NlqService {
         }
 
         return result;
+    }
+
+    /**
+     * 处理多轮 Agent 对话请求：限流后转发至 NL2SQL 服务的 /agent 端点，
+     * 返回最终答案与工具调用轨迹。循环级错误（熔断/模型异常）统一映射为模型超时。
+     *
+     * @param request 自然语言查询请求（含可选的多轮历史）
+     * @param userId  当前用户 ID
+     * @param role    当前用户角色
+     * @return Agent 服务返回的 {answer, steps, steps_used, error}
+     * @throws BusinessException 当触发限流或 Agent 服务调用失败时抛出
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> agent(NlqRequest request, Long userId, String role) {
+        RateLimiter limiter = rateLimiters.computeIfAbsent(userId,
+                k -> RateLimiter.create(nlqProperties.getRateLimitPerMinute() / 60.0));
+        if (!limiter.tryAcquire()) {
+            throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS);
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Token", nlqProperties.getInternalToken());
+        headers.set("X-User-Id", String.valueOf(userId));
+        headers.set("X-User-Role", role);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("question", request.getQuestion());
+        if (request.getHistory() != null) {
+            body.put("history", request.getHistory());
+        }
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    nlqProperties.getServiceUrl() + "/agent", entity, Map.class);
+            Map<String, Object> result = response.getBody();
+            if (result != null && result.get("error") != null) {
+                log.warn("NL2SQL agent 循环级错误: {}", result.get("error"));
+                throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+            }
+            return result;
+        } catch (RestClientResponseException e) {
+            log.error("NL2SQL agent service error: {}", e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (Exception e) {
+            log.error("NL2SQL agent request failed", e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        }
     }
 
     /**

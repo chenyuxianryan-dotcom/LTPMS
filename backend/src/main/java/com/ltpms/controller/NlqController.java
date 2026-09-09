@@ -36,6 +36,17 @@ public class NlqController {
     }
 
     /**
+     * 多轮 Agent 对话入口：以自然语言多轮交互查询数据，返回最终答案与工具调用轨迹。
+     *
+     * @param request 自然语言查询请求，含用户问题与可选的多轮历史
+     * @return Agent 结果映射（含 answer、steps 等）
+     */
+    @PostMapping("/agent")
+    public Result<Map<String, Object>> agent(@Valid @RequestBody NlqRequest request) {
+        return Result.success(nlqService.agent(request, getCurrentUserId(), getCurrentRole()));
+    }
+
+    /**
      * 分页查询当前用户的查询历史。
      *
      * @param page 页码，默认 1

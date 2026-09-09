@@ -150,6 +150,21 @@ export interface INlqResult {
   error?: string;
 }
 
+/** Agent 单步工具调用轨迹 */
+export interface IAgentStep {
+  tool: string;
+  arguments?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+}
+
+/** Agent 多轮对话结果 */
+export interface IAgentResult {
+  answer: string;
+  steps: IAgentStep[];
+  stepsUsed: number;
+  error?: string | null;
+}
+
 /** 报表：分层可见（教师=全校汇总 + 本人明细） */
 export interface IReportSummary {
   courseCount: number;
