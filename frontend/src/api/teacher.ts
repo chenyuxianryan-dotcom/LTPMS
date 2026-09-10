@@ -18,6 +18,22 @@ export function apiUpdateTeacherStatus(id: number, status: 0 | 1): Promise<void>
   return patch(`/teachers/${id}/status`, { status });
 }
 
+export interface ITeacherBatchDeleteError {
+  id: number;
+  message: string;
+}
+
+export interface ITeacherBatchDeleteResult {
+  successCount: number;
+  failedCount: number;
+  errors: ITeacherBatchDeleteError[];
+}
+
+/** 批量删除教师，逐条校验教师身份与关联课表/课程，关联存在的会被跳过并记录明细 */
+export function apiDeleteTeachers(ids: number[]): Promise<ITeacherBatchDeleteResult> {
+  return post<ITeacherBatchDeleteResult>('/teachers/batch-delete', ids);
+}
+
 export function apiDownloadTeacherTemplate(): Promise<Blob> {
   return download('/teachers/import/template');
 }

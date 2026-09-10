@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * 教师管理接口，提供教师分页查询、Excel 导入、密码重置、状态变更及模板下载（仅管理员）等功能。
@@ -84,6 +85,19 @@ public class TeacherController {
     public Result<Void> updateStatus(@PathVariable Long id, @Valid @RequestBody TeacherStatusRequest request) {
         teacherService.updateStatus(id, request.getStatus());
         return Result.success();
+    }
+
+    /**
+     * 批量删除教师（仅管理员）。逐条校验教师身份与关联数据，
+     * 存在关联课表/课程的跳过并返回明细。
+     *
+     * @param ids 教师（用户）ID 列表
+     * @return 批量删除结果（成功/失败数量与错误明细）
+     */
+    @PostMapping("/batch-delete")
+    @RequireRole("ADMIN")
+    public Result<TeacherService.BatchDeleteResult> deleteBatch(@RequestBody List<Long> ids) {
+        return Result.success(teacherService.deleteBatch(ids));
     }
 
     /**

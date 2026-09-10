@@ -6,7 +6,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ltpms.common.BusinessException;
 import com.ltpms.common.ErrorCode;
 import com.ltpms.common.PageResult;
+import com.ltpms.entity.Course;
+import com.ltpms.entity.Schedule;
 import com.ltpms.entity.User;
+import com.ltpms.mapper.CourseMapper;
+import com.ltpms.mapper.ScheduleMapper;
 import com.ltpms.mapper.UserMapper;
 import com.ltpms.util.ExcelUtil;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +39,8 @@ import java.util.List;
 public class TeacherService {
 
     private final UserMapper userMapper;
+    private final ScheduleMapper scheduleMapper;
+    private final CourseMapper courseMapper;
     private final BCryptPasswordEncoder passwordEncoder;
 
     /**
@@ -95,6 +101,61 @@ public class TeacherService {
         update.setId(id);
         update.setStatus(status);
         userMapper.updateById(update);
+    }
+
+    /**
+     * 批量删除教师。逐条校验教师身份、是否有关联课表或课程，
+     * 存在关联的跳过并记录错误，最终统一返回成功/失败明细（事务内一次性提交）。
+     *
+     * @param ids 待删除的教师（用户）ID 列表
+     * @return 批量删除结果，含成功数量、失败数量与逐条错误明细
+     */
+    @Transactional
+    public BatchDeleteResult deleteBatch(List<Long> ids) {
+        int successCount = 0;
+        List<BatchDeleteError> errors = new ArrayList<>();
+        if (ids == null || ids.isEmpty()) {
+            return new BatchDeleteResult(0, 0, errors);
+        }
+        for (Long id : ids) {
+            try {
+                User user = userMapper.selectById(id);
+                if (user == null || !"TEACHER".equals(user.getRole())) {
+                    errors.add(new BatchDeleteError(id, "教师不存在"));
+                    continue;
+                }
+                long relatedSchedules = scheduleMapper.selectCount(
+                        new LambdaQueryWrapper<Schedule>().eq(Schedule::getTeacherId, id));
+                if (relatedSchedules > 0) {
+                    errors.add(new BatchDeleteError(id, "该教师已关联课表数据，无法删除"));
+                    continue;
+                }
+                long relatedCourses = courseMapper.selectCount(
+                        new LambdaQueryWrapper<Course>().eq(Course::getTeacherId, id));
+                if (relatedCourses > 0) {
+                    errors.add(new BatchDeleteError(id, "该教师已关联实验课程，无法删除"));
+                    continue;
+                }
+                userMapper.deleteById(id);
+                successCount++;
+            } catch (Exception e) {
+                log.warn("教师批量删除单条失败 id={}", id, e);
+                errors.add(new BatchDeleteError(id, "删除失败：" + e.getMessage()));
+            }
+        }
+        return new BatchDeleteResult(successCount, errors.size(), errors);
+    }
+
+    /**
+     * 批量删除结果，包含成功数量、失败数量与逐条错误明细。
+     */
+    public record BatchDeleteResult(int successCount, int failedCount, List<BatchDeleteError> errors) {
+    }
+
+    /**
+     * 批量删除单条错误，包含教师（用户）ID 与错误信息。
+     */
+    public record BatchDeleteError(Long id, String message) {
     }
 
     /**

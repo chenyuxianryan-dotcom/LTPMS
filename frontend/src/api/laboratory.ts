@@ -18,6 +18,22 @@ export function apiDeleteLaboratory(id: number): Promise<void> {
   return del(`/laboratories/${id}`);
 }
 
+export interface ILaboratoryBatchDeleteError {
+  id: number;
+  message: string;
+}
+
+export interface ILaboratoryBatchDeleteResult {
+  successCount: number;
+  failedCount: number;
+  errors: ILaboratoryBatchDeleteError[];
+}
+
+/** 批量删除实验室，逐条校验关联课表，关联存在的会被跳过并记录明细 */
+export function apiDeleteLaboratories(ids: number[]): Promise<ILaboratoryBatchDeleteResult> {
+  return post<ILaboratoryBatchDeleteResult>('/laboratories/batch-delete', ids);
+}
+
 export function apiImportLaboratories(formData: FormData): Promise<{ successCount: number; failCount: number }> {
   return post('/laboratories/import', formData);
 }

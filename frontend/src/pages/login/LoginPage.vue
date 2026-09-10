@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { nextTick, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { Lock, User } from '@element-plus/icons-vue';
@@ -98,6 +98,9 @@ async function handleChangePwdClosed(visible: boolean): Promise<void> {
 
 async function redirectAfterLogin(): Promise<void> {
   const redirect = (currentRoute.query.redirect as string) || '/dashboard';
+  // 等待下一个 tick，确保 store 中的 token/user 已完成响应式更新，
+  // 避免路由守卫在 isLoggedIn 仍为旧值时把已登录用户拦截回落地页
+  await nextTick();
   await router.push(redirect);
 }
 </script>

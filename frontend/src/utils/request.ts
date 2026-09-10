@@ -38,11 +38,15 @@ request.interceptors.response.use(
     if (result.code === 200) {
       return result.data as never;
     }
-    // 业务码 401（HTTP 200 + body code=401）：与 HTTP 401 同等处理，清会话送回落地页
+    // 业务码 401（HTTP 200 + body code=401）：与 HTTP 401 同等处理，清会话并送回登录页
     if (result.code === 401) {
       sessionStorage.removeItem(TOKEN_KEY);
-      ElMessage.error('登录已过期，请重新登录');
-      window.location.href = '/';
+      ElMessage({
+        type: 'error',
+        message: '登录已过期，请重新登录',
+        duration: 3000,
+      });
+      window.location.href = '/login';
       return Promise.reject(createBizError(result.code, result.message));
     }
     showBizError(result.code, result.message);
@@ -53,8 +57,12 @@ request.interceptors.response.use(
     const message = error.response?.data?.message || error.message || '网络异常，请稍后重试';
     if (status === 401) {
       sessionStorage.removeItem(TOKEN_KEY);
-      ElMessage.error('登录已过期，请重新登录');
-      window.location.href = '/';
+      ElMessage({
+        type: 'error',
+        message: '登录已过期，请重新登录',
+        duration: 3000,
+      });
+      window.location.href = '/login';
       return Promise.reject(createBizError(401, message));
     }
     showBizError(status ?? 500, message);

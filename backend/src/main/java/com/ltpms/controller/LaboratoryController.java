@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * 实验室管理接口，提供实验室的分页查询、增删改、Excel 导入及模板下载（仅管理员）等功能。
@@ -83,6 +84,18 @@ public class LaboratoryController {
     public Result<Void> delete(@PathVariable Long id) {
         laboratoryService.delete(id);
         return Result.success();
+    }
+
+    /**
+     * 批量删除实验室（仅管理员）。逐条校验关联课表，存在关联的跳过并返回明细。
+     *
+     * @param ids 实验室 ID 列表
+     * @return 批量删除结果（成功/失败数量与错误明细）
+     */
+    @PostMapping("/batch-delete")
+    @RequireRole("ADMIN")
+    public Result<LaboratoryService.BatchDeleteResult> deleteBatch(@RequestBody List<Long> ids) {
+        return Result.success(laboratoryService.deleteBatch(ids));
     }
 
     /**

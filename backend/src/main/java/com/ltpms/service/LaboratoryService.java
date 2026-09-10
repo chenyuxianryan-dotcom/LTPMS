@@ -133,6 +133,55 @@ public class LaboratoryService {
         laboratoryMapper.deleteById(id);
     }
 
+    /**
+     * 批量删除实验室。逐条复用单条删除的关联课表校验逻辑，
+     * 存在关联的实验室跳过并记录错误，最终统一返回成功/失败明细（事务内一次性提交）。
+     *
+     * @param ids 待删除的实验室 ID 列表
+     * @return 批量删除结果，含成功数量、失败数量与逐条错误明细
+     */
+    @Transactional
+    public BatchDeleteResult deleteBatch(List<Long> ids) {
+        int successCount = 0;
+        List<BatchDeleteError> errors = new ArrayList<>();
+        if (ids == null || ids.isEmpty()) {
+            return new BatchDeleteResult(0, 0, errors);
+        }
+        for (Long id : ids) {
+            try {
+                Laboratory lab = laboratoryMapper.selectById(id);
+                if (lab == null) {
+                    errors.add(new BatchDeleteError(id, "实验室不存在"));
+                    continue;
+                }
+                long relatedSchedules = scheduleMapper.selectCount(
+                        new LambdaQueryWrapper<Schedule>().eq(Schedule::getLabCode, lab.getLabCode()));
+                if (relatedSchedules > 0) {
+                    errors.add(new BatchDeleteError(id, "该实验室已关联课表数据，无法删除"));
+                    continue;
+                }
+                laboratoryMapper.deleteById(id);
+                successCount++;
+            } catch (Exception e) {
+                log.warn("实验室批量删除单条失败 id={}", id, e);
+                errors.add(new BatchDeleteError(id, "删除失败：" + e.getMessage()));
+            }
+        }
+        return new BatchDeleteResult(successCount, errors.size(), errors);
+    }
+
+    /**
+     * 批量删除结果，包含成功数量、失败数量与逐条错误明细。
+     */
+    public record BatchDeleteResult(int successCount, int failedCount, List<BatchDeleteError> errors) {
+    }
+
+    /**
+     * 批量删除单条错误，包含实验室 ID 与错误信息。
+     */
+    public record BatchDeleteError(Long id, String message) {
+    }
+
     private boolean existsByLabCode(String labCode) {
         return laboratoryMapper.selectCount(
                 new LambdaQueryWrapper<Laboratory>().eq(Laboratory::getLabCode, labCode)) > 0;

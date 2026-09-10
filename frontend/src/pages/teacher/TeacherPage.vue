@@ -8,11 +8,15 @@
       <div class="filter-bar">
         <el-input v-model="keyword" placeholder="搜索姓名 / 工号" clearable style="width: 220px" @keyup.enter="handleSearch" />
         <el-button :icon="Search" @click="handleSearch">搜索</el-button>
+        <el-button :icon="Delete" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+          批量删除<span v-if="selectedIds.length > 0" style="margin-left: 4px">({{ selectedIds.length }})</span>
+        </el-button>
         <el-button type="primary" :icon="Upload" @click="importVisible = true">批量导入</el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="records" border stripe>
+    <el-table v-loading="loading" :data="records" border stripe @selection-change="(rows: ITeacher[]) => (selectedIds = rows.map((r) => r.id))">
+      <el-table-column type="selection" width="48" :selectable="(row: ITeacher) => true" />
       <el-table-column label="头像" width="76" align="center">
         <template #default="{ row }">
           <el-tooltip content="点击更换头像" placement="top">
@@ -74,10 +78,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Search, Upload } from '@element-plus/icons-vue';
+import { Delete, Search, Upload } from '@element-plus/icons-vue';
 import AvatarPickerDialog from '@/components/AvatarPickerDialog.vue';
 import ImportDialog from '@/components/ImportDialog.vue';
-import { apiListTeachers, apiResetTeacherPassword, apiUpdateTeacherStatus } from '@/api/teacher';
+import { apiDeleteTeachers, apiListTeachers, apiResetTeacherPassword, apiUpdateTeacherStatus } from '@/api/teacher';
 import { resolveAvatarUrl } from '@/utils/avatar';
 import type { ITeacher } from '@/types/api';
 
@@ -87,6 +91,7 @@ const size = ref(20);
 const total = ref(0);
 const loading = ref(false);
 const records = ref<ITeacher[]>([]);
+const selectedIds = ref<number[]>([]);
 const importVisible = ref(false);
 const avatarPickerVisible = ref(false);
 const pickerUser = ref<{ id: number; realName: string; avatar?: string | null } | null>(null);
@@ -104,6 +109,7 @@ async function loadData(): Promise<void> {
 
 function handleSearch(): void {
   page.value = 1;
+  selectedIds.value = [];
   void loadData();
 }
 
@@ -133,6 +139,25 @@ async function handleResetPassword(row: ITeacher): Promise<void> {
   await ElMessageBox.confirm(`确定重置「${row.realName}」的密码吗？重置后为默认密码 Ltpms@${row.username}。`, '重置确认', { type: 'warning' });
   await apiResetTeacherPassword(row.id);
   ElMessage.success('密码已重置');
+  await loadData();
+}
+
+async function handleBatchDelete(): Promise<void> {
+  if (selectedIds.value.length === 0) return;
+  await ElMessageBox.confirm(
+    `确定批量删除选中的 ${selectedIds.value.length} 位教师吗？已关联课表/课程的教师将被跳过。`,
+    '批量删除确认',
+    { type: 'warning' },
+  );
+  const result = await apiDeleteTeachers(selectedIds.value);
+  if (result.failedCount === 0) {
+    ElMessage.success(`已成功删除 ${result.successCount} 位教师`);
+  } else {
+    ElMessage.warning(
+      `成功 ${result.successCount} 条，失败 ${result.failedCount} 条。失败原因：${result.errors.map((e) => e.message).join('；')}`,
+    );
+  }
+  selectedIds.value = [];
   await loadData();
 }
 

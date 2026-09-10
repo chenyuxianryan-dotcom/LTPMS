@@ -8,12 +8,16 @@
       <div class="filter-bar">
         <el-input v-model="keyword" placeholder="搜索编号 / 名称 / 负责人" clearable style="width: 240px" @keyup.enter="handleSearch" />
         <el-button :icon="Search" @click="handleSearch">搜索</el-button>
+        <el-button :icon="Delete" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+          批量删除<span v-if="selectedIds.length > 0" style="margin-left: 4px">({{ selectedIds.length }})</span>
+        </el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate">新建实验室</el-button>
         <el-button :icon="Upload" @click="importVisible = true">批量导入</el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="records" border stripe>
+    <el-table v-loading="loading" :data="records" border stripe @selection-change="(rows: ILaboratory[]) => (selectedIds = rows.map((r) => r.id))">
+      <el-table-column type="selection" width="48" :selectable="(row: ILaboratory) => true" />
       <el-table-column prop="labCode" label="实验室编号" width="140" />
       <el-table-column prop="labName" label="实验室名称" min-width="180" />
       <el-table-column prop="manager" label="负责人" width="120" />
@@ -90,10 +94,10 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
-import { Plus, Search, Upload } from '@element-plus/icons-vue';
+import { Delete, Plus, Search, Upload } from '@element-plus/icons-vue';
 import ArchiveDialog from '@/components/ArchiveDialog.vue';
 import ImportDialog from '@/components/ImportDialog.vue';
-import { apiCreateLaboratory, apiDeleteLaboratory, apiListLaboratories, apiUpdateLaboratory } from '@/api/laboratory';
+import { apiCreateLaboratory, apiDeleteLaboratories, apiDeleteLaboratory, apiListLaboratories, apiUpdateLaboratory } from '@/api/laboratory';
 import type { ILaboratory } from '@/types/api';
 
 const keyword = ref('');
@@ -102,6 +106,7 @@ const size = ref(20);
 const total = ref(0);
 const loading = ref(false);
 const records = ref<ILaboratory[]>([]);
+const selectedIds = ref<number[]>([]);
 
 const dialogVisible = ref(false);
 const importVisible = ref(false);
@@ -128,6 +133,7 @@ async function loadData(): Promise<void> {
 
 function handleSearch(): void {
   page.value = 1;
+  selectedIds.value = [];
   void loadData();
 }
 
@@ -173,6 +179,25 @@ async function handleDelete(row: ILaboratory): Promise<void> {
   await ElMessageBox.confirm(`确定删除实验室「${row.labName}」吗？有关联数据时将无法删除。`, '删除确认', { type: 'warning' });
   await apiDeleteLaboratory(row.id);
   ElMessage.success('删除成功');
+  await loadData();
+}
+
+async function handleBatchDelete(): Promise<void> {
+  if (selectedIds.value.length === 0) return;
+  await ElMessageBox.confirm(
+    `确定批量删除选中的 ${selectedIds.value.length} 间实验室吗？已关联课表的实验室将被跳过。`,
+    '批量删除确认',
+    { type: 'warning' },
+  );
+  const result = await apiDeleteLaboratories(selectedIds.value);
+  if (result.failedCount === 0) {
+    ElMessage.success(`已成功删除 ${result.successCount} 间实验室`);
+  } else {
+    ElMessage.warning(
+      `成功 ${result.successCount} 条，失败 ${result.failedCount} 条。失败原因：${result.errors.map((e) => e.message).join('；')}`,
+    );
+  }
+  selectedIds.value = [];
   await loadData();
 }
 
