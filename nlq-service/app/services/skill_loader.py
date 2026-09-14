@@ -66,10 +66,10 @@ def format_skills_prompt(skills: list[Skill]) -> str:
     if not skills:
         return ""
 
-    lines = ["", "## 可用技能（按需触发）"]
+    lines = ["", "## 可用技能（仅在触发条件满足时启用）"]
     for s in skills:
         desc = f"——{s.description}" if s.description else ""
         tools = f"（允许工具：{', '.join(s.allowed_tools)}）" if s.allowed_tools else ""
-        lines.append(f"- {s.name}{desc}{tools}")
-        lines.append(f"  {s.prompt}")
+        lines.append(f"### 技能：{s.name}{desc}{tools}")
+        lines.extend(f"  {line}" for line in s.prompt.splitlines())
     return "\n".join(lines)

@@ -20,6 +20,9 @@ async def chat_completion(
         "model": settings.deepseek_model,
         "messages": messages,
         "temperature": temperature,
+        # DeepSeek V4 默认 thinking 模式会多耗 reasoning token 且增加延迟；
+        # NL2SQL / Agent 取结构化结果走 non-thinking 更稳更省
+        "thinking": {"type": "disabled"},
     }
     if tools:
         payload["tools"] = tools

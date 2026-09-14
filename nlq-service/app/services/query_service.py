@@ -8,10 +8,13 @@ import time
 
 from app.services.deepseek_client import call_deepseek
 from app.services.permission import PermissionRejectError, inject_permission
-from app.services.prompt_builder import build_messages
+from app.services.prompt_builder import build_messages, build_repair_messages
 from app.services.row_limiter import ensure_limit
 from app.services.sql_validator import extract_sql, validate_sql
 from app.utils.db import db
+
+# 首答 + 一次带错误反馈的修复，避免小毛病直接判死刑
+MAX_ATTEMPTS = 2
 
 
 async def execute_query(question: str, role: str, user_id: int) -> dict:
@@ -19,38 +22,60 @@ async def execute_query(question: str, role: str, user_id: int) -> dict:
 
     返回 dict 键与 QueryResponse 对齐：success / sql / columns / rows /
     row_count / execution_time / error。错误不向上抛，统一进 error 字段。
+    校验拒绝或执行失败时，把失败原因回喂模型修复一次（上限由 MAX_ATTEMPTS 控制）。
     """
     start = time.time()
     question = question.strip()
+    messages: list[dict] = []
+    failed_sql = ""
+    last_error = ""
+    repair_feedback = ""
 
     try:
-        messages = await build_messages(question, role)
-        raw_sql = await call_deepseek(messages)
-        sql = extract_sql(raw_sql)
+        for attempt in range(MAX_ATTEMPTS):
+            if attempt == 0:
+                messages = await build_messages(question, role)
+            else:
+                messages = build_repair_messages(messages, failed_sql, repair_feedback)
 
-        valid, msg = validate_sql(sql)
-        if not valid:
-            return _fail(f"该问题无法安全执行：{msg}")
+            raw_sql = await call_deepseek(messages)
+            model_sql = extract_sql(raw_sql)
+            failed_sql = model_sql
 
-        sql = inject_permission(sql, role, user_id)
-        sql = ensure_limit(sql)
+            valid, msg = validate_sql(model_sql)
+            if not valid:
+                last_error = f"该问题无法安全执行：{msg}"
+                repair_feedback = f"SQL 校验未通过：{msg}"
+                continue
 
-        rows = await db.execute(sql)
-        columns = list(rows[0].keys()) if rows else []
-        data_rows = [list(row.values()) for row in rows]
+            try:
+                sql = inject_permission(model_sql, role, user_id)
+            except PermissionRejectError as e:
+                last_error = f"无法为该查询建立数据权限约束，已拒绝执行：{e}"
+                repair_feedback = f"数据权限约束无法建立：{e}。请只使用表结构中存在的表。"
+                continue
 
-        return {
-            "success": True,
-            "sql": sql,
-            "columns": columns,
-            "rows": data_rows,
-            "row_count": len(data_rows),
-            "execution_time": int((time.time() - start) * 1000),
-            "error": None,
-        }
+            sql = ensure_limit(sql)
 
-    except PermissionRejectError as e:
-        return _fail(f"无法为该查询建立数据权限约束，已拒绝执行：{e}")
+            try:
+                columns, rows = await db.execute_with_columns(sql)
+            except Exception as e:
+                last_error = f"查询执行失败：{e}"
+                repair_feedback = f"MySQL 执行出错：{e}"
+                continue
+
+            data_rows = [[row.get(column) for column in columns] for row in rows]
+            return {
+                "success": True,
+                "sql": sql,
+                "columns": columns,
+                "rows": data_rows,
+                "row_count": len(data_rows),
+                "execution_time": int((time.time() - start) * 1000),
+                "error": None,
+            }
+
+        return _fail(last_error or "查询执行失败：未能生成可执行的 SQL")
     except Exception as e:
         return _fail(f"查询执行失败：{e}")
 

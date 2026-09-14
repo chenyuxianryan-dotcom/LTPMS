@@ -160,12 +160,38 @@ export interface IAgentStep {
   result?: Record<string, unknown>;
 }
 
-/** Agent 多轮对话结果 */
+/** 档案工具返回的分区块：columns/rows 为原始行，直接上屏不经模型转写 */
+export interface IDossierBlock {
+  title: string;
+  columns: string[];
+  rows: unknown[][];
+  empty: boolean;
+  note?: string | null;
+}
+
+/** 档案工具返回结构（双份载荷：display 上屏，model_view 回喂模型） */
+export interface IDossierToolResult {
+  ok: boolean;
+  dimension?: string;
+  title?: string;
+  count?: number;
+  /** 人员解析状态：exact / ambiguous / manager_only / not_found / denied */
+  status?: string;
+  error?: string;
+  display?: { blocks: IDossierBlock[] };
+  model_view?: { dimension?: string; count?: number; digest?: string; person_ref?: string };
+}
+
+/** Agent 多轮对话结果（nlq-service 返回 snake_case） */
 export interface IAgentResult {
   answer: string;
   steps: IAgentStep[];
-  stepsUsed: number;
+  steps_used?: number;
   error?: string | null;
+  /** 完成度断言二次仍缺的维度（工具名），前端把对应区块标灰 */
+  missing_dimensions?: string[];
+  /** 人名意图路由命中的姓名；「我的档案」入口为当前用户姓名 */
+  routed_person_name?: string | null;
 }
 
 /** 报表：分层可见（教师=全校汇总 + 本人明细） */

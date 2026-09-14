@@ -30,5 +30,14 @@ class Database:
                 await cur.execute(sql, params)
                 return await cur.fetchall()
 
+    async def execute_with_columns(self, sql: str, params: tuple = ()):
+        """与 execute 相同，但额外返回列名（0 行结果也能保留列结构）"""
+        async with self.pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql, params)
+                rows = await cur.fetchall()
+                columns = [d[0] for d in (cur.description or ())]
+                return columns, rows
+
 
 db = Database()

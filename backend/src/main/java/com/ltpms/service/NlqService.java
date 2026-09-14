@@ -127,6 +127,9 @@ public class NlqService {
         if (request.getHistory() != null) {
             body.put("history", request.getHistory());
         }
+        if (Boolean.TRUE.equals(request.getSelfDossier())) {
+            body.put("self_dossier", true);
+        }
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {

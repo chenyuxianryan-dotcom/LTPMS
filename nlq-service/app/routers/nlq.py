@@ -28,6 +28,8 @@ class QueryRequest(BaseModel):
 class AgentRequest(BaseModel):
     question: str
     history: list[dict] | None = None
+    # 「我的档案」入口：服务端锁定 person_ref 为当前登录用户
+    self_dossier: bool = False
 
 
 class AgentResponse(BaseModel):
@@ -35,6 +37,8 @@ class AgentResponse(BaseModel):
     steps: list[dict]
     steps_used: int
     error: str | None = None
+    missing_dimensions: list[str] = []
+    routed_person_name: str | None = None
 
 
 class QueryResponse(BaseModel):
@@ -120,7 +124,8 @@ async def agent(
 ):
     """多轮 Agent 对话入口：加载技能与长期记忆，返回最终答案与工具调用轨迹。"""
     return await run_agent_query(
-        request.question, x_user_role, x_user_id, history=request.history
+        request.question, x_user_role, x_user_id, history=request.history,
+        self_dossier=request.self_dossier,
     )
 
 

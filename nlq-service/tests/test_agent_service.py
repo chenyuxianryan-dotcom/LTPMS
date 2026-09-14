@@ -64,8 +64,11 @@ async def test_agent_endpoint_passthrough(monkeypatch):
 
     captured = {}
 
-    async def fake_run_agent_query(question, role, user_id, history=None):
-        captured.update(question=question, role=role, user_id=user_id, history=history)
+    async def fake_run_agent_query(question, role, user_id, history=None, self_dossier=False):
+        captured.update(
+            question=question, role=role, user_id=user_id, history=history,
+            self_dossier=self_dossier,
+        )
         return {"answer": "你好", "steps": [], "steps_used": 0, "error": None}
 
     monkeypatch.setattr(nlq_router, "run_agent_query", fake_run_agent_query)
@@ -86,3 +89,31 @@ async def test_agent_endpoint_passthrough(monkeypatch):
     assert captured["user_id"] == 5
     assert captured["role"] == "TEACHER"
     assert captured["history"] == [{"role": "user", "content": "上文"}]
+    assert captured["self_dossier"] is False
+
+
+@pytest.mark.asyncio
+async def test_agent_endpoint_passes_self_dossier(monkeypatch):
+    """「我的档案」标志必须原样透传到业务层，由服务端负责锁定 person_ref。"""
+    from app.routers import nlq as nlq_router
+
+    captured = {}
+
+    async def fake_run_agent_query(question, role, user_id, history=None, self_dossier=False):
+        captured.update(self_dossier=self_dossier)
+        return {"answer": "ok", "steps": [], "steps_used": 0, "error": None}
+
+    monkeypatch.setattr(nlq_router, "run_agent_query", fake_run_agent_query)
+
+    app = FastAPI()
+    app.include_router(nlq_router.router)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/agent",
+            json={"question": "我的档案", "self_dossier": True},
+            headers={"X-User-Id": "5", "X-User-Role": "TEACHER"},
+        )
+
+    assert resp.status_code == 200
+    assert captured["self_dossier"] is True

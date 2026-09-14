@@ -7,12 +7,17 @@ export function apiNlqQuery(question: string): Promise<INlqResult> {
   return post<INlqResult>('/nlq/query', { question }, { timeout: 60000 });
 }
 
-/** Agent 多轮对话（阿实），history 为可选的多轮上下文 */
+/** Agent 多轮对话（阿实），history 为可选的多轮上下文；selfDossier=true 走「我的档案」锁定入口 */
 export function apiNlqAgent(
   question: string,
   history?: { role: string; content: string }[],
+  options?: { selfDossier?: boolean },
 ): Promise<IAgentResult> {
-  return post<IAgentResult>('/nlq/agent', { question, history }, { timeout: 60000 });
+  const payload: Record<string, unknown> = { question, history };
+  if (options?.selfDossier) {
+    payload.self_dossier = true;
+  }
+  return post<IAgentResult>('/nlq/agent', payload, { timeout: 60000 });
 }
 
 export function apiGetNlqHistory(params: { page: number; size: number }): Promise<IPageResult<IQueryHistory>> {

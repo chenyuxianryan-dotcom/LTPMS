@@ -30,13 +30,7 @@ class SchemaCache:
         tables = await self._load_tables()
         dicts = await self._load_dicts()
 
-        lines = ["-- 数据库表结构", ""]
-        for table in tables:
-            lines.append(f"CREATE TABLE {table['name']} (")
-            lines.append(f"  {table['column']} {table['type']}")
-            lines.append(");")
-
-        self._schema_text = "\n".join(lines)
+        self._schema_text = render_schema(tables)
 
         dict_lines = ["-- 字典映射", ""]
         for d in dicts:
@@ -47,7 +41,8 @@ class SchemaCache:
 
     async def _load_tables(self):
         sql = """
-        SELECT TABLE_NAME as `name`, COLUMN_NAME as `column`, COLUMN_TYPE as `type`
+        SELECT TABLE_NAME as `name`, COLUMN_NAME as `column`, COLUMN_TYPE as `type`,
+               COLUMN_KEY as `key`, COLUMN_COMMENT as `comment`
         FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE()
         ORDER BY TABLE_NAME, ORDINAL_POSITION
@@ -62,6 +57,42 @@ class SchemaCache:
         ORDER BY dict_type, sort_order
         """
         return await db.execute(sql)
+
+
+def render_schema(rows) -> str:
+    """把 information_schema 列信息渲染成整表 DDL（含列注释与主键），便于模型理解"""
+    blocks: list[str] = []
+    current_table: str | None = None
+    columns: list[str] = []
+    primary_key = ""
+
+    def flush() -> None:
+        if current_table is None:
+            return
+        body = list(columns)
+        if primary_key:
+            body.append(f"  PRIMARY KEY ({primary_key})")
+        blocks.append(f"CREATE TABLE {current_table} (\n" + ",\n".join(body) + "\n);")
+
+    for row in rows:
+        if row["name"] != current_table:
+            flush()
+            current_table = row["name"]
+            columns = []
+            primary_key = ""
+
+        column = f"  {row['column']} {row['type']}"
+        comment = row.get("comment")
+        if comment:
+            escaped = str(comment).replace("'", "''")
+            column += f" COMMENT '{escaped}'"
+        columns.append(column)
+
+        if row.get("key") == "PRI":
+            primary_key = f"`{row['column']}`"
+
+    flush()
+    return "-- 数据库表结构（含列注释与主键）\n\n" + "\n\n".join(blocks)
 
 
 schema_cache = SchemaCache()

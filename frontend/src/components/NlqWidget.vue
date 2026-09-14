@@ -35,12 +35,20 @@
             v-for="(msg, index) in messages"
             :key="index"
             class="nlq-widget__msg"
-            :class="`is-${msg.role}`"
+            :class="[`is-${msg.role}`, { 'has-dossier': dossierSteps(msg.steps).length > 0 }]"
           >
             <div class="nlq-widget__msg-bubble">{{ msg.content }}</div>
-            <!-- 工具过程折叠展示 -->
-            <div v-if="msg.steps && msg.steps.length" class="nlq-widget__steps">
-              <div v-for="(step, si) in msg.steps" :key="si" class="nlq-widget__step">
+
+            <!-- 人员档案：分区卡原始行直接上屏（决策 D7） -->
+            <PersonDossier
+              v-if="dossierSteps(msg.steps).length > 0"
+              :steps="msg.steps ?? []"
+              class="nlq-widget__dossier"
+            />
+
+            <!-- 其余工具过程折叠展示 -->
+            <div v-if="plainSteps(msg.steps).length > 0" class="nlq-widget__steps">
+              <div v-for="(step, si) in plainSteps(msg.steps)" :key="si" class="nlq-widget__step">
                 <span class="nlq-widget__step-dot" />
                 调用了 <code>{{ step.tool }}</code> 工具
               </div>
@@ -129,6 +137,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Close } from '@element-plus/icons-vue';
+import PersonDossier from '@/components/PersonDossier.vue';
 import { apiNlqAgent } from '@/api/nlq';
 import { ERROR_CODE, NLQ_EXAMPLES } from '@/constants';
 import type { IAgentStep } from '@/types/api';
@@ -189,6 +198,20 @@ function resolveErrorText(bizError: IBizError): string {
   if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT) return 'AI 服务暂时不可用，请稍后重试';
   if (bizError.code === 429) return '查询过于频繁（每分钟最多 10 次），请稍后再试';
   return bizError.message || '查询失败，请稍后重试';
+}
+
+/** 档案工具带 display.blocks（原始行要上屏）；其余工具只在轨迹里留一行 */
+function isDossierStep(step: IAgentStep): boolean {
+  const result = step.result as { display?: { blocks?: unknown } } | undefined;
+  return Array.isArray(result?.display?.blocks);
+}
+
+function dossierSteps(steps?: IAgentStep[]): IAgentStep[] {
+  return (steps ?? []).filter(isDossierStep);
+}
+
+function plainSteps(steps?: IAgentStep[]): IAgentStep[] {
+  return (steps ?? []).filter((step) => !isDossierStep(step));
 }
 
 async function scrollToBottom(): Promise<void> {
@@ -450,6 +473,17 @@ onBeforeUnmount(() => {
       align-self: flex-start;
       align-items: flex-start;
     }
+
+    /* 带档案卡的消息放开宽度限制，让原始行有横向空间 */
+    &.has-dossier {
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+
+  &__dossier {
+    align-self: stretch;
+    margin-top: 6px;
   }
 
   &__msg-bubble {

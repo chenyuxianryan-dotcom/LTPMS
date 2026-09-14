@@ -23,7 +23,7 @@ timeout /t 15 /nobreak >nul
 
 REM [3/3] Frontend (production build, localhost only, proxies /api -> 8080)
 cd /d "E:\projects\AI LTPMS\frontend"
-start "LTPMS-Frontend" cmd /c ""C:\Users\ZhuanZ\.workbuddy\binaries\node\versions\22.22.2-2\npx.cmd" vite preview --port 8000 --strictPort"
+start "LTPMS-Frontend" cmd /c ""C:\Users\ZhuanZ\.workbuddy\binaries\node\versions\22.22.2-3\npx.cmd" vite preview --port 8000 --strictPort"
 echo [3/3] Frontend starting on 8000 (local only) ...
 
 echo.

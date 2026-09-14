@@ -1,9 +1,9 @@
 <template>
   <div class="nlq-page">
     <!-- 主内容区 -->
-    <div class="nlq-page__main">
-      <!-- 查询台（空态居中 hero；有结果后沉到顶部） -->
-      <div class="asy-terminal" :class="{ 'asy-terminal--active': result || querying }">
+    <div class="nlq-page__main" :class="{ 'nlq-page__main--active': result || dossier || busy }">
+      <!-- 查询台（空态居中 hero；查询中/有结果时收起，输入框沉底） -->
+      <div class="asy-terminal">
         <!-- 终端机头 -->
         <div class="asy-terminal__head">
           <span class="asy-terminal__lamp" aria-hidden="true"></span>
@@ -18,7 +18,7 @@
         <div class="asy-terminal__sub">实验室数据随口问 · 系统自动注入数据权限（NL2SQL，只读）</div>
 
         <!-- Composer：查询按钮内嵌 -->
-        <div class="asy-composer" :class="{ 'asy-composer--busy': querying }">
+        <div class="asy-composer" :class="{ 'asy-composer--busy': busy }">
           <span class="asy-composer__prompt" aria-hidden="true">❯</span>
           <el-input
             ref="inputRef"
@@ -33,14 +33,25 @@
           />
           <div class="asy-composer__bar">
             <span class="asy-composer__hint">CTRL+⏎ 执行 · 只读查询 · 强制 LIMIT</span>
-            <el-button
-              class="asy-composer__exec"
-              :class="{ 'asy-composer__exec--ready': question.trim() }"
-              :loading="querying"
-              @click="handleQuery"
-            >
-              {{ querying ? '检索中' : '查询 ⏎' }}
-            </el-button>
+            <div class="asy-composer__actions">
+              <el-button
+                class="asy-composer__mine"
+                :loading="dossierLoading"
+                :disabled="querying"
+                @click="handleMyDossier"
+              >
+                我的档案
+              </el-button>
+              <el-button
+                class="asy-composer__exec"
+                :class="{ 'asy-composer__exec--ready': question.trim() }"
+                :loading="querying"
+                :disabled="dossierLoading"
+                @click="handleQuery"
+              >
+                {{ querying ? '检索中' : '查询 ⏎' }}
+              </el-button>
+            </div>
           </div>
           <span class="asy-composer__scan" aria-hidden="true"></span>
         </div>
@@ -99,19 +110,25 @@
             </el-collapse-item>
           </el-collapse>
 
-          <el-table :data="tableRows" border stripe max-height="420" class="nlq-page__result-table">
+          <el-table
+            v-if="tableVisible"
+            :data="tableRows"
+            border
+            stripe
+            max-height="420"
+            class="nlq-page__result-table"
+          >
             <el-table-column
               v-for="(col, index) in result.columns"
               :key="String(col)"
               :prop="`c${index}`"
               :label="String(col)"
               min-width="120"
-            >
-              <template #default="{ row }">
-                {{ row[index] }}
-              </template>
-            </el-table-column>
+            />
           </el-table>
+          <div v-else class="nlq-page__empty-hint">
+            未查询到数据：请核对姓名、编号拼写与学期范围（实验室编号形如 36-401）。
+          </div>
 
           <!-- 继续追问 -->
           <div v-if="result.suggestions && result.suggestions.length > 0" class="nlq-page__suggestions">
@@ -127,6 +144,24 @@
             </el-tag>
           </div>
         </template>
+      </el-card>
+
+      <!-- 我的档案：服务端锁定 person_ref 为当前用户，跳过人员解析一轮 -->
+      <el-card v-if="dossier" class="nlq-page__result-card" shadow="never">
+        <div class="nlq-page__result-meta">
+          <span class="nlq-page__meta-dot" aria-hidden="true"></span>
+          <span class="nlq-page__meta-text">
+            本人档案{{ dossier.name ? ` · ${dossier.name}` : '' }}
+          </span>
+          <span v-if="dossier.steps.length > 0" class="nlq-page__meta-text nlq-page__meta-text--dim">
+            {{ dossier.steps.length }} 次取数
+          </span>
+          <span class="nlq-page__meta-scope">SCOPE:SELF · LOCKED</span>
+        </div>
+
+        <p v-if="dossier.answer" class="nlq-page__dossier-answer">{{ dossier.answer }}</p>
+
+        <PersonDossier :steps="dossier.steps" />
       </el-card>
     </div>
 
@@ -160,10 +195,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { apiDeleteNlqHistory, apiGetNlqHistory, apiNlqQuery } from '@/api/nlq';
+import PersonDossier from '@/components/PersonDossier.vue';
+import { apiDeleteNlqHistory, apiGetNlqHistory, apiNlqAgent, apiNlqQuery } from '@/api/nlq';
 import { ERROR_CODE, NLQ_EXAMPLES } from '@/constants';
 import { useUserStore } from '@/store/user';
-import type { INlqResult, IQueryHistory } from '@/types/api';
+import type { IAgentStep, INlqResult, IQueryHistory } from '@/types/api';
 import type { IBizError } from '@/utils/request';
 
 const userStore = useUserStore();
@@ -174,6 +210,11 @@ const question = ref('');
 const querying = ref(false);
 const result = ref<INlqResult | null>(null);
 const history = ref<IQueryHistory[]>([]);
+
+/** 「我的档案」结果：steps 内即档案工具的双份载荷（display 上屏） */
+const dossierLoading = ref(false);
+const dossier = ref<{ steps: IAgentStep[]; answer: string; name: string | null } | null>(null);
+const busy = computed(() => querying.value || dossierLoading.value);
 
 /** 时间感知问候（Claude 式 temporal greeting，让终端有人味） */
 const greeting = computed(() => {
@@ -197,12 +238,25 @@ const tableRows = computed(() => {
   });
 });
 
+/** 0 行结果用提示文案替代空表，避免用户面对空框猜测原因 */
+const tableVisible = computed(() => {
+  const res = result.value;
+  const rowCount = res?.row_count ?? res?.rowCount ?? 0;
+  return rowCount > 0 && (res?.columns?.length ?? 0) > 0;
+});
+
 async function handleQuery(): Promise<void> {
-  if (!question.value.trim() || querying.value) return;
+  if (!question.value.trim() || busy.value) return;
   querying.value = true;
   result.value = null;
+  dossier.value = null;
   try {
-    result.value = await apiNlqQuery(question.value.trim());
+    const res = await apiNlqQuery(question.value.trim());
+    result.value = res;
+    if (res.success) {
+      // 成功即清空输入框；失败保留原文，避免报错时把用户输入吞掉
+      question.value = '';
+    }
     await loadHistory();
   } catch (error) {
     const bizError = error as IBizError;
@@ -216,6 +270,35 @@ async function handleQuery(): Promise<void> {
     // 44002（权限注入失败）等其余错误已由拦截器提示
   } finally {
     querying.value = false;
+  }
+}
+
+/** 「我的档案」：服务端把 person_ref 锁成当前登录用户，教师/管理员同一入口 */
+async function handleMyDossier(): Promise<void> {
+  if (busy.value) return;
+  dossierLoading.value = true;
+  result.value = null;
+  dossier.value = null;
+  try {
+    const res = await apiNlqAgent('查看我的完整档案', undefined, { selfDossier: true });
+    if (!res.steps?.length && !res.answer) {
+      ElMessage.warning('档案生成失败，请稍后重试');
+      return;
+    }
+    dossier.value = {
+      steps: res.steps ?? [],
+      answer: res.answer,
+      name: res.routed_person_name ?? null,
+    };
+  } catch (error) {
+    const bizError = error as IBizError;
+    if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT || bizError.code === ERROR_CODE.NLQ_UNSAFE) {
+      ElMessage.warning('AI 服务暂时不可用，请稍后重试');
+    } else if (bizError.code === 429) {
+      ElMessage.warning('查询过于频繁（每分钟最多 10 次），请稍后再试');
+    }
+  } finally {
+    dossierLoading.value = false;
   }
 }
 
@@ -263,7 +346,7 @@ $phosphor-bright: #a7f3c9;  // 高亮磷光（hover）
     flex-direction: column;
   }
 
-  /* ===== 查询台容器：空态垂直居中，有结果后沉顶 ===== */
+  /* ===== 查询台容器：空态 hero；激活态退化为底部输入坞（见 __main--active） ===== */
   .asy-terminal {
     display: flex;
     flex-direction: column;
@@ -272,11 +355,6 @@ $phosphor-bright: #a7f3c9;  // 高亮磷光（hover）
     max-width: 720px;
     margin: 0 auto;
     padding-top: var(--space-16);
-
-    /* 有结果/查询中：收缩为顶部构图，让位给结果区 */
-    &--active {
-      padding-top: var(--space-6);
-    }
   }
 
   /* ===== 终端机头 ===== */
@@ -412,6 +490,40 @@ $phosphor-bright: #a7f3c9;  // 高亮磷光（hover）
     letter-spacing: 0.06em;
     color: rgba(110, 231, 160, 0.4);
     user-select: none;
+  }
+
+  .asy-composer__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* 「我的档案」锁定入口：描边磷光，与实底主执行按钮区分主次 */
+  .asy-composer__mine {
+    border: 1px solid $phosphor-border;
+    border-radius: var(--radius-lg);
+    background: transparent;
+    color: $phosphor-dim;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    transition: all var(--duration-normal) var(--ease-out);
+
+    &:hover:not(.is-loading):not(.is-disabled) {
+      background: rgba(110, 231, 160, 0.1);
+      border-color: $phosphor-dim;
+      color: $phosphor-text;
+    }
+
+    &.is-loading {
+      border-color: $phosphor-dim;
+      color: $phosphor-text;
+    }
+
+    &.is-disabled {
+      background: transparent;
+      border-color: rgba(30, 58, 43, 0.7);
+      color: rgba(63, 143, 102, 0.45);
+    }
   }
 
   /* 内嵌执行按钮：磷光绿实底，有问题可发时点亮 */
@@ -605,6 +717,15 @@ $phosphor-bright: #a7f3c9;  // 高亮磷光（hover）
     color: var(--text-tertiary);
   }
 
+  /* 阿实的档案结论：少说多列，正文交给 PersonDossier 的原始行 */
+  &__dossier-answer {
+    margin: 0 0 var(--space-4);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+  }
+
   &__sql-collapse {
     margin-bottom: var(--space-4);
     border: none;
@@ -617,6 +738,15 @@ $phosphor-bright: #a7f3c9;  // 高亮磷光（hover）
 
   &__result-table {
     width: 100%;
+  }
+
+  &__empty-hint {
+    padding: var(--space-6) var(--space-4);
+    border: 1px dashed var(--border-default);
+    border-radius: var(--radius-lg);
+    font-size: 13px;
+    color: var(--text-tertiary);
+    text-align: center;
   }
 
   &__suggestions {
@@ -638,6 +768,35 @@ $phosphor-bright: #a7f3c9;  // 高亮磷光（hover）
     &:hover {
       color: var(--brand-700);
       border-color: var(--brand-600);
+    }
+  }
+
+  /* ===== 激活态（查询中/有结果）：内容在上、输入坞沉底，对齐主流 AI 智能体布局 ===== */
+  &__main--active {
+    overflow: hidden;
+
+    /* 终端外壳退化为底部输入坞 */
+    .asy-terminal {
+      order: 2;
+      flex-shrink: 0;
+      margin-top: auto;
+      padding-top: var(--space-4);
+    }
+
+    /* 机头/问候/示例卡属于空态引导，结果态隐去，让内容从顶部开始 */
+    .asy-terminal__head,
+    .asy-terminal__greeting,
+    .asy-terminal__sub,
+    .asy-examples {
+      display: none;
+    }
+
+    /* 结果卡片占据上方空间，超高时卡片内部滚动 */
+    .nlq-page__result-card {
+      order: 1;
+      flex: 0 1 auto;
+      min-height: 0;
+      overflow-y: auto;
     }
   }
 

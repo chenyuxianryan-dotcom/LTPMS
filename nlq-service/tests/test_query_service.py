@@ -1,7 +1,8 @@
 """execute_query 行为测试 —— NL2SQL 全链路的公共执行入口。
 
 面向公共接口 execute_query(question, role, user_id)，描述「一次查询如何编排：
-build_messages → call_deepseek → extract/validate → inject_permission → ensure_limit → db.execute」。
+build_messages → call_deepseek → extract/validate → inject_permission → ensure_limit → db.execute
+→ 失败时带错误反馈修复一次」。
 LLM / 建库 schema / DB 均属系统边界，用 monkeypatch 隔离。
 """
 
@@ -18,14 +19,14 @@ async def _fake_deepseek(messages):
 
 
 async def _fake_execute(sql):
-    return [{"lab_code": "36-401"}, {"lab_code": "36-402"}]
+    return ["lab_code"], [{"lab_code": "36-401"}, {"lab_code": "36-402"}]
 
 
 class TestExecuteQuery:
     async def test_success_returns_structured_result(self, monkeypatch):
         monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
         monkeypatch.setattr(query_service, "call_deepseek", _fake_deepseek)
-        monkeypatch.setattr(query_service.db, "execute", _fake_execute)
+        monkeypatch.setattr(query_service.db, "execute_with_columns", _fake_execute)
 
         r = await query_service.execute_query("列出实验室", "ADMIN", 1)
 
@@ -35,6 +36,23 @@ class TestExecuteQuery:
         assert r["rows"] == [["36-401"], ["36-402"]]
         assert r["sql"].startswith("SELECT")
         assert r["error"] is None
+
+    async def test_empty_result_keeps_columns(self, monkeypatch):
+        # 0 行也必须保留列结构（前端据此渲染表头/空态，而不是空白框）
+        monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
+        monkeypatch.setattr(query_service, "call_deepseek", _fake_deepseek)
+
+        async def execute(sql):
+            return ["lab_code", "lab_name"], []
+
+        monkeypatch.setattr(query_service.db, "execute_with_columns", execute)
+
+        r = await query_service.execute_query("列出实验室", "ADMIN", 1)
+
+        assert r["success"] is True
+        assert r["row_count"] == 0
+        assert r["columns"] == ["lab_code", "lab_name"]
+        assert r["rows"] == []
 
     async def test_teacher_gets_permission_injected(self, monkeypatch):
         monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
@@ -48,9 +66,9 @@ class TestExecuteQuery:
 
         async def execute(sql):
             captured["sql"] = sql
-            return []
+            return [], []
 
-        monkeypatch.setattr(query_service.db, "execute", execute)
+        monkeypatch.setattr(query_service.db, "execute_with_columns", execute)
 
         await query_service.execute_query("我的课程", "TEACHER", 5)
 
@@ -68,9 +86,9 @@ class TestExecuteQuery:
 
         async def execute(sql):
             executed.append(sql)
-            return []
+            return [], []
 
-        monkeypatch.setattr(query_service.db, "execute", execute)
+        monkeypatch.setattr(query_service.db, "execute_with_columns", execute)
 
         r = await query_service.execute_query("删掉课程", "ADMIN", 1)
 
@@ -98,9 +116,98 @@ class TestExecuteQuery:
         async def boom(sql):
             raise RuntimeError("db down")
 
-        monkeypatch.setattr(query_service.db, "execute", boom)
+        monkeypatch.setattr(query_service.db, "execute_with_columns", boom)
 
         r = await query_service.execute_query("任意问题", "ADMIN", 1)
 
         assert r["success"] is False
         assert "查询执行失败" in r["error"]
+
+
+class TestRepairRound:
+    """校验/执行失败时带错误反馈重生成一次（上限 1 次修复）"""
+
+    async def test_validator_reject_then_repair_succeeds(self, monkeypatch):
+        monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
+
+        calls = []
+
+        async def deepseek(messages):
+            calls.append(messages)
+            if len(calls) == 1:
+                return "SELECT * FROM user"  # 撞 user 星号规则
+            return "SELECT COUNT(*) AS 教师数 FROM user WHERE role = 'TEACHER'"
+
+        monkeypatch.setattr(query_service, "call_deepseek", deepseek)
+
+        async def execute(sql):
+            return ["教师数"], [{"教师数": 8}]
+
+        monkeypatch.setattr(query_service.db, "execute_with_columns", execute)
+
+        r = await query_service.execute_query("现在有多少名教师", "ADMIN", 1)
+
+        assert r["success"] is True
+        assert r["rows"] == [[8]]
+        assert len(calls) == 2
+        # 修复回合把失败原因回喂给了模型
+        assert "校验未通过" in calls[1][-1]["content"]
+        assert calls[1][-2]["content"] == "SELECT * FROM user"
+
+    async def test_exec_error_then_repair_succeeds(self, monkeypatch):
+        monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
+        monkeypatch.setattr(query_service, "call_deepseek", _fake_deepseek)
+
+        attempts = {"n": 0}
+
+        async def flaky(sql):
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                raise RuntimeError("(1064, syntax error)")
+            return ["lab_code"], [{"lab_code": "36-401"}]
+
+        monkeypatch.setattr(query_service.db, "execute_with_columns", flaky)
+
+        r = await query_service.execute_query("列出实验室", "ADMIN", 1)
+
+        assert r["success"] is True
+        assert attempts["n"] == 2
+
+    async def test_repair_limited_to_one_extra_attempt(self, monkeypatch):
+        monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
+
+        calls = []
+
+        async def deepseek(messages):
+            calls.append(messages)
+            return "DELETE FROM course"
+
+        monkeypatch.setattr(query_service, "call_deepseek", deepseek)
+
+        r = await query_service.execute_query("删掉课程", "ADMIN", 1)
+
+        assert r["success"] is False
+        assert len(calls) == 2  # 首答 + 一次修复，不再重试
+
+    async def test_permission_reject_then_repair_succeeds(self, monkeypatch):
+        monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
+
+        calls = []
+
+        async def deepseek(messages):
+            calls.append(messages)
+            if len(calls) == 1:
+                return "SELECT * FROM ghost_table"
+            return "SELECT COUNT(*) AS 实验室数 FROM laboratory"
+
+        monkeypatch.setattr(query_service, "call_deepseek", deepseek)
+
+        async def execute(sql):
+            return ["实验室数"], [{"实验室数": 39}]
+
+        monkeypatch.setattr(query_service.db, "execute_with_columns", execute)
+
+        r = await query_service.execute_query("有多少间实验室", "TEACHER", 5)
+
+        assert r["success"] is True
+        assert "只使用表结构中存在的表" in calls[1][-1]["content"]

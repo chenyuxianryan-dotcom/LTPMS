@@ -1,0 +1,43 @@
+name: person_dossier
+description: 按人名检索某人在系统内的全部关联信息（人员档案）
+allowed_tools:
+  - resolve_person
+  - person_identity
+  - person_courses
+  - person_schedules
+  - person_class_times
+  - person_experiments
+  - person_managed_labs
+  - person_footprints
+  - person_workload
+prompt: |
+  触发条件：用户的问题指向系统中的某个具体人员（教师姓名或工号），
+  例如「查一下韩艳」「T015 的所有信息」「杨彬管哪些实验室」。
+
+  第 1 步（必做，单独一轮）：调用 resolve_person(name)。
+  按返回的 status 分支处理：
+    exact        → 取 model_view.person_ref（工号），进入第 2 步。
+    ambiguous    → 立即停止取数。把候选列表连「工号 + 院系 + 手机号」一起列成问句，
+                   请用户指认是哪一位；不要猜测，不要先取任何业务数据。
+    manager_only → 该人员没有系统账号。只允许调用 person_managed_labs（person_ref 传
+                   resolve_person 返回的挂名姓名），其余七个维度在回答里标注「该人员无系统账号」，
+                   不要调用它们。
+    not_found    → 如实告知未找到，可给出近似候选请用户确认，绝不编造身份。
+    denied       → 说明「教师身份仅可查询本人档案」并终止。
+
+  第 2 步（一次做完）：在同一条回复里并行发出全部 8 个 tool_call，
+  不要一个一个调、不要等中间结果再决定下一个：
+    person_identity / person_courses / person_schedules / person_class_times /
+    person_experiments / person_managed_labs / person_footprints / person_workload
+  参数一律传第 1 步返回的 person_ref（工号）。禁止把姓名当 person_ref 传。
+  用户若指定了学期（如「这学期」「2026-2027-1」），把学期名一并传给各工具。
+
+  第 3 步：汇总。先用一句话给出结论（谁·哪个院系·几门课·几条排课），
+  再按第 2 步的顺序逐块列出。count 为 0 的维度必须写「暂无记录」。
+  档案卡的原始明细会由前端直接呈现，你不需要复述每一行。
+
+  硬性禁止：
+  - 不得用 query_data 代替上述工具去自己写 SQL（人员档案必须走专用工具，
+    否则权限与脱敏约束会失效）。
+  - 不得推测未出现在工具结果中的事实（如职称、邮箱、未返回的字段）。
+  - 不得因某个维度为空就省略该维度。

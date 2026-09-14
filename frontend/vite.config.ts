@@ -13,10 +13,22 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         // 代理请求对后端并非真实跨域：静态覆盖 Origin，避免触发后端 CORS 白名单 403
-        headers: { Origin: 'http://localhost:8080' },
+        headers: { Origin: 'http://127.0.0.1:8080' },
+      },
+    },
+  },
+  preview: {
+    port: 8000,
+    strictPort: true,
+    host: '127.0.0.1',
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+        headers: { Origin: 'http://127.0.0.1:8080' },
       },
     },
   },

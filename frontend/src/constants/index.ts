@@ -37,7 +37,7 @@ export const SEMESTER_STATUS_MAP: Record<string, { label: string; tagType: 'succ
 
 /** NL2SQL 示例问题 */
 export const NLQ_EXAMPLES = [
-  '2026-2027学年第1学期36栋401实验室开设了哪些实验课程？',
+  '36-401 实验室本学期开设了哪些实验课程？',
+  '统计各实验室的实验课程数量',
   '本学期我开设的实验项目有多少学时？',
-  '全校实验室课程项目统计',
 ] as const;

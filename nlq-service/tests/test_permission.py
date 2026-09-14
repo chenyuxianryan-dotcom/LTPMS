@@ -48,6 +48,60 @@ class TestInjectPermission:
         sql = "SELECT * FROM semester"
         assert inject_permission(sql, "TEACHER", 5) == sql
 
+    def test_teacher_user_table_rejected(self):
+        # user 表持有 real_name / phone / password，已从公开表白名单移出。
+        # 人员档案通道对教师做了「仅本人」断言，这条旧通道必须同步收紧，
+        # 否则同一权限边界可被 query_data 绕过。
+        with pytest.raises(PermissionRejectError):
+            inject_permission("SELECT real_name, phone FROM user", "TEACHER", 5)
+
+    def test_admin_user_table_still_allowed(self):
+        # 管理员不受行级权限约束，收紧仅针对教师
+        sql = "SELECT real_name FROM user"
+        assert inject_permission(sql, "ADMIN", 1) == sql
+
+    def test_schedule_time_gets_schedule_join_and_condition(self):
+        # schedule_time 无教师列，经 schedule 兜底：仅本人时间明细
+        result = inject_permission("SELECT * FROM schedule_time", "TEACHER", 5)
+        assert "JOIN schedule ON schedule_time.schedule_id = schedule.id" in result
+        assert "schedule.teacher_id = 5" in result
+
+    def test_schedule_time_with_existing_schedule_join_not_duplicated(self):
+        sql = (
+            "SELECT * FROM schedule_time st "
+            "JOIN schedule s ON st.schedule_id = s.id"
+        )
+        result = inject_permission(sql, "TEACHER", 5)
+        assert result.count("JOIN schedule") == 1
+        assert "s.teacher_id = 5" in result
+
+    def test_query_history_scoped_to_self(self):
+        result = inject_permission("SELECT * FROM query_history", "TEACHER", 5)
+        assert "query_history.user_id = 5" in result
+
+    def test_operation_log_scoped_to_self(self):
+        result = inject_permission("SELECT * FROM operation_log", "TEACHER", 5)
+        assert "operation_log.user_id = 5" in result
+
+    def test_condition_uses_table_alias(self):
+        # 模型爱给表起别名，注入条件必须跟随别名，否则 MySQL 1054
+        result = inject_permission("SELECT * FROM schedule s", "TEACHER", 5)
+        assert "s.teacher_id = 5" in result
+        assert "schedule.teacher_id" not in result
+
+    def test_experiment_with_alias_still_joins_with_alias(self):
+        result = inject_permission("SELECT * FROM experiment e", "TEACHER", 5)
+        assert "JOIN course ON e.course_id = course.id" in result
+        assert "course.teacher_id = 5" in result
+
+    def test_placeholder_is_replaced_with_user_id(self):
+        # 提示词历史遗留的 :current_user_id 占位符不得泄漏到 MySQL
+        result = inject_permission(
+            "SELECT * FROM course WHERE course.teacher_id = :current_user_id", "TEACHER", 5
+        )
+        assert ":current_user_id" not in result
+        assert "course.teacher_id = 5" in result
+
 
 class TestExtractTables:
     def test_extracts_from_and_join(self):
@@ -72,3 +126,27 @@ class TestAddWhereConditions:
         )
         assert "status = 1" in result
         assert "AND course.teacher_id = 5" in result
+
+    def test_inserts_before_order_by(self):
+        # 模型常写「... ORDER BY x」结尾的无过滤查询，WHERE 拼到末尾会 1064
+        result = add_where_conditions(
+            "SELECT * FROM schedule_time ORDER BY day_of_week", ["schedule.teacher_id = 5"]
+        )
+        assert "WHERE schedule.teacher_id = 5 ORDER BY day_of_week" in result
+
+    def test_inserts_before_limit(self):
+        result = add_where_conditions(
+            "SELECT * FROM query_history LIMIT 20", ["query_history.user_id = 5"]
+        )
+        assert "WHERE query_history.user_id = 5 LIMIT 20" in result
+
+    def test_inserts_before_group_by(self):
+        result = add_where_conditions(
+            "SELECT lab_code FROM schedule GROUP BY lab_code", ["schedule.teacher_id = 5"]
+        )
+        assert "WHERE schedule.teacher_id = 5 GROUP BY lab_code" in result
+
+    def test_subquery_order_by_is_not_mistaken_for_tail(self):
+        sql = "SELECT (SELECT id FROM schedule ORDER BY id LIMIT 1) AS x FROM course"
+        result = add_where_conditions(sql, ["course.teacher_id = 5"])
+        assert result.endswith("WHERE course.teacher_id = 5")
