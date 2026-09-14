@@ -48,6 +48,23 @@ class TestInjectPermission:
         sql = "SELECT * FROM semester"
         assert inject_permission(sql, "TEACHER", 5) == sql
 
+    def test_open_management_tables_are_public(self):
+        # 节假日 / 开放时段 / 闭馆例外为全校公开只读信息，教师查询不注入权限约束
+        for sql in (
+            "SELECT * FROM holiday",
+            "SELECT * FROM lab_open_time",
+            "SELECT * FROM lab_open_exception",
+        ):
+            assert inject_permission(sql, "TEACHER", 5) == sql
+
+    def test_open_tables_join_public_tables_still_allowed(self):
+        # 开放时段关联实验室/学期查询（均为公开表）→ 不注入任何条件
+        sql = (
+            "SELECT o.day_of_week, l.lab_name FROM lab_open_time o "
+            "JOIN laboratory l ON o.lab_code = l.lab_code"
+        )
+        assert inject_permission(sql, "TEACHER", 5) == sql
+
     def test_teacher_user_table_rejected(self):
         # user 表持有 real_name / phone / password，已从公开表白名单移出。
         # 人员档案通道对教师做了「仅本人」断言，这条旧通道必须同步收紧，

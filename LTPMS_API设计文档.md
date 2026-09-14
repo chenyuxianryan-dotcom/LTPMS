@@ -1,6 +1,6 @@
 # 基于AI大模型的实验教学项目管理系统 — API/数据模型文档
 
-> 版本：V1.1 | 日期：2026-09-07 | 状态：已修订（按后端设计审查报告修复 P0/P1/P2 项，修订清单见文末附录）
+> 版本：V1.2 | 日期：2026-09-14 | 状态：已修订（V1.1 按后端设计审查报告修复 P0/P1/P2；V1.2 增量：学期周历/节假日/实验室开放计划三新表与新接口，修订清单见文末附录）
 
 ---
 
@@ -31,6 +31,10 @@ user(用户) 1──N course(实验课程) 1──N experiment(实验项目)
 semester(学期) 1──N schedule(课表) ──→ 自动生成 course(实验课程)
                         │
                         └── N──1 laboratory(实验室)
+
+semester(学期) 1──N lab_open_time(开放时段) N──1 laboratory(逻辑引用 lab_code)
+semester(学期) 1──N lab_open_exception(开放例外日) N──1 laboratory(逻辑引用 lab_code)
+holiday(节假日) 为全局逐日表，按日期区间挂靠学期（无外键，双学期共享区间需人工避免）
 
 dictionary(字典表) ──→ experiment(实验项目) 的枚举字段引用
 schedule_time(课表时间明细) N──1 schedule(课表)
@@ -83,6 +87,7 @@ schedule_time(课表时间明细) N──1 schedule(课表)
 | semester_name | VARCHAR(32) | ✅ | — | 如 2026-2027-1 |
 | start_date | DATE | ✅ | — | 开始日期 |
 | end_date | DATE | ✅ | — | 结束日期 |
+| week1_start_date | DATE | ❌ | NULL | 第 1 周起始日；空视为 start_date（V1.2 新增，供周次↔日期映射；增量脚本 `database/upgrade_20260914_semester_open.sql` 回填） |
 | status | ENUM('UPCOMING','ACTIVE','ENDED') | ✅ | 自动计算 | 状态 |
 | created_at | DATETIME | ✅ | CURRENT_TIMESTAMP | — |
 
@@ -217,6 +222,53 @@ schedule_time(课表时间明细) N──1 schedule(课表)
 索引：`INDEX(user_id, created_at)`，`INDEX(target_type, target_id)`
 
 **记录方式**：自定义注解 `@OperationLog` + AOP 切面自动拦截，业务代码零侵入。
+
+#### 1.2.12 holiday（节假日表，V1.2 新增）
+
+| 字段名 | 类型 | 必填 | 默认值 | 说明 |
+|--------|------|------|--------|------|
+| id | BIGINT | ✅ | 自增主键 | — |
+| holiday_date | DATE | ✅ | — | 停课日（逐日一行，UI 按日期区间批量展开写入） |
+| name | VARCHAR(64) | ✅ | — | 名称（如 国庆节） |
+| created_at | DATETIME | ✅ | CURRENT_TIMESTAMP | — |
+
+索引：`UNIQUE(holiday_date)`。按学期过滤 = `holiday_date ∈ [semester.start_date, semester.end_date]`；重复区间新增时拒绝（400）。
+
+#### 1.2.13 lab_open_time（实验室开放时段表，V1.2 新增）
+
+| 字段名 | 类型 | 必填 | 默认值 | 说明 |
+|--------|------|------|--------|------|
+| id | BIGINT | ✅ | 自增主键 | — |
+| lab_code | VARCHAR(32) | ✅ | — | FK → laboratory.lab_code（逻辑引用） |
+| semester_id | BIGINT | ✅ | — | FK → semester.id |
+| day_of_week | TINYINT | ✅ | — | 1=周一 … 7=周日 |
+| start_section | TINYINT | ✅ | — | 开始节次 |
+| end_section | TINYINT | ✅ | — | 结束节次 |
+| week_range | VARCHAR(32) | ✅ | — | 生效周次范围（如 1-16） |
+| week_type | ENUM('ALL','ODD','EVEN') | ✅ | 'ALL' | 全周/单周/双周 |
+| audience | VARCHAR(16) | ✅ | '全校' | 开放对象（全校/本院/指定专业/教师专用，代码内固定枚举，不进字典表） |
+| enabled | TINYINT | ✅ | 1 | 0=停用 1=启用（全停用视为未开放） |
+| remark | VARCHAR(255) | ❌ | NULL | 备注 |
+| created_at | DATETIME | ✅ | CURRENT_TIMESTAMP | — |
+| updated_at | DATETIME | ✅ | ON UPDATE | — |
+
+索引：`INDEX(semester_id)`，`INDEX(lab_code, semester_id)`。与 `schedule_time` 同构（星期+节次+周范围+单双周），占用比对为同字段直接可比。
+
+#### 1.2.14 lab_open_exception（开放例外日表，V1.2 新增）
+
+| 字段名 | 类型 | 必填 | 默认值 | 说明 |
+|--------|------|------|--------|------|
+| id | BIGINT | ✅ | 自增主键 | — |
+| lab_code | VARCHAR(32) | ✅ | — | FK → laboratory.lab_code（逻辑引用） |
+| semester_id | BIGINT | ✅ | — | FK → semester.id |
+| start_date | DATE | ✅ | — | 闭馆开始日期 |
+| end_date | DATE | ✅ | — | 闭馆结束日期 |
+| reason | VARCHAR(128) | ❌ | NULL | 事由（如 设备检修） |
+| created_at | DATETIME | ✅ | CURRENT_TIMESTAMP | — |
+
+索引：`INDEX(lab_code, semester_id)`。例外日与节假日同样渲染为「闭馆」；不参与课表矛盾判定。
+
+> 三张新表与 `semester.week1_start_date` 的 DDL 以 `database/init.sql`（权威）为准，`backend/database/init.sql`（副本）同步；存量库走增量脚本 `database/upgrade_20260914_semester_open.sql`。种子数据由外置脚本 `scripts/seed_lab_openings.py` 生成，**不进 init.sql**。
 
 ---
 
@@ -478,6 +530,42 @@ POST /api/v1/nlq/query
 管理员概览数据：当前学期实验室总数、课程总数、实验项目总数、教师总数
 教师概览数据：当前学期我的课程数、实验项目数、最近查询记录
 
+
+### 2.14 学期与实验室开放管理模块（V1.2 新增）
+
+> 权限边界（写死）：校历 / 节假日 / 开放计划 / 例外日**仅 ADMIN 可写**；GET 类接口所有登录用户可读（TEACHER 只读，含 NLQ 只读可问）。四个写接口组均挂 `@OperationLog` 审计注解。
+
+| 方法 | 路径 | 说明 | 角色 | 参数 / 请求体 |
+|------|------|------|------|---------------|
+| GET | `/semesters/{id}/calendar` | 周历：week1StartDate + 周次↔日期表（周起始日=week1_start_date+(w-1)×7；空按 start_date） | 登录 | — |
+| PUT | `/semesters/{id}/calendar` | 设置第 1 周起始日 | ADMIN | `{week1StartDate}`（非周一仅提示不强拦） |
+| GET | `/holidays?semesterId=` | 该学期节假日列表 | 登录 | 过滤 = `holiday_date ∈ [start_date, end_date]` |
+| POST | `/holidays` | 新增节假日（日期区间逐日展开） | ADMIN | `{startDate, endDate, name}` → data = 写入天数；区间已有任一重复 → 400 |
+| DELETE | `/holidays/{id}` | 删除单日节假日 | ADMIN | — |
+| GET | `/lab-openings?semesterId=&labCode=` | 开放时段列表 | 登录 | 两参数均可选 |
+| POST | `/lab-openings` | 新增单条开放时段 | ADMIN | `{labCode, semesterId, dayOfWeek, startSection, endSection, weekRange, weekType, audience, enabled, remark}`（PUT 更新须传全量字段体） |
+| PUT | `/lab-openings/{id}` | 编辑开放时段 | ADMIN | 同上（全量） |
+| DELETE | `/lab-openings/{id}` | 删除开放时段 | ADMIN | — |
+| POST | `/lab-openings/batch` | 批量**覆盖式**设置（选中实验室先删后插） | ADMIN | `{semesterId, labCodes[], slots[], audience?, remark?}` → data = 写入行数 |
+| POST | `/lab-openings/copy` | 从上学期复制（覆盖式、**幂等**） | ADMIN | `{fromSemesterId, toSemesterId, labCodes?}` → data = 复制实验室数 |
+| GET | `/lab-openings/overview?semesterId=` | 占用总览：每实验室 开放节时/占用节时/利用率/矛盾数/是否已配置 | 登录 | 口径见 D13（周加权；未配置 → rate=null） |
+| GET | `/lab-openings/grid?semesterId=&labCode=&week?` | 单间周网格：7 天×12 节四色态（OCCUPIED/OPEN/NOT_OPEN/CLOSED）+ 学期闭馆日集合 | 登录 | week 缺省=当前周（课外自动夹取） |
+| GET | `/lab-openings/today?semesterId?` | 今日开放实验室（仪表盘小块 / 教师端）：含 inSemester/weekNo/holiday 闭馆判定、相邻节次合并、开放对象聚合 | 登录 | 缺省当前学期 |
+| GET | `/lab-open-exceptions?semesterId=&labCode=` | 例外日列表 | 登录 | — |
+| POST | `/lab-open-exceptions` | 新增例外日 | ADMIN | `{labCode, semesterId, startDate, endDate, reason}` |
+| DELETE | `/lab-open-exceptions/{id}` | 删除例外日 | ADMIN | — |
+
+**既有接口口径扩展（回归要求）**：
+
+| 接口 | 变更 |
+|------|------|
+| `/insight/utilization` | 返回结构扩展：新增 `openSlotHours` / `occupiedSlotHours` / `rate`（未配置为 null）/ `planned`；旧字段保留（利用率 = 占用节时 ÷ 开放节时，学期累计周加权，单/双周减半；**不含**节假日/例外日扣减；允许 >100%） |
+| `/insight/anomalies` | 新增规则 `NOT_OPEN`「有课但实验室未开放」（与开放计划的覆盖校验同源） |
+| `/insight/all` | 一站式聚合，与上述同源，回归须覆盖 |
+| `/insight/readiness`、`/insight/conflicts` | 逻辑未变，纳入回归冒烟 |
+
+**NL2SQL 权限白名单（V1.2）**：`holiday` / `lab_open_time` / `lab_open_exception` 加入公开只读白名单（教师查询不注入行级约束，同 laboratory/semester/dictionary）；Prompt 侧补充开放口径（audience 枚举、week_type 语义、enabled=1 生效、例外日=闭馆）与周历口径提示。
+
 ---
 
 ## 附录：V1.1 修订记录（2026-09-07）
@@ -495,6 +583,22 @@ POST /api/v1/nlq/query
 | 9 | 默认密码改 `Ltpms@{工号}` | P1-1 |
 | 10 | /current 寒暑假判定语义补全 | P1-8 |
 | 11 | 字典 GET 对教师开放只读（导入模板需要） | 权限澄清 |
+
+---
+
+## 附录：V1.2 修订记录（2026-09-14）
+
+来源：《LTPMS_学期与实验室开放管理_需求拷问记录.md》V1.1（D17：增量同步，不全量重写）。
+
+| 编号 | 修订项 | 落点 |
+|------|--------|------|
+| 1 | semester 新增 `week1_start_date`（周历字段，空按 start_date） | §1.2.3 |
+| 2 | 新增 holiday / lab_open_time / lab_open_exception 三表 | §1.2.12~1.2.14 |
+| 3 | ER 关系补开放管理三表挂靠关系 | §1.1 |
+| 4 | 新增 §2.14 学期与实验室开放管理接口（周历 / 节假日 / 开放计划 CRUD+批量+复制 / 例外日 / 占用总览 / 周网格 / today） | §2.14 |
+| 5 | `/insight/utilization` 结构扩展（openSlotHours / occupiedSlotHours / rate / planned）与 `/insight/anomalies` 新增 NOT_OPEN 规则，附回归要求 | §2.14 |
+| 6 | NL2SQL 公开只读白名单补三表 + 开放/周历口径提示 | §2.14 |
+| 7 | 种子数据外置（`scripts/seed_lab_openings.py`，不进 init.sql） | §1.2.14 注 |
 
 ---
 

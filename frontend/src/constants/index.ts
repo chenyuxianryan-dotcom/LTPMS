@@ -35,6 +35,22 @@ export const SEMESTER_STATUS_MAP: Record<string, { label: string; tagType: 'succ
   ENDED: { label: '已结束', tagType: 'primary' },
 };
 
+/** 星期标签（1=周一 .. 7=周日） */
+export const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日'] as const;
+
+/** 开放对象固定枚举（与后端一致） */
+export const AUDIENCE_OPTIONS = ['全校', '本院', '指定专业', '教师专用'] as const;
+
+/** 网格节次 1-12 */
+export const SECTION_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+/** 周类型展示映射 */
+export const WEEK_TYPE_MAP: Record<string, string> = {
+  ALL: '全周',
+  ODD: '单周',
+  EVEN: '双周',
+};
+
 /** NL2SQL 示例问题 */
 export const NLQ_EXAMPLES = [
   '36-401 实验室本学期开设了哪些实验课程？',

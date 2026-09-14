@@ -36,7 +36,8 @@ PERMISSION_RULES = {
 
 # 教师可无约束访问的白名单表。user 表不在其中：它持有 real_name / phone / password，
 # 人员档案通道已对教师做「仅本人」断言，此处必须同步收紧，否则旧通道可绕过该边界。
-PUBLIC_TABLES = {"laboratory", "semester", "dictionary"}
+# 开放管理三表（holiday / lab_open_time / lab_open_exception）为全校公开只读信息，教师可查询。
+PUBLIC_TABLES = {"laboratory", "semester", "dictionary", "holiday", "lab_open_time", "lab_open_exception"}
 
 # FROM/JOIN 之后紧邻出现时不应被当作别名的关键字
 _ALIAS_STOPWORDS = {

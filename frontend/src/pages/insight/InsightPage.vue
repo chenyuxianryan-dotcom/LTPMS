@@ -35,28 +35,31 @@
           <div class="insight-card__head">
             <span>实验室利用率热力图</span>
             <div class="heat-legend">
-              <span class="heat-legend__dot heat-legend__dot--gray"></span>闲置
-              <span class="heat-legend__dot heat-legend__dot--green"></span>低
-              <span class="heat-legend__dot heat-legend__dot--yellow"></span>中
-              <span class="heat-legend__dot heat-legend__dot--red"></span>高
+              <span class="heat-legend__dot heat-legend__dot--gray"></span>未开放
+              <span class="heat-legend__dot heat-legend__dot--green"></span>&lt;40%
+              <span class="heat-legend__dot heat-legend__dot--yellow"></span>40~75%
+              <span class="heat-legend__dot heat-legend__dot--red"></span>≥75%
             </div>
           </div>
         </template>
         <div v-loading="loading.utilization" class="insight-card__body">
           <el-empty v-if="utilization.length === 0" description="暂无实验室数据" :image-size="60" />
-          <div v-else class="heat-grid">
-            <el-tooltip
-              v-for="lab in utilization"
-              :key="lab.labId"
-              :content="`${lab.labCode} ${lab.labName}：排课 ${lab.scheduleCount} 条 / 时段 ${lab.timeSlotCount}`"
-              placement="top"
-            >
-              <div class="heat-grid__cell" :class="heatClass(lab.scheduleCount)">
-                <span class="heat-grid__code">{{ lab.labCode }}</span>
-                <span class="heat-grid__count">{{ lab.scheduleCount }}</span>
-              </div>
-            </el-tooltip>
-          </div>
+          <template v-else>
+            <div class="heat-grid">
+              <el-tooltip
+                v-for="lab in utilization"
+                :key="lab.labId"
+                :content="heatTooltip(lab)"
+                placement="top"
+              >
+                <div class="heat-grid__cell" :class="heatClass(lab)">
+                  <span class="heat-grid__code">{{ lab.labCode }}</span>
+                  <span class="heat-grid__count">{{ lab.planned ? `${lab.rate ?? 0}%` : '未开放' }}</span>
+                </div>
+              </el-tooltip>
+            </div>
+            <div class="insight-card__note">利用率 = 占用节时 / 开放节时（周加权，不含节假日/例外日扣减）</div>
+          </template>
         </div>
       </el-card>
 
@@ -140,11 +143,18 @@ const readinessSummary = computed(() => {
   return { text: `${ready}/${total} 门就绪`, type: 'warning' as const };
 });
 
-function heatClass(count: number): string {
-  if (count === 0) return 'heat-grid__cell--gray';
-  if (count <= 2) return 'heat-grid__cell--green';
-  if (count <= 4) return 'heat-grid__cell--yellow';
-  return 'heat-grid__cell--red';
+function heatClass(lab: IUtilizationItem): string {
+  if (!lab.planned || lab.rate === null) return 'heat-grid__cell--gray';
+  if (lab.rate >= 75) return 'heat-grid__cell--red';
+  if (lab.rate >= 40) return 'heat-grid__cell--yellow';
+  return 'heat-grid__cell--green';
+}
+
+function heatTooltip(lab: IUtilizationItem): string {
+  if (!lab.planned || lab.rate === null) {
+    return `${lab.labCode} ${lab.labName}：未配置开放计划`;
+  }
+  return `${lab.labCode} ${lab.labName}：占用 ${lab.occupiedSlotHours} / 开放 ${lab.openSlotHours} 节时（${lab.rate}%）`;
 }
 
 function severityType(severity: string): 'danger' | 'warning' | 'info' {
@@ -156,6 +166,7 @@ function severityType(severity: string): 'danger' | 'warning' | 'info' {
 function severityLabel(type: string): string {
   if (type === 'OVERLOAD') return '超排';
   if (type === 'IDLE') return '闲置';
+  if (type === 'NOT_OPEN') return '未开放';
   return '课时异常';
 }
 
@@ -232,6 +243,12 @@ onMounted(loadAll);
 
   &__body {
     min-height: 180px;
+  }
+
+  &__note {
+    margin-top: var(--space-3);
+    font-size: 12px;
+    color: var(--text-tertiary);
   }
 }
 

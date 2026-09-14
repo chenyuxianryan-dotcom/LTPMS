@@ -47,8 +47,9 @@ public class InsightStats {
     }
 
     /**
-     * 实验室利用率项：实验室 + 排课占用统计。
-     * utilization = 已排课时段数（占用度），前端据此渲染红黄绿热力。
+     * 实验室利用率项：实验室 + 排课占用统计 + D13 学期累计周加权利用率。
+     * rate = Σ(排课节数 × 生效周数) ÷ Σ(开放节数 × 生效周数)，单双周减半，不含节假日/例外日扣减；
+     * 未配置开放计划（planned=false）时 rate 为 null，前端渲染灰色「未开放」态，不参与红黄绿评分。
      */
     @Data
     @NoArgsConstructor
@@ -59,11 +60,24 @@ public class InsightStats {
         private String labName;
         private int scheduleCount;
         private int timeSlotCount;
+
+        /** 开放节时 = Σ(开放节数 × 生效周数) */
+        private int openSlotHours;
+
+        /** 占用节时 = Σ(排课节数 × 生效周数) */
+        private int occupiedSlotHours;
+
+        /** 利用率 %（占用÷开放，1 位小数）；未开放时为 null */
+        private Double rate;
+
+        /** 是否已配置开放计划（存在 enabled=1 的开放时段） */
+        private boolean planned;
     }
 
     /**
      * 异常预警项。
-     * type: OVERLOAD=超排(同实验室同时段多课) / IDLE=闲置(整学期无排课) / HOURS=课时异常。
+     * type: OVERLOAD=超排(同实验室同时段多课) / IDLE=闲置(整学期无排课) / HOURS=课时异常 /
+     * NOT_OPEN=有课但实验室未开放（排课与开放三维不重叠）。
      */
     @Data
     @NoArgsConstructor

@@ -3,8 +3,11 @@ package com.ltpms.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltpms.dto.DashboardStats;
 import com.ltpms.dto.InsightStats;
+import com.ltpms.dto.LabConflict;
+import com.ltpms.dto.LabOpeningOverview;
 import com.ltpms.entity.*;
 import com.ltpms.mapper.*;
+import com.ltpms.util.WeekMath;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +37,7 @@ public class InsightService {
     private final CourseMapper courseMapper;
     private final UserMapper userMapper;
     private final SemesterService semesterService;
+    private final LabOpeningService labOpeningService;
 
     /**
      * 课程就绪度体检报告：复用 Dashboard V3 的就绪度语义，产出红黄绿三态课程清单。
@@ -126,15 +130,26 @@ public class InsightService {
             }
         }
 
+        // D13 学期累计周加权口径（开放节时 / 占用节时 / 利用率），与占用总览同源
+        Map<String, LabOpeningOverview.LabItem> openByLab = sid != null
+                ? labOpeningService.overview(sid).getLabs().stream()
+                        .collect(Collectors.toMap(LabOpeningOverview.LabItem::getLabCode, item -> item, (a, b) -> a))
+                : Collections.emptyMap();
+
         List<InsightStats.UtilizationItem> result = new ArrayList<>();
         for (Laboratory lab : labs) {
             List<Schedule> labSchedules = byLab.getOrDefault(lab.getLabCode(), Collections.emptyList());
             int slotCount = labSchedules.stream()
                     .mapToInt(s -> slotCountBySchedule.getOrDefault(s.getId(), 0))
                     .sum();
+            LabOpeningOverview.LabItem open = openByLab.get(lab.getLabCode());
             result.add(new InsightStats.UtilizationItem(
                     lab.getId(), lab.getLabCode(), lab.getLabName(),
-                    labSchedules.size(), slotCount));
+                    labSchedules.size(), slotCount,
+                    open == null ? 0 : open.getOpenSlotHours(),
+                    open == null ? 0 : open.getOccupiedSlotHours(),
+                    open == null ? null : open.getRate(),
+                    open != null && open.isPlanned()));
         }
         return result;
     }
@@ -185,6 +200,18 @@ public class InsightService {
                     });
         }
 
+        // 4. 有课但实验室未开放：课表与开放计划三维（星期 + 节次 + 周次）不重叠（D9 口径）
+        if (sid != null) {
+            for (LabConflict conflict : labOpeningService.findConflicts(sid)) {
+                anomalies.add(new InsightStats.AnomalyItem(
+                        "NOT_OPEN", "HIGH", conflict.getLabCode(),
+                        "实验室 " + conflict.getLabName() + " 周" + conflict.getDayOfWeek() + " 第"
+                                + conflict.getStartSection() + "-" + conflict.getEndSection() + "节《"
+                                + conflict.getCourseName() + "》（" + conflict.getWeekText()
+                                + "）有课但实验室未开放"));
+            }
+        }
+
         return anomalies;
     }
 
@@ -226,7 +253,7 @@ public class InsightService {
             int day = st.getDayOfWeek() != null ? st.getDayOfWeek() : 0;
             int start = st.getStartSection() != null ? st.getStartSection() : 0;
             int end = st.getEndSection() != null ? st.getEndSection() : start;
-            Set<Integer> weeks = parseWeeks(st.getWeekRange(), st.getWeekType());
+            Set<Integer> weeks = WeekMath.parseWeeks(st.getWeekRange(), st.getWeekType());
             if (day <= 0 || start <= 0) {
                 continue;
             }
@@ -303,44 +330,6 @@ public class InsightService {
         return Math.max(1, end - start + 1);
     }
 
-    /** 解析周次范围字符串（如 "1-16"、"1,3,5"、"8"），结合单双周过滤。 */
-    private Set<Integer> parseWeeks(String weekRange, String weekType) {
-        Set<Integer> weeks = new HashSet<>();
-        if (weekRange == null || weekRange.isBlank()) {
-            return weeks;
-        }
-        for (String part : weekRange.split(",")) {
-            String segment = part.trim();
-            if (segment.isEmpty()) {
-                continue;
-            }
-            if (segment.contains("-")) {
-                String[] bounds = segment.split("-", 2);
-                try {
-                    int from = Integer.parseInt(bounds[0].trim());
-                    int to = Integer.parseInt(bounds[1].trim());
-                    for (int w = from; w <= to; w++) {
-                        weeks.add(w);
-                    }
-                } catch (NumberFormatException ignored) {
-                    // 非法周次段跳过
-                }
-            } else {
-                try {
-                    weeks.add(Integer.parseInt(segment));
-                } catch (NumberFormatException ignored) {
-                    // 同上
-                }
-            }
-        }
-        if ("ODD".equalsIgnoreCase(weekType)) {
-            weeks.removeIf(w -> w % 2 == 0);
-        } else if ("EVEN".equalsIgnoreCase(weekType)) {
-            weeks.removeIf(w -> w % 2 == 1);
-        }
-        return weeks;
-    }
-
     /** 在同时段的多门课中寻找周次重叠；重叠则返回重叠周与课程号列表。 */
     private Optional<Overlap> findOverlap(List<Slot> slots) {
         for (int i = 0; i < slots.size(); i++) {
@@ -353,23 +342,11 @@ public class InsightService {
                     List<String> codes = new ArrayList<>();
                     codes.add(a.courseCode);
                     codes.add(b.courseCode);
-                    return Optional.of(new Overlap(formatWeeks(overlapWeeks), codes));
+                    return Optional.of(new Overlap(WeekMath.formatWeeks(overlapWeeks), codes));
                 }
             }
         }
         return Optional.empty();
-    }
-
-    private String formatWeeks(Set<Integer> weeks) {
-        if (weeks.isEmpty()) {
-            return "";
-        }
-        if (weeks.size() == 1) {
-            return String.valueOf(weeks.iterator().next());
-        }
-        int min = weeks.stream().mapToInt(Integer::intValue).min().orElse(0);
-        int max = weeks.stream().mapToInt(Integer::intValue).max().orElse(0);
-        return min + "-" + max;
     }
 
     /** 同时段的一个课程占位（课程号 + 占用周次集合）。 */

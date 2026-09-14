@@ -4,22 +4,28 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.ltpms.common.BusinessException;
 import com.ltpms.common.ErrorCode;
+import com.ltpms.dto.SemesterCalendar;
 import com.ltpms.dto.SemesterRequest;
+import com.ltpms.entity.Holiday;
 import com.ltpms.entity.Semester;
+import com.ltpms.mapper.HolidayMapper;
 import com.ltpms.mapper.SemesterMapper;
+import com.ltpms.util.WeekMath;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 学期服务，提供学期列表、当前学期解析（含状态动态计算与回写）以及学期的增改等能力。
+ * 学期服务，提供学期列表、当前学期解析（含状态动态计算与回写）、学期的增改
+ * 以及周历（第 1 周起始日 + 周次↔日期映射）等能力。
  */
 @Slf4j
 @Service
@@ -27,6 +33,7 @@ import java.util.stream.Collectors;
 public class SemesterService {
 
     private final SemesterMapper semesterMapper;
+    private final HolidayMapper holidayMapper;
 
     public static final String STATUS_UPCOMING = "UPCOMING";
     public static final String STATUS_ACTIVE = "ACTIVE";
@@ -157,6 +164,78 @@ public class SemesterService {
         semester.setEndDate(request.getEndDate());
         semester.setStatus(computeStatus(semester, today));
         semesterMapper.updateById(semester);
+    }
+
+    /**
+     * 获取学期周历：第 1 周起始日 + 周次↔日期映射表（每周附带落在该周的节假日名称）。
+     * 周历未显式配置时回退为学期开始日期。
+     *
+     * @param semesterId 学期 ID
+     * @return 周历信息
+     * @throws BusinessException 当学期不存在时抛出
+     */
+    public SemesterCalendar getCalendar(Long semesterId) {
+        Semester semester = semesterMapper.selectById(semesterId);
+        if (semester == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "学期不存在");
+        }
+        boolean configured = semester.getWeek1StartDate() != null;
+        LocalDate week1Start = configured ? semester.getWeek1StartDate() : semester.getStartDate();
+
+        List<Holiday> holidays = holidayMapper.selectList(new LambdaQueryWrapper<Holiday>()
+                .ge(Holiday::getHolidayDate, semester.getStartDate())
+                .le(Holiday::getHolidayDate, semester.getEndDate())
+                .orderByAsc(Holiday::getHolidayDate));
+
+        int totalWeeks = WeekMath.totalWeeks(week1Start, semester.getEndDate());
+        List<SemesterCalendar.WeekItem> weeks = new ArrayList<>(totalWeeks);
+        for (int w = 1; w <= totalWeeks; w++) {
+            LocalDate[] range = WeekMath.weekDateRange(week1Start, w);
+            List<String> holidayNames = holidays.stream()
+                    .filter(h -> !h.getHolidayDate().isBefore(range[0]) && !h.getHolidayDate().isAfter(range[1]))
+                    .map(Holiday::getName)
+                    .distinct()
+                    .toList();
+            weeks.add(SemesterCalendar.WeekItem.builder()
+                    .week(w)
+                    .startDate(range[0])
+                    .endDate(range[1])
+                    .holidayNames(holidayNames)
+                    .build());
+        }
+        return SemesterCalendar.builder()
+                .semesterId(semester.getId())
+                .semesterName(semester.getSemesterName())
+                .startDate(semester.getStartDate())
+                .endDate(semester.getEndDate())
+                .week1StartDate(week1Start)
+                .configured(configured)
+                .totalWeeks(totalWeeks)
+                .weeks(weeks)
+                .build();
+    }
+
+    /**
+     * 设置学期第 1 周起始日。周历/节假日/开放计划不受学期基础信息「已开始不可编辑」限制，
+     * ACTIVE 学期亦可配置（本学期配置校历为主流程）。
+     *
+     * @param semesterId     学期 ID
+     * @param week1StartDate 第 1 周起始日
+     * @throws BusinessException 当学期不存在或起始日晚于学期结束日期时抛出
+     */
+    @Transactional
+    public void setWeek1StartDate(Long semesterId, LocalDate week1StartDate) {
+        Semester semester = semesterMapper.selectById(semesterId);
+        if (semester == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "学期不存在");
+        }
+        if (WeekMath.totalWeeks(week1StartDate, semester.getEndDate()) < 1) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "第 1 周起始日不能晚于学期结束日期");
+        }
+        Semester update = new Semester();
+        update.setId(semesterId);
+        update.setWeek1StartDate(week1StartDate);
+        semesterMapper.updateById(update);
     }
 
     private String computeStatus(Semester semester, LocalDate today) {

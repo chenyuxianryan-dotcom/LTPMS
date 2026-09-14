@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS user (
   role            ENUM('ADMIN','TEACHER') NOT NULL DEFAULT 'TEACHER',
   department      VARCHAR(64)  NULL,
   phone           VARCHAR(20)  NULL,
+  avatar          VARCHAR(255) NULL COMMENT '头像:preset:avatar-XX(内置)或/api/v1/files/avatar/x.png(上传);NULL=未设置(按用户ID取默认)',
   status          TINYINT      NOT NULL DEFAULT 1 COMMENT '0=禁用 1=启用',
   is_default_pwd  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=默认密码,首登强制改密',
   failed_attempts INT          NOT NULL DEFAULT 0 COMMENT '连续失败次数,达5次锁定',
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS semester (
   semester_name VARCHAR(32) NOT NULL COMMENT '如 2026-2027-1',
   start_date    DATE        NOT NULL,
   end_date      DATE        NOT NULL,
+  week1_start_date DATE     NULL COMMENT '第1周起始日;空视为 start_date',
   status        ENUM('UPCOMING','ACTIVE','ENDED') NOT NULL DEFAULT 'UPCOMING' COMMENT '按日期动态计算',
   created_at    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_semester_name (semester_name)
@@ -178,6 +180,46 @@ CREATE TABLE IF NOT EXISTS operation_log (
   KEY idx_user_time (user_id, created_at),
   KEY idx_target (target_type, target_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作审计日志表';
+
+-- ---------- 1.2.12 holiday 节假日表 ----------
+CREATE TABLE IF NOT EXISTS holiday (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  holiday_date DATE         NOT NULL COMMENT '停课日',
+  name         VARCHAR(64)  NOT NULL COMMENT '名称 如国庆节',
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_holiday_date (holiday_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='节假日表';
+
+-- ---------- 1.2.13 lab_open_time 实验室开放时段表 ----------
+CREATE TABLE IF NOT EXISTS lab_open_time (
+  id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+  lab_code      VARCHAR(32)  NOT NULL COMMENT '实验室编号(逻辑FK laboratory.lab_code)',
+  semester_id   BIGINT       NOT NULL COMMENT '逻辑FK semester.id',
+  day_of_week   TINYINT      NOT NULL COMMENT '1=周一..7=周日',
+  start_section TINYINT      NOT NULL,
+  end_section   TINYINT      NOT NULL,
+  week_range    VARCHAR(32)  NOT NULL COMMENT '周次范围 如1-16',
+  week_type     ENUM('ALL','ODD','EVEN') NOT NULL DEFAULT 'ALL',
+  audience      VARCHAR(16)  NOT NULL DEFAULT '全校' COMMENT '开放对象(全校/本院/指定专业/教师专用)',
+  enabled       TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=停用',
+  remark        VARCHAR(255) NULL,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_lot_semester (semester_id),
+  KEY idx_lot_lab (lab_code, semester_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='实验室开放时段表';
+
+-- ---------- 1.2.14 lab_open_exception 实验室开放例外日表 ----------
+CREATE TABLE IF NOT EXISTS lab_open_exception (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  lab_code    VARCHAR(32)  NOT NULL COMMENT '实验室编号(逻辑FK laboratory.lab_code)',
+  semester_id BIGINT       NOT NULL COMMENT '逻辑FK semester.id',
+  start_date  DATE         NOT NULL,
+  end_date    DATE         NOT NULL,
+  reason      VARCHAR(128) NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_loe_lab (lab_code, semester_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='实验室开放例外日表';
 
 -- ============================================================
 -- 种子数据

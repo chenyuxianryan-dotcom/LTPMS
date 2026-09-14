@@ -42,6 +42,14 @@ SCHEMA_GUIDE = """-- 关联与统计口径
 -- laboratory.manager 是负责人姓名，可能没有对应 user 账号（挂名）。
 -- 口径：人时数 = experiment.hours × schedule.student_count（学生人时，不是教师工作量）；
 -- 「开设课程数」按课程号去重计数；当前学期 = semester.status = 'ACTIVE'。
+-- 开放管理：lab_open_time.lab_code = laboratory.lab_code；lab_open_time.semester_id = semester.id；
+-- lab_open_exception.lab_code = laboratory.lab_code；lab_open_exception.semester_id = semester.id；
+-- holiday 无学期外键（holiday_date 逐日一行），某学期节假日 = holiday_date BETWEEN semester.start_date AND semester.end_date。
+-- 开放口径：audience ∈ 全校/本院/指定专业/教师专用；week_type ∈ ALL/ODD/EVEN（全周/单周/双周）；
+-- lab_open_time 仅 enabled = 1 的行是生效开放时段；lab_open_exception 表示实验室临时闭馆（该日不开放）。
+-- 周历口径：第 w 周起始日 = semester.week1_start_date + (w-1)×7 天（week1_start_date 为空时按 start_date 推算）；
+-- 「本周」= 按该口径用 CURDATE() 推算的周次。
+-- 利用率 = 占用节时 / 开放节时（均为周加权，不含节假日/例外日扣减）。
 """
 
 

@@ -23,6 +23,7 @@ public class Semester {
     private String semesterName;
     private LocalDate startDate;
     private LocalDate endDate;
+    private LocalDate week1StartDate;
     private String status;
     private LocalDateTime createdAt;
 }

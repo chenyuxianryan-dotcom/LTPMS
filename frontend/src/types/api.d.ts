@@ -51,7 +51,134 @@ export interface ISemester {
   semesterName: string;
   startDate: string;
   endDate: string;
+  /** 第 1 周起始日；空视为 start_date */
+  week1StartDate?: string | null;
   status: TSemesterStatus;
+}
+
+/** 学期周历：周次↔日期映射 */
+export interface ISemesterCalendarWeek {
+  week: number;
+  startDate: string;
+  endDate: string;
+  holidayNames: string[];
+}
+
+export interface ISemesterCalendar {
+  semesterId: number;
+  semesterName: string;
+  startDate: string;
+  endDate: string;
+  week1StartDate: string;
+  configured: boolean;
+  totalWeeks: number;
+  weeks: ISemesterCalendarWeek[];
+}
+
+/** 节假日（逐日一行） */
+export interface IHoliday {
+  id: number;
+  holidayDate: string;
+  name: string;
+  createdAt?: string;
+}
+
+export type TWeekType = 'ALL' | 'ODD' | 'EVEN';
+
+/** 实验室开放时段（与 schedule_time 同构） */
+export interface ILabOpening {
+  id: number;
+  labCode: string;
+  semesterId: number;
+  dayOfWeek: number;
+  startSection: number;
+  endSection: number;
+  weekRange: string;
+  weekType: TWeekType;
+  audience: string;
+  enabled: number;
+  remark?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/** 占用总览条目 */
+export interface IOpenOverviewItem {
+  labId: number;
+  labCode: string;
+  labName: string;
+  planned: boolean;
+  audience?: string | null;
+  openSlotHours: number;
+  occupiedSlotHours: number;
+  rate: number | null;
+  conflictCount: number;
+}
+
+export interface ILabOpeningOverview {
+  semesterId: number;
+  week1StartDate: string;
+  totalWeeks: number;
+  labs: IOpenOverviewItem[];
+}
+
+export type TOpenCellState = 'OCCUPIED' | 'OPEN' | 'NOT_OPEN' | 'CLOSED';
+
+export interface IOpenGridCell {
+  dayOfWeek: number;
+  section: number;
+  state: TOpenCellState;
+}
+
+export interface IOpenGridClosedDate {
+  date: string;
+  name: string;
+  type: 'HOLIDAY' | 'EXCEPTION';
+  week: number;
+  dayOfWeek: number;
+}
+
+export interface ILabOpenGrid {
+  semesterId: number;
+  labCode: string;
+  labName: string;
+  week1StartDate: string;
+  totalWeeks: number;
+  week: number;
+  weekStartDate: string;
+  weekEndDate: string;
+  cells: IOpenGridCell[];
+  closedDates: IOpenGridClosedDate[];
+}
+
+export interface IOpenTodayLab {
+  labCode: string;
+  labName: string;
+  audience?: string | null;
+  sectionText: string;
+}
+
+export interface ILabOpenToday {
+  semesterId: number | null;
+  semesterName?: string | null;
+  date?: string;
+  dayOfWeek?: number;
+  weekNo?: number | null;
+  inSemester?: boolean;
+  holiday?: boolean;
+  holidayName?: string | null;
+  labs: IOpenTodayLab[];
+}
+
+/** 实验室开放例外日（临时闭馆） */
+export interface ILabOpenException {
+  id: number;
+  labCode: string;
+  semesterId: number;
+  startDate: string;
+  endDate: string;
+  reason?: string | null;
+  createdAt?: string;
 }
 
 export interface ISchedule {

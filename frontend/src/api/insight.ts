@@ -17,10 +17,18 @@ export interface IUtilizationItem {
   labName: string;
   scheduleCount: number;
   timeSlotCount: number;
+  /** 开放节时（周加权，不含节假日/例外日扣减） */
+  openSlotHours: number;
+  /** 占用节时（周加权） */
+  occupiedSlotHours: number;
+  /** 利用率 %，未配置开放计划时为 null */
+  rate: number | null;
+  /** 是否存在 enabled=1 的开放时段（全停用视为未开放） */
+  planned: boolean;
 }
 
 export interface IAnomalyItem {
-  type: 'OVERLOAD' | 'IDLE' | 'HOURS';
+  type: 'OVERLOAD' | 'IDLE' | 'HOURS' | 'NOT_OPEN';
   severity: 'HIGH' | 'MEDIUM' | 'LOW';
   target: string;
   detail: string;

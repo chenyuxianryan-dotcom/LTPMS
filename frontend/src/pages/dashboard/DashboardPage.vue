@@ -171,6 +171,24 @@
         </ul>
       </el-card>
     </div>
+    <!-- 今日开放实验室（两角色可见） -->
+    <el-card v-loading="openLoading" class="dashboard-page__open" shadow="never">
+      <template #header>
+        <div class="dashboard-page__open-head">
+          <span>今日开放实验室</span>
+          <span class="dashboard-page__open-meta">{{ openMetaText }}</span>
+        </div>
+      </template>
+      <el-empty v-if="!openToday || openToday.labs.length === 0" :description="openEmptyText" :image-size="60" />
+      <div v-else class="dashboard-page__open-list">
+        <div v-for="lab in openToday.labs" :key="lab.labCode" class="dashboard-page__open-item">
+          <span class="dashboard-page__open-code">{{ lab.labCode }}</span>
+          <span class="dashboard-page__open-name">{{ lab.labName }}</span>
+          <el-tag size="small" type="info" effect="light">{{ lab.audience || '全校' }}</el-tag>
+          <span class="dashboard-page__open-time">{{ lab.sectionText }}</span>
+        </div>
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -178,9 +196,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiGetAdminOverview, apiGetTeacherOverview } from '@/api/dashboard';
+import { apiGetLabOpenToday } from '@/api/labOpening';
 import StatGridCard from '@/components/StatGridCard.vue';
+import { WEEKDAY_LABELS } from '@/constants';
 import { useUserStore } from '@/store/user';
-import type { IAdminOverview, IRecentQuery, IStatCell, ITeacherOverview } from '@/types/api';
+import type { IAdminOverview, ILabOpenToday, IRecentQuery, IStatCell, ITeacherOverview } from '@/types/api';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -189,6 +209,30 @@ const isAdmin = computed(() => userStore.isAdmin);
 const adminOverview = ref<IAdminOverview>({});
 const teacherOverview = ref<ITeacherOverview>({});
 const recentQueries = ref<IRecentQuery[]>([]);
+const openToday = ref<ILabOpenToday | null>(null);
+const openLoading = ref(false);
+
+const openMetaText = computed(() => {
+  const today = openToday.value;
+  if (!today?.date) return '';
+  return [
+    today.semesterName,
+    today.date,
+    today.dayOfWeek ? `周${WEEKDAY_LABELS[today.dayOfWeek - 1]}` : '',
+    today.weekNo ? `第 ${today.weekNo} 周` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+});
+
+const openEmptyText = computed(() => {
+  const today = openToday.value;
+  if (!today) return '暂无数据';
+  if (!today.semesterId) return '当前没有进行中的学期';
+  if (today.holiday) return `${today.holidayName ?? '今日'} 闭馆`;
+  if (!today.inSemester) return '当前不在学期教学周内';
+  return '今日暂无开放的实验室';
+});
 
 /** 周历数据映射为通用方格（code=周次，name=第 N 周） */
 const weekCells = computed<IStatCell[]>(() =>
@@ -234,15 +278,21 @@ function goCourseExperiments(cell: IStatCell): void {
 }
 
 onMounted(async () => {
+  openLoading.value = true;
   // 刷新直达 /dashboard 时 fetchMe 可能未返回，role 为空会走错分支（教师接口对管理员 403）
   if (!userStore.user) {
     await userStore.fetchMe().catch(() => undefined);
   }
-  if (userStore.isAdmin) {
-    adminOverview.value = await apiGetAdminOverview();
-  } else {
-    teacherOverview.value = await apiGetTeacherOverview();
-    recentQueries.value = teacherOverview.value.recentQueries ?? [];
+  try {
+    if (userStore.isAdmin) {
+      adminOverview.value = await apiGetAdminOverview();
+    } else {
+      teacherOverview.value = await apiGetTeacherOverview();
+      recentQueries.value = teacherOverview.value.recentQueries ?? [];
+    }
+    openToday.value = await apiGetLabOpenToday().catch(() => null);
+  } finally {
+    openLoading.value = false;
   }
 });
 </script>
@@ -334,6 +384,65 @@ onMounted(async () => {
 
 .dashboard-page__recent-time {
   font-size: 12px;
+  color: var(--el-text-color-secondary, #909399);
+}
+
+.dashboard-page__open {
+  border: 1px solid var(--border-subtle, #e4e7ed);
+  border-radius: var(--border-radius-lg, 12px);
+
+  :deep(.el-card__header) {
+    padding: var(--space-4, 14px) var(--space-5, 16px) 4px;
+    border-bottom: none;
+  }
+
+  :deep(.el-card__body) {
+    padding: 4px var(--space-5, 16px) var(--space-4, 14px);
+  }
+}
+
+.dashboard-page__open-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary, #303133);
+}
+
+.dashboard-page__open-meta {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary, #909399);
+}
+
+.dashboard-page__open-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.dashboard-page__open-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: 6px 12px;
+  background: var(--el-fill-color-lighter, #fafafa);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.dashboard-page__open-code {
+  font-family: monospace;
+  font-weight: 600;
+  color: var(--el-color-primary, #378add);
+}
+
+.dashboard-page__open-name {
+  color: var(--el-text-color-primary, #303133);
+}
+
+.dashboard-page__open-time {
   color: var(--el-text-color-secondary, #909399);
 }
 </style>
