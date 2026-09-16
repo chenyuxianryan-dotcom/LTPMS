@@ -11,8 +11,21 @@
         <el-select v-model="academicYear" placeholder="选择学年" style="width: 180px" @change="loadData">
           <el-option v-for="year in academicYears" :key="year" :label="year" :value="year" />
         </el-select>
-        <el-button :icon="Download" :disabled="!loaded" @click="handleExport('excel')">导出 Excel</el-button>
-        <el-button :icon="Download" :disabled="!loaded" @click="handleExport('pdf')">导出 PDF</el-button>
+        <el-dropdown
+          trigger="click"
+          :disabled="!loaded || activeTab === 'narrative'"
+          @command="handleExportCommand"
+        >
+          <el-button :icon="Download" :disabled="!loaded || activeTab === 'narrative'">
+            导出<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="excel">导出 Excel</el-dropdown-item>
+              <el-dropdown-item command="pdf">导出 PDF</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -49,6 +62,21 @@
         <el-button type="primary" :loading="narrativeLoading" @click="handleGenerateNarrative">
           {{ narrativeLoading ? '生成中…' : '生成报告' }}
         </el-button>
+        <el-dropdown
+          trigger="click"
+          :disabled="!narrativeResult?.success"
+          @command="handleNarrativeExportCommand"
+        >
+          <el-button :icon="Download" :disabled="!narrativeResult?.success">
+            导出报告<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="pdf">导出 PDF</el-dropdown-item>
+              <el-dropdown-item command="excel">导出 Excel</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
 
       <div v-loading="narrativeLoading">
@@ -107,12 +135,18 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Download } from '@element-plus/icons-vue';
+import { Download, ArrowDown } from '@element-plus/icons-vue';
 import * as echarts from 'echarts/core';
 import { BarChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
-import { apiExportCourseProjectStats, apiExportPersonHours, apiGetCourseProjectStats, apiGetPersonHours } from '@/api/report';
+import {
+  apiExportCourseProjectStats,
+  apiExportNarrative,
+  apiExportPersonHours,
+  apiGetCourseProjectStats,
+  apiGetPersonHours,
+} from '@/api/report';
 import { apiNlqNarrative, type INlqNarrativeResult } from '@/api/nlq';
 import { apiListSemesters } from '@/api/semester';
 import { useUserStore } from '@/store/user';
@@ -236,15 +270,67 @@ async function handleGenerateNarrative(): Promise<void> {
   }
 }
 
+/** 叙事导出文档标题（与页签内类型选择器口径一致） */
+const NARRATIVE_TITLES = {
+  annual_report: '全校年度叙事报告',
+  teaching_summary: '全校教学总结',
+} as const;
+
+const narrativeTitle = computed(() =>
+  isAdmin.value ? NARRATIVE_TITLES[narrativeKind.value] : '我的教学总结',
+);
+
+/** 学期标签：semester_name 形如 2026-2027-1 → 2026-2027学年第1学期 */
+const narrativeSemesterLabel = computed(() => {
+  const raw = String(narrativeResult.value?.numbers?.semester_name ?? '');
+  const matched = /^(\d{4}-\d{4})-([12])$/.exec(raw);
+  return matched ? `${matched[1]}学年第${matched[2]}学期` : raw;
+});
+
+function handleNarrativeExportCommand(command: string): void {
+  void handleNarrativeExport(command as 'excel' | 'pdf');
+}
+
+/** 导出叙事报告：提交页面所见内容，后端仅排版（所见即所得） */
+async function handleNarrativeExport(format: 'excel' | 'pdf'): Promise<void> {
+  const result = narrativeResult.value;
+  if (!result?.success) return;
+  const numbers = Object.entries(result.numbers ?? {})
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .map(([key, value]) => ({ label: NARRATIVE_NUMBER_LABELS[key] ?? key, value: String(value) }));
+  const payload = {
+    title: narrativeTitle.value,
+    semester: narrativeSemesterLabel.value,
+    text: result.text,
+    numbers,
+  };
+  try {
+    const blob = await apiExportNarrative({ format }, payload);
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
+    const suffix = payload.semester ? `_${payload.semester}` : '';
+    saveBlob(blob, `${payload.title}${suffix}.${ext}`);
+  } catch {
+    // 错误由 request 拦截器统一提示
+  }
+}
+
+function handleExportCommand(command: string): void {
+  void handleExport(command as 'excel' | 'pdf');
+}
+
 async function handleExport(format: 'excel' | 'pdf'): Promise<void> {
   const params = { academicYear: academicYear.value, format };
-  const blob =
-    activeTab.value === 'course-project-stats'
-      ? await apiExportCourseProjectStats(params)
-      : await apiExportPersonHours(params);
-  const label = activeTab.value === 'course-project-stats' ? '课程项目统计' : '人时数统计';
-  const ext = format === 'excel' ? 'xlsx' : 'pdf';
-  saveBlob(blob, `${label}_${academicYear.value}.${ext}`);
+  try {
+    const blob =
+      activeTab.value === 'course-project-stats'
+        ? await apiExportCourseProjectStats(params)
+        : await apiExportPersonHours(params);
+    const label = activeTab.value === 'course-project-stats' ? '课程项目统计' : '人时数统计';
+    const ext = format === 'excel' ? 'xlsx' : 'pdf';
+    saveBlob(blob, `${label}_${academicYear.value}.${ext}`);
+  } catch {
+    // 错误由 request 拦截器统一提示
+  }
 }
 
 onMounted(async () => {

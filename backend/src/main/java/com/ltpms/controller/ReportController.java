@@ -1,6 +1,8 @@
 package com.ltpms.controller;
 
+import com.ltpms.annotation.RequireRole;
 import com.ltpms.common.Result;
+import com.ltpms.dto.NarrativeExportRequest;
 import com.ltpms.dto.ReportResponse;
 import com.ltpms.service.ReportService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,6 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -75,7 +79,7 @@ public class ReportController {
             HttpServletResponse response) throws IOException {
         ReportResponse report = reportService.courseProjectStats(academicYear, resolveAggregateOnly(aggregateOnly),
                 getCurrentUserId(), getCurrentRole());
-        doExport(report, format, false, "课程项目统计", response);
+        doExport(report, format, false, "课程项目统计", academicYear, response);
     }
 
     /**
@@ -95,15 +99,52 @@ public class ReportController {
             HttpServletResponse response) throws IOException {
         ReportResponse report = reportService.personHours(academicYear, resolveAggregateOnly(aggregateOnly),
                 getCurrentUserId(), getCurrentRole());
-        doExport(report, format, true, "人时数统计", response);
+        doExport(report, format, true, "人时数统计", academicYear, response);
     }
 
-    private void doExport(ReportResponse report, String format, boolean hasPersonHours,
-                          String filename, HttpServletResponse response) throws IOException {
+    /**
+     * 导出 AI 叙事报告 / 教学总结（支持 PDF 或 Excel）。
+     *
+     * <p>前端提交页面上已生成的叙事内容，后端只做排版渲染（所见即所得），不重新调用大模型。</p>
+     *
+     * @param format  导出格式，pdf 或 excel
+     * @param request 叙事内容（标题、学期、正文、统计数字）
+     * @param response HTTP 响应，用于写入文件流
+     * @throws IOException 写入响应流失败时抛出
+     */
+    @PostMapping("/narrative/export")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public void exportNarrative(
+            @RequestParam String format,
+            @RequestBody NarrativeExportRequest request,
+            HttpServletResponse response) throws IOException {
         byte[] data;
         String extension;
         if ("pdf".equalsIgnoreCase(format)) {
-            data = reportService.exportPdf(report.getDetail(), hasPersonHours);
+            data = reportService.exportNarrativePdf(request);
+            extension = ".pdf";
+            response.setContentType(MediaType.APPLICATION_PDF_VALUE);
+        } else {
+            data = reportService.exportNarrativeExcel(request);
+            extension = ".xlsx";
+            response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
+        }
+        String filename = (request.getTitle() == null || request.getTitle().isBlank())
+                ? "AI 叙事报告" : request.getTitle();
+        if (request.getSemester() != null && !request.getSemester().isBlank()) {
+            filename = filename + "_" + request.getSemester();
+        }
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=" + URLEncoder.encode(filename + extension, StandardCharsets.UTF_8));
+        response.getOutputStream().write(data);
+    }
+
+    private void doExport(ReportResponse report, String format, boolean hasPersonHours,
+                          String filename, String academicYear, HttpServletResponse response) throws IOException {
+        byte[] data;
+        String extension;
+        if ("pdf".equalsIgnoreCase(format)) {
+            data = reportService.exportPdf(filename, academicYear, report.getDetail(), hasPersonHours);
             extension = ".pdf";
             response.setContentType(MediaType.APPLICATION_PDF_VALUE);
         } else {

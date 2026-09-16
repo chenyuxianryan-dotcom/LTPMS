@@ -1,5 +1,5 @@
 /** 报表模块 /reports（分层可见：教师=汇总+本人明细） */
-import { download, get } from '@/utils/request';
+import { download, downloadPost, get } from '@/utils/request';
 import type { IReportData } from '@/types/api';
 
 export interface IReportParams {
@@ -22,4 +22,19 @@ export function apiExportCourseProjectStats(params: IReportParams & { format: 'e
 
 export function apiExportPersonHours(params: IReportParams & { format: 'excel' | 'pdf' }): Promise<Blob> {
   return download('/reports/person-hours/export', params);
+}
+
+/** 叙事报告导出载荷：页面所见内容原样提交，后端只排版不重新生成 */
+export interface INarrativeExportPayload {
+  title: string;
+  semester?: string;
+  text: string;
+  numbers: { label: string; value: string }[];
+}
+
+export function apiExportNarrative(
+  params: { format: 'excel' | 'pdf' },
+  payload: INarrativeExportPayload,
+): Promise<Blob> {
+  return downloadPost('/reports/narrative/export', params, payload);
 }

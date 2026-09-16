@@ -1,7 +1,21 @@
 package com.ltpms.service;
 
-import com.ltpms.common.BusinessException;
-import com.ltpms.common.ErrorCode;
+import com.itextpdf.io.font.FontProgram;
+import com.itextpdf.io.font.FontProgramFactory;
+import com.itextpdf.io.font.PdfEncodings;
+import com.itextpdf.kernel.colors.ColorConstants;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.properties.TextAlignment;
+import com.itextpdf.layout.properties.UnitValue;
+import com.ltpms.dto.NarrativeExportRequest;
 import com.ltpms.dto.ReportDetailItem;
 import com.ltpms.dto.ReportResponse;
 import com.ltpms.mapper.ReportMapper;
@@ -14,7 +28,9 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -145,16 +161,189 @@ public class ReportService {
     }
 
     /**
-     * 将报表明细导出为 PDF 字节内容。
+     * 将报表明细导出为 PDF 字节内容（横向 A4，标题含学年，表头跨页重复）。
      *
+     * @param title          报表名称，如「课程项目统计」
+     * @param academicYear   学年，如 2024-2025
      * @param detail         报表明细列表
      * @param hasPersonHours 是否包含人时数列
      * @return PDF 文件字节数组
-     * @throws BusinessException 当前 PDF 导出尚未实现时抛出
+     * @throws IOException 生成文件失败时抛出
      */
-    public byte[] exportPdf(List<ReportResponse.Detail> detail, boolean hasPersonHours) {
-        throw new BusinessException(
-                ErrorCode.NOT_IMPLEMENTED,
-                "PDF 导出功能待接入 Noto Sans SC 字体后实现");
+    public byte[] exportPdf(String title, String academicYear, List<ReportResponse.Detail> detail,
+                            boolean hasPersonHours) throws IOException {
+        PdfFont font = cjkFont();
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            PdfDocument pdfDoc = new PdfDocument(new PdfWriter(bos));
+            Document doc = new Document(pdfDoc, PageSize.A4.rotate());
+            String heading = (academicYear == null || academicYear.isBlank())
+                    ? title : title + "（" + academicYear + " 学年）";
+            doc.add(new Paragraph(heading).setFont(font).setFontSize(16)
+                    .setTextAlignment(TextAlignment.CENTER).setMarginBottom(12));
+
+            Table table = new Table(hasPersonHours
+                    ? new float[]{2, 3, 2, 3, 2, 2, 2}
+                    : new float[]{2, 3, 2, 3, 2, 2});
+            table.setWidth(UnitValue.createPercentValue(100));
+            String[] headers = hasPersonHours
+                    ? new String[]{"实验室编号", "实验室名称", "课程号", "课程名", "授课教师", "实验项目数", "人时数"}
+                    : new String[]{"实验室编号", "实验室名称", "课程号", "课程名", "授课教师", "实验项目数"};
+            for (String header : headers) {
+                table.addHeaderCell(pdfCell(font, header, 10));
+            }
+            for (ReportResponse.Detail item : detail) {
+                table.addCell(pdfCell(font, item.getLabCode(), 9));
+                table.addCell(pdfCell(font, item.getLabName(), 9));
+                table.addCell(pdfCell(font, item.getCourseCode(), 9));
+                table.addCell(pdfCell(font, item.getCourseName(), 9));
+                table.addCell(pdfCell(font, item.getTeacherName(), 9));
+                table.addCell(pdfCell(font, String.valueOf(item.getExperimentCount()), 9));
+                if (hasPersonHours) {
+                    table.addCell(pdfCell(font,
+                            item.getPersonHours() == null ? "" : item.getPersonHours().toPlainString(), 9));
+                }
+            }
+            doc.add(table);
+            // 关闭 Document 才会落盘全部内容（页树/xref 在 close 时写出）
+            doc.close();
+            return bos.toByteArray();
+        }
+    }
+
+    /**
+     * 将叙事报告渲染为 PDF 字节内容（纵向 A4：标题 + 学期 + 正文 + 统计数字附表）。
+     *
+     * @param request 前端提交的叙事内容
+     * @return PDF 文件字节数组
+     * @throws IOException 生成文件失败时抛出
+     */
+    public byte[] exportNarrativePdf(NarrativeExportRequest request) throws IOException {
+        PdfFont font = cjkFont();
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            PdfDocument pdfDoc = new PdfDocument(new PdfWriter(bos));
+            Document doc = new Document(pdfDoc, PageSize.A4);
+            doc.add(new Paragraph(blankTo(request.getTitle(), "AI 叙事报告")).setFont(font).setFontSize(18)
+                    .setTextAlignment(TextAlignment.CENTER));
+            if (notBlank(request.getSemester())) {
+                doc.add(new Paragraph(request.getSemester()).setFont(font).setFontSize(11)
+                        .setFontColor(ColorConstants.GRAY)
+                        .setTextAlignment(TextAlignment.CENTER).setMarginBottom(16));
+            }
+            for (String line : textLines(request.getText())) {
+                doc.add(new Paragraph(line.isBlank() ? " " : line.trim()).setFont(font).setFontSize(12)
+                        .setMultipliedLeading(1.6f));
+            }
+            if (request.getNumbers() != null && !request.getNumbers().isEmpty()) {
+                doc.add(new Paragraph("统计数据").setFont(font).setFontSize(13).setMarginTop(18).setMarginBottom(6));
+                Table table = new Table(new float[]{3, 2});
+                table.setWidth(UnitValue.createPercentValue(60));
+                table.addHeaderCell(pdfCell(font, "指标", 10));
+                table.addHeaderCell(pdfCell(font, "数值", 10));
+                for (NarrativeExportRequest.NumberItem item : request.getNumbers()) {
+                    table.addCell(pdfCell(font, blankTo(item.getLabel(), ""), 10));
+                    table.addCell(pdfCell(font, blankTo(item.getValue(), ""), 10));
+                }
+                doc.add(table);
+            }
+            doc.close();
+            return bos.toByteArray();
+        }
+    }
+
+    /**
+     * 将叙事报告渲染为 Excel 字节内容（标题/学期/正文逐行写入，统计数字为「指标-数值」两列）。
+     *
+     * @param request 前端提交的叙事内容
+     * @return Excel 文件字节数组
+     * @throws IOException 生成文件失败时抛出
+     */
+    public byte[] exportNarrativeExcel(NarrativeExportRequest request) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("叙事报告");
+            int rowNum = 0;
+            sheet.createRow(rowNum++).createCell(0).setCellValue(blankTo(request.getTitle(), "AI 叙事报告"));
+            if (notBlank(request.getSemester())) {
+                sheet.createRow(rowNum++).createCell(0).setCellValue(request.getSemester());
+            }
+            rowNum++;
+            for (String line : textLines(request.getText())) {
+                sheet.createRow(rowNum++).createCell(0).setCellValue(line);
+            }
+            if (request.getNumbers() != null && !request.getNumbers().isEmpty()) {
+                rowNum++;
+                sheet.createRow(rowNum++).createCell(0).setCellValue("统计数据");
+                Row header = sheet.createRow(rowNum++);
+                header.createCell(0).setCellValue("指标");
+                header.createCell(1).setCellValue("数值");
+                for (NarrativeExportRequest.NumberItem item : request.getNumbers()) {
+                    Row row = sheet.createRow(rowNum++);
+                    row.createCell(0).setCellValue(blankTo(item.getLabel(), ""));
+                    row.createCell(1).setCellValue(blankTo(item.getValue(), ""));
+                }
+            }
+            sheet.setColumnWidth(0, 90 * 256);
+            sheet.setColumnWidth(1, 20 * 256);
+            workbook.write(bos);
+            return bos.toByteArray();
+        }
+    }
+
+    private static Cell pdfCell(PdfFont font, String value, float fontSize) {
+        return new Cell().add(new Paragraph(value == null ? "" : value).setFont(font).setFontSize(fontSize));
+    }
+
+    private static boolean notBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static String blankTo(String value, String fallback) {
+        return notBlank(value) ? value : fallback;
+    }
+
+    /** 正文按行拆分，去掉首尾空行，保留段间空行 */
+    private static List<String> textLines(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        String[] lines = text.replace("\r", "").split("\n", -1);
+        int start = 0;
+        int end = lines.length;
+        while (start < end && lines[start].isBlank()) {
+            start++;
+        }
+        while (end > start && lines[end - 1].isBlank()) {
+            end--;
+        }
+        return Arrays.asList(Arrays.copyOfRange(lines, start, end));
+    }
+
+    private static final String CJK_FONT_RESOURCE = "/fonts/NotoSansSC-Regular.ttf";
+    private static volatile FontProgram cjkFontProgram;
+
+    /** 懒加载并缓存解析后的中文字体（首次约 300ms，之后复用） */
+    private static FontProgram cjkFontProgram() throws IOException {
+        FontProgram program = cjkFontProgram;
+        if (program == null) {
+            synchronized (ReportService.class) {
+                program = cjkFontProgram;
+                if (program == null) {
+                    try (InputStream in = ReportService.class.getResourceAsStream(CJK_FONT_RESOURCE)) {
+                        if (in == null) {
+                            throw new IOException("中文字体资源缺失: " + CJK_FONT_RESOURCE);
+                        }
+                        program = FontProgramFactory.createFont(in.readAllBytes());
+                        cjkFontProgram = program;
+                    }
+                }
+            }
+        }
+        return program;
+    }
+
+    /** 每次导出创建新的 PdfFont（PdfFont 绑定文档，跨文档复用会抛异常） */
+    private static PdfFont cjkFont() throws IOException {
+        return PdfFontFactory.createFont(cjkFontProgram(), PdfEncodings.IDENTITY_H,
+                PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
     }
 }

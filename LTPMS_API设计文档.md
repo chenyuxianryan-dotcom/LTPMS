@@ -331,6 +331,7 @@ schedule_time(课表时间明细) N──1 schedule(课表)
 | 44001 | NL2SQL 问题无法安全转换 | 含写操作/危险函数 |
 | 44002 | NL2SQL 无法建立数据权限 | 注入失败拒绝执行 |
 | 44003 | NL2SQL 外部模型超时/不可用 | 降级提示 |
+| 44004 | 智能查询服务未启动或连接失败 | 服务进程未运行/端口不通（区别于 44003 的模型侧故障） |
 
 **RESTful 规范（V1.1 统一）**：部分更新用 `PATCH`；批量删除用 `POST .../batch-delete`；路径不以 `/` 结尾；调试接口 `/schema` 仅 ADMIN 角色可用且生产环境可配置禁用。
 
@@ -411,6 +412,9 @@ schedule_time(课表时间明细) N──1 schedule(课表)
 | GET | `/person-hours` | 人时数统计 | 管理员/教师 | `?academicYear=2026-2027&aggregate_only=false` |
 | GET | `/course-project-stats/export` | 导出课程项目统计 | 管理员/教师 | `?format=excel/pdf&aggregate_only=false` |
 | GET | `/person-hours/export` | 导出人时数统计 | 管理员/教师 | `?format=excel/pdf&aggregate_only=false` |
+| POST | `/narrative/export` | 导出叙事报告/教学总结 | 管理员/教师 | `?format=pdf/excel`；body `{title, semester, text, numbers:[{label, value}]}` |
+
+**导出实现说明（2026-09-15）**：统计报表 PDF 正式落地（iText 8 + 内置 Noto Sans SC 静态字体，横向 A4、标题含学年、表头跨页重复）；`/narrative/export` 为「所见即所得」渲染——前端提交页面上已生成的叙事标题/正文/统计数字，后端只做排版，不重新调用大模型（nlq-service 不可用时依然可导出）。业务失败（如 45001）时返回 JSON 而非文件，前端下载守卫会拦截提示、不会保存坏文件。
 
 **`aggregate_only` 参数语义**：
 

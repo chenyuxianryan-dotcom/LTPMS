@@ -109,7 +109,39 @@ export function del<T>(url: string, params?: object): Promise<T> {
 /** 文件下载（返回 Blob，由调用方触发保存） */
 export async function download(url: string, params?: object): Promise<Blob> {
   const response = await request.get(url, { params, responseType: 'blob' });
-  return response.data as Blob;
+  return guardDownloadBlob(response);
+}
+
+/** 文件下载（POST 提交数据后返回 Blob） */
+export async function downloadPost(url: string, params?: object, data?: unknown): Promise<Blob> {
+  const response = await request.post(url, data, { params, responseType: 'blob' });
+  return guardDownloadBlob(response);
+}
+
+/**
+ * 下载响应守卫：后端业务失败时仍是 HTTP 200，但 body 是 JSON（如 45001 功能未实现），
+ * 若直接保存会得到打不开的坏文件；此处识别 JSON 错误并按统一业务错误提示。
+ */
+async function guardDownloadBlob(response: { data: Blob }): Promise<Blob> {
+  const blob = response.data;
+  if (!blob.type.includes('json') && blob.size > 4096) {
+    return blob;
+  }
+  const text = await blob.text();
+  if (!text.trimStart().startsWith('{')) {
+    return blob;
+  }
+  let code = 500;
+  let message = '导出失败，请稍后重试';
+  try {
+    const result = JSON.parse(text) as IResult<unknown>;
+    code = result.code ?? code;
+    message = result.message ?? message;
+  } catch {
+    // 非合法 JSON 时按未知导出错误处理
+  }
+  showBizError(code, message);
+  throw createBizError(code, message);
 }
 
 /** 文件上传（multipart/form-data） */
