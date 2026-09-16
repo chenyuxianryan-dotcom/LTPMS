@@ -378,9 +378,12 @@ schedule_time(课表时间明细) N──1 schedule(课表)
 | 方法 | 路径 | 说明 | 参数 |
 |------|------|------|------|
 | GET | `` | 分页查询教师列表 | `?page=1&size=20&keyword=张三` |
+| POST | `` | 新增教师（初始密码 `Ltpms@{工号}`，首次登录需修改） | `{username, realName, department, phone}` |
+| PUT | `/{id}` | 编辑教师基础信息（工号不可修改） | `{realName, department, phone}` |
 | POST | `/import` | Excel批量导入教师 | `multipart/form-data` (file) |
 | POST | `/{id}/reset-password` | 重置教师密码 | — 重置为默认密码 `Ltpms@{工号}` |
 | PATCH | `/{id}/status` | 启用/禁用教师（部分更新用 PATCH，规范修正） | `{status: 0或1}` |
+| POST | `/batch-delete` | 批量删除教师（关联课表/课程的跳过并返回明细） | `[1,2,3]` |
 
 ### 2.7 实验课程模块 `/api/v1/courses`
 

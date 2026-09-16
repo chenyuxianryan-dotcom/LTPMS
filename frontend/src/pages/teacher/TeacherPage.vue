@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <div class="page-header__title">教师管理</div>
-        <div class="page-header__desc">教师账号由管理员批量导入；重置密码后为默认密码 Ltpms@{工号}</div>
+        <div class="page-header__desc">教师账号由管理员单独新增或批量导入；新增/重置后为默认密码 Ltpms@{工号}</div>
       </div>
       <div class="filter-bar">
         <el-input v-model="keyword" placeholder="搜索姓名 / 工号" clearable style="width: 220px" @keyup.enter="handleSearch" />
@@ -11,7 +11,8 @@
         <el-button :icon="Delete" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
           批量删除<span v-if="selectedIds.length > 0" style="margin-left: 4px">({{ selectedIds.length }})</span>
         </el-button>
-        <el-button type="primary" :icon="Upload" @click="importVisible = true">批量导入</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate">新增教师</el-button>
+        <el-button :icon="Upload" @click="importVisible = true">批量导入</el-button>
       </div>
     </div>
 
@@ -46,8 +47,9 @@
           <el-switch :model-value="row.status === 1" @change="(value: string | number | boolean) => handleStatusChange(row, value)" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="110" fixed="right">
+      <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
+          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="handleResetPassword(row)">重置密码</el-button>
         </template>
       </el-table-column>
@@ -64,6 +66,27 @@
       @size-change="loadData"
     />
 
+    <el-dialog v-model="dialogVisible" :title="editing ? '编辑教师' : '新增教师'" width="480px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+        <el-form-item label="工号" prop="username">
+          <el-input v-model="form.username" :disabled="editing" placeholder="如 2019001" maxlength="32" />
+        </el-form-item>
+        <el-form-item label="姓名" prop="realName">
+          <el-input v-model="form.realName" maxlength="32" />
+        </el-form-item>
+        <el-form-item label="所属院系" prop="department">
+          <el-input v-model="form.department" maxlength="64" />
+        </el-form-item>
+        <el-form-item label="联系电话" prop="phone">
+          <el-input v-model="form.phone" maxlength="20" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
+      </template>
+    </el-dialog>
+
     <AvatarPickerDialog v-model="avatarPickerVisible" :user="pickerUser" @saved="onAvatarSaved" />
     <ImportDialog
       v-model="importVisible"
@@ -76,12 +99,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Delete, Search, Upload } from '@element-plus/icons-vue';
+import { onMounted, reactive, ref } from 'vue';
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
+import { Delete, Plus, Search, Upload } from '@element-plus/icons-vue';
 import AvatarPickerDialog from '@/components/AvatarPickerDialog.vue';
 import ImportDialog from '@/components/ImportDialog.vue';
-import { apiDeleteTeachers, apiListTeachers, apiResetTeacherPassword, apiUpdateTeacherStatus } from '@/api/teacher';
+import { apiCreateTeacher, apiDeleteTeachers, apiListTeachers, apiResetTeacherPassword, apiUpdateTeacher, apiUpdateTeacherStatus } from '@/api/teacher';
 import { resolveAvatarUrl } from '@/utils/avatar';
 import type { ITeacher } from '@/types/api';
 
@@ -95,6 +118,17 @@ const selectedIds = ref<number[]>([]);
 const importVisible = ref(false);
 const avatarPickerVisible = ref(false);
 const pickerUser = ref<{ id: number; realName: string; avatar?: string | null } | null>(null);
+
+const dialogVisible = ref(false);
+const editing = ref(false);
+const saving = ref(false);
+const formRef = ref<FormInstance>();
+const form = reactive({ id: 0, username: '', realName: '', department: '', phone: '' });
+
+const rules: FormRules = {
+  username: [{ required: true, message: '请输入工号', trigger: 'blur' }],
+  realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+};
 
 async function loadData(): Promise<void> {
   loading.value = true;
@@ -111,6 +145,45 @@ function handleSearch(): void {
   page.value = 1;
   selectedIds.value = [];
   void loadData();
+}
+
+/** 打开新增教师弹窗（初始密码 Ltpms@工号） */
+function openCreate(): void {
+  editing.value = false;
+  Object.assign(form, { id: 0, username: '', realName: '', department: '', phone: '' });
+  dialogVisible.value = true;
+}
+
+/** 打开编辑教师弹窗（工号不可修改） */
+function openEdit(row: ITeacher): void {
+  editing.value = true;
+  Object.assign(form, {
+    id: row.id,
+    username: row.username,
+    realName: row.realName,
+    department: row.department ?? '',
+    phone: row.phone ?? '',
+  });
+  dialogVisible.value = true;
+}
+
+async function handleSave(): Promise<void> {
+  const valid = await formRef.value?.validate().catch(() => false);
+  if (!valid) return;
+  saving.value = true;
+  try {
+    if (editing.value) {
+      await apiUpdateTeacher(form.id, { realName: form.realName, department: form.department, phone: form.phone });
+      ElMessage.success('保存成功');
+    } else {
+      await apiCreateTeacher({ username: form.username, realName: form.realName, department: form.department, phone: form.phone });
+      ElMessage.success(`已新增教师「${form.realName}」，初始密码 Ltpms@${form.username}`);
+    }
+    dialogVisible.value = false;
+    await loadData();
+  } finally {
+    saving.value = false;
+  }
 }
 
 /** 打开头像选择器（管理员为教师更换头像） */

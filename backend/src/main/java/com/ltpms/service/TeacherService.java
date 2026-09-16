@@ -6,6 +6,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ltpms.common.BusinessException;
 import com.ltpms.common.ErrorCode;
 import com.ltpms.common.PageResult;
+import com.ltpms.dto.TeacherCreateRequest;
+import com.ltpms.dto.TeacherUpdateRequest;
+import com.ltpms.dto.TeacherVO;
 import com.ltpms.entity.Course;
 import com.ltpms.entity.Schedule;
 import com.ltpms.entity.User;
@@ -31,7 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 教师（用户）服务，提供教师分页查询、密码重置、状态变更、Excel 导入与模板下载等能力。
+ * 教师（用户）服务，提供教师分页查询、新增、编辑、密码重置、状态变更、Excel 导入与模板下载等能力。
  */
 @Slf4j
 @Service
@@ -49,9 +52,9 @@ public class TeacherService {
      * @param page    页码，从 1 开始
      * @param size    每页大小
      * @param keyword 关键字，可选
-     * @return 分页后的教师列表
+     * @return 分页后的教师脱敏视图列表
      */
-    public PageResult<User> list(int page, int size, String keyword) {
+    public PageResult<TeacherVO> list(int page, int size, String keyword) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getRole, "TEACHER");
         if (StringUtils.isNotBlank(keyword)) {
@@ -61,7 +64,69 @@ public class TeacherService {
         }
         wrapper.orderByDesc(User::getCreatedAt);
         Page<User> result = userMapper.selectPage(new Page<>(page, size), wrapper);
-        return PageResult.of(result);
+        return PageResult.of(result.convert(this::toTeacherVO));
+    }
+
+    /** 教师实体转脱敏视图对象，剔除密码等内部字段 */
+    private TeacherVO toTeacherVO(User user) {
+        TeacherVO vo = new TeacherVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setRealName(user.getRealName());
+        vo.setDepartment(user.getDepartment());
+        vo.setPhone(user.getPhone());
+        vo.setAvatar(user.getAvatar());
+        vo.setStatus(user.getStatus());
+        vo.setIsDefaultPwd(user.getIsDefaultPwd());
+        vo.setCreatedAt(user.getCreatedAt());
+        return vo;
+    }
+
+    /**
+     * 新增单个教师，校验工号唯一性，初始密码与批量导入规则一致（Ltpms@工号，首次登录需修改）。
+     *
+     * @param request 教师信息
+     * @throws BusinessException 当工号已存在时抛出
+     */
+    @Transactional
+    public void create(TeacherCreateRequest request) {
+        Long count = userMapper.selectCount(
+                new LambdaQueryWrapper<User>().eq(User::getUsername, request.getUsername()));
+        if (count > 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "工号已存在");
+        }
+        User teacher = new User();
+        teacher.setUsername(request.getUsername());
+        teacher.setRealName(request.getRealName());
+        teacher.setPassword(passwordEncoder.encode("Ltpms@" + request.getUsername()));
+        teacher.setRole("TEACHER");
+        teacher.setDepartment(request.getDepartment());
+        teacher.setPhone(request.getPhone());
+        teacher.setStatus(1);
+        teacher.setIsDefaultPwd(1);
+        teacher.setFailedAttempts(0);
+        userMapper.insert(teacher);
+    }
+
+    /**
+     * 编辑教师基础信息（姓名/院系/联系电话），工号保持不可修改。
+     *
+     * @param id      教师（用户）ID
+     * @param request 教师更新信息
+     * @throws BusinessException 当教师不存在时抛出
+     */
+    @Transactional
+    public void update(Long id, TeacherUpdateRequest request) {
+        User user = userMapper.selectById(id);
+        if (user == null || !"TEACHER".equals(user.getRole())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "教师不存在");
+        }
+        User update = new User();
+        update.setId(id);
+        update.setRealName(request.getRealName());
+        update.setDepartment(request.getDepartment());
+        update.setPhone(request.getPhone());
+        userMapper.updateById(update);
     }
 
     /**

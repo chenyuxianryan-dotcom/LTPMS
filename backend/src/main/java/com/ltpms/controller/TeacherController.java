@@ -3,8 +3,10 @@ package com.ltpms.controller;
 import com.ltpms.annotation.RequireRole;
 import com.ltpms.common.PageResult;
 import com.ltpms.common.Result;
+import com.ltpms.dto.TeacherCreateRequest;
 import com.ltpms.dto.TeacherStatusRequest;
-import com.ltpms.entity.User;
+import com.ltpms.dto.TeacherUpdateRequest;
+import com.ltpms.dto.TeacherVO;
 import com.ltpms.service.TeacherService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -20,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * 教师管理接口，提供教师分页查询、Excel 导入、密码重置、状态变更及模板下载（仅管理员）等功能。
+ * 教师管理接口，提供教师分页查询、新增、编辑、Excel 导入、密码重置、状态变更及模板下载（仅管理员）等功能。
  */
 @RestController
 @RequestMapping("/api/v1/teachers")
@@ -30,20 +32,47 @@ public class TeacherController {
     private final TeacherService teacherService;
 
     /**
-     * 分页查询教师列表，支持关键字搜索（仅管理员）。
+     * 分页查询教师列表，支持关键字搜索（仅管理员）。返回脱敏视图（不含密码等内部字段）。
      *
      * @param page    页码，默认 1
      * @param size    每页大小，默认 20
      * @param keyword 教师姓名/工号关键字，可选
-     * @return 分页后的教师列表
+     * @return 分页后的教师脱敏视图列表
      */
     @GetMapping
     @RequireRole("ADMIN")
-    public Result<PageResult<User>> list(
+    public Result<PageResult<TeacherVO>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
         return Result.success(teacherService.list(page, size, keyword));
+    }
+
+    /**
+     * 新增单个教师（仅管理员）。初始密码为默认密码 Ltpms@{工号}，首次登录需修改。
+     *
+     * @param request 教师信息
+     * @return 操作结果
+     */
+    @PostMapping
+    @RequireRole("ADMIN")
+    public Result<Void> create(@Valid @RequestBody TeacherCreateRequest request) {
+        teacherService.create(request);
+        return Result.success();
+    }
+
+    /**
+     * 编辑教师基础信息（仅管理员，工号不可修改）。
+     *
+     * @param id      教师（用户）ID
+     * @param request 教师更新信息
+     * @return 操作结果
+     */
+    @PutMapping("/{id}")
+    @RequireRole("ADMIN")
+    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody TeacherUpdateRequest request) {
+        teacherService.update(id, request);
+        return Result.success();
     }
 
     /**
