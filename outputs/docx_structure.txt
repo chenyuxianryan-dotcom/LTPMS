@@ -1,0 +1,169 @@
+=== STYLES (paragraph styles in use) ===
+{'Normal': 120}
+
+=== TABLE STYLES ===
+T1: style=Table Grid rows=7 cols=3 autofit=True
+T2: style=Table Grid rows=3 cols=2 autofit=True
+T3: style=Table Grid rows=4 cols=3 autofit=True
+T4: style=Table Grid rows=7 cols=2 autofit=True
+T5: style=Table Grid rows=4 cols=2 autofit=True
+T6: style=Table Grid rows=7 cols=2 autofit=True
+T7: style=Table Grid rows=13 cols=4 autofit=True
+T8: style=Table Grid rows=6 cols=2 autofit=True
+T9: style=Table Grid rows=5 cols=2 autofit=True
+T10: style=Table Grid rows=3 cols=2 autofit=True
+T11: style=Table Grid rows=5 cols=2 autofit=True
+T12: style=Table Grid rows=5 cols=2 autofit=True
+T13: style=Table Grid rows=7 cols=2 autofit=True
+T14: style=Table Grid rows=7 cols=2 autofit=True
+T15: style=Table Grid rows=5 cols=2 autofit=True
+T16: style=Table Grid rows=10 cols=2 autofit=True
+T17: style=Table Grid rows=7 cols=3 autofit=True
+T18: style=Table Grid rows=9 cols=2 autofit=True
+T19: style=Table Grid rows=5 cols=3 autofit=True
+
+=== BODY SEQUENCE ===
+P0|Normal||
+P1|Normal||
+P2|Normal||
+P3|Normal||
+P4|Normal||
+P5|Normal||
+P6|Normal||《应用软件开发综合实训》
+P7|Normal||
+P8|Normal||项目需求分析与设计方案
+P9|Normal||
+P10|Normal||
+P11|Normal||
+P12|Normal||项目名称：     基于AI大模型的实验教学
+P13|Normal||项目管理系统的设计与实现
+P14|Normal||
+P15|Normal||学生团队：      23级软工1班    第 1 组
+P16|Normal||组    长：       郑兴（23310061013）
+P17|Normal||组    员：       湛璧毓（23302091013）
+P18|Normal||陈煜贤（2204091030）
+P19|Normal||沈哲（23302091025）
+P20|Normal||刘子洋（23302091011）
+P21|Normal||袁浩（23305081005）
+P22|Normal||
+P23|Normal||
+P24|Normal||
+P25|Normal||
+P26|Normal||
+P27|Normal||大数据与信息工程系软件工程教研室制
+P28|Normal||
+P29|Normal||2026 年9月10日
+P30|Normal||
+P31|Normal||
+P32|Normal||1 项目概述
+P33|Normal||1.1 项目背景
+P34|Normal||实验教学是高校工程类专业的重要实践环节。目前各门实验课程的实验项目、实验室资源、实验课表等数据分散在 Excel、纸质课表或教师个人电脑中，导致统计报表制作繁琐
+P35|Normal||本项目拟开发一套“实验教学项目管理系统”，集中维护每学期各门实验课程的实验项目、实验室和实验课表等核心数据，并在此基础上提供常用统计报表；同时引入 AI 大模型
+P36|Normal||1.2 项目目标
+== T1 (style=Table Grid) header: 编号 | 目标 | 说明
+P37|Normal||1.3 项目范围
+P38|Normal||项目范围明确如下：
+== T2 (style=Table Grid) header: 类型 | 范围说明
+P39|Normal||1.4 用户角色与权限矩阵
+== T3 (style=Table Grid) header: 角色 | 主要权限 | 数据可见范围
+P40|Normal||2 业务需求分析
+P41|Normal||2.1 业务术语
+== T4 (style=Table Grid) header: 术语 | 定义
+P42|Normal||2.2 核心业务流程
+P43|Normal||本系统的核心业务流程围绕“基础数据 → 课程与实验项目 → 统计与智能查询”展开：
+== T5 (style=Table Grid) header: 阶段 | 说明
+P44|Normal||2.3 业务规则
+== T6 (style=Table Grid) header: 规则名称 | 规则内容
+P45|Normal||3 功能规划（功能需求）
+P46|Normal||3.1 功能清单
+== T7 (style=Table Grid) header: 所属模块 | 功能点 | 需求说明 | 角色
+P47|Normal||3.2 基本数据维护模块
+P48|Normal||3.2.1 实验室维护
+P49|Normal||需维护实验室编号、实验室名称、实验室负责人、实验室设备数等字段；支持单个新增/编辑/删除，支持按模板 Excel 批量导入；列表支持分页与按名称/负责人检索。
+P50|Normal||3.2.2 学年学期维护
+P51|Normal||通过定时任务自动生成学年学期：每年 8 月 31 日生成新学年及第一学期，每年 2 月 1 日生成第二学期。管理员可在列表中查看、启用/停用或手动补录。
+P52|Normal||3.2.3 实验课程和课表维护
+P53|Normal||管理员导入每学期实验课表（字段：学年、学期、课程号、课程名、实验总学时、授课教师、上课地点、上课班级、上课时间、选课人数）。系统据此自动生成实验课程，字段包括课
+P54|Normal||3.2.4 教师账号管理
+P55|Normal||支持按 Excel 模板批量导入教师账号（工号、姓名、初始密码、所属系部）；提供单个新增/编辑/启用/停用；支持为教师重置密码。
+P56|Normal||3.3 实验项目管理模块
+P57|Normal||授课教师登录系统后，仅可见本人所授课程（按学期分组）。同一门实验课在不同学期的实验项目可能不同，系统按学期隔离。
+P58|Normal||实验项目信息字段包括：实验编号、实验名称、实验类别、实验类型、实验所属学科、实验要求、实验者类别、每组人数、实验学时数。教师可进行新增、编辑、删除；支持 Exc
+P59|Normal||3.4 数据报表模块
+P60|Normal||3.4.1 报表一：实验室·实验项目·人数统计
+P61|Normal||按学年统计所有实验室开设的实验课程及其下的实验项目，以及各课程的选课人数。结果以表格展示，支持导出 Excel。
+P62|Normal||3.4.2 报表二：实验室人时数统计
+P63|Normal||按学年、按实验室统计“上课人时数”。计算公式为：某课程在某实验室的上课学时数 × 该课程的上课人数。结果以表格及图表展示，支持导出 Excel。
+P64|Normal||3.5 自然语言查询模块
+== T8 (style=Table Grid) header: 功能点 | 说明
+P65|Normal||4 非功能需求
+== T9 (style=Table Grid) header: 维度 | 要求
+P66|Normal||5 原型设计
+P67|Normal||5.1 设计原则
+P68|Normal||1. 角色清晰：管理员与教师看到不同的侧边导航与功能入口。
+2. 操作集中：导入、导出、批量操作统一放在页面顶部工具栏。
+3. 反馈即时：导入成功/失败、查询执
+P69|Normal||5.2 信息架构
+P70|Normal||系统信息架构采用左侧导航 + 右侧内容区布局：
+== T10 (style=Table Grid) header: 角色 | 可见菜单
+P71|Normal||
+P72|Normal||
+P73|Normal||
+P74|Normal||
+P75|Normal||
+P76|Normal||
+P77|Normal||5.3 页面原型
+P78|Normal||5.3.1登录页
+P79|Normal|GRAPHIC|
+P80|Normal||图：登录页线框原型
+P81|Normal||5.3.2 系统数据管理—实验室维护
+P82|Normal|GRAPHIC|
+P83|Normal||图：系统数据管理—实验室维护线框原型
+P84|Normal||
+P85|Normal||
+P86|Normal||5.3.3 实验项目管理—教师视角
+P87|Normal|GRAPHIC|
+P88|Normal||图：实验项目管理—教师视角线框原型
+P89|Normal||5.3.4 数据报表
+P90|Normal|GRAPHIC|
+P91|Normal||图：数据报表线框原型
+P92|Normal||
+P93|Normal||
+P94|Normal||
+P95|Normal||
+P96|Normal||5.3.5 自然语言查询
+P97|Normal|GRAPHIC|
+P98|Normal||图：自然语言查询线框原型
+P99|Normal||5.4 交互说明
+== T11 (style=Table Grid) header: 场景 | 交互步骤
+P100|Normal||6 系统设计方案（与系统设计开发人员共同完成）
+P101|Normal||本章节由产品经理与系统设计/开发人员共同撰写，确保需求可落地实现。
+P102|Normal||6.1 总体架构
+P103|Normal||系统采用前后端分离 + AI 微服务的架构：
+== T12 (style=Table Grid) header: 层级 | 技术/说明
+P104|Normal||6.2 数据库设计
+P105|Normal||核心实体包括：实验室(lab)、学年学期(academic_term)、教师(teacher)、实验课表(course_schedule)、实验课程(cours
+P106|Normal||lab 1:N schedule（一个实验室可安排多门课）；schedule N:1 course（多门课表记录聚合为课程）；course 1:N experi
+== T13 (style=Table Grid) header: 表名 | 主要字段
+P107|Normal||6.3 NL→SQL 流水线
+== T14 (style=Table Grid) header: 步骤 | 说明
+P108|Normal||6.4 SQL 安全校验机制
+P109|Normal||为防止 SQL 注入与误操作，系统设置双重防线：
+== T15 (style=Table Grid) header: 防线 | 措施
+P110|Normal||6.5 API 概览
+== T16 (style=Table Grid) header: 接口 | 说明
+P111|Normal||7 需求评审
+P112|Normal||需求评审由项目经理、系统设计与开发人员、测试/QA 共同参加，产品经理负责记录。评审通过后需求基线冻结，进入设计阶段。
+== T17 (style=Table Grid) header: 编号 | 评审项 | 结论
+P113|Normal||8 需求变更管理
+P114|Normal||项目实施过程中，若因教师意见、技术约束或进度原因需变更需求，须按以下流程执行：
+P115|Normal||1. 提出：任何成员或教师口头/书面提出变更。
+2. 评估：产品经理组织后端 A/B、前端、测试评估影响范围、工作量与风险。
+3. 决策：项目经理根据进度与优先
+== T18 (style=Table Grid) header: 字段 | 内容
+P116|Normal||9 交付物与验收标准
+P117|Normal||本阶段由产品经理负责产出的交付物如下：
+== T19 (style=Table Grid) header: 交付物 | 说明 | 验收人
+P118|Normal||
+P119|Normal||
+== sectPr
