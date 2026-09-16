@@ -262,6 +262,8 @@ async function handleQuery(): Promise<void> {
     const bizError = error as IBizError;
     if (bizError.code === ERROR_CODE.NLQ_UNSAFE) {
       ElMessage.warning('该问题涉及写操作或危险语句，仅支持查询');
+    } else if (bizError.code === ERROR_CODE.NLQ_SERVICE_UNAVAILABLE) {
+      ElMessage.warning('智能查询服务未启动或连接失败');
     } else if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT) {
       ElMessage.warning('AI 服务暂时不可用，请稍后重试');
     } else if (bizError.code === 429) {
@@ -292,7 +294,9 @@ async function handleMyDossier(): Promise<void> {
     };
   } catch (error) {
     const bizError = error as IBizError;
-    if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT || bizError.code === ERROR_CODE.NLQ_UNSAFE) {
+    if (bizError.code === ERROR_CODE.NLQ_SERVICE_UNAVAILABLE) {
+      ElMessage.warning('智能查询服务未启动或连接失败');
+    } else if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT || bizError.code === ERROR_CODE.NLQ_UNSAFE) {
       ElMessage.warning('AI 服务暂时不可用，请稍后重试');
     } else if (bizError.code === 429) {
       ElMessage.warning('查询过于频繁（每分钟最多 10 次），请稍后再试');

@@ -195,6 +195,7 @@ async function send(): Promise<void> {
 }
 
 function resolveErrorText(bizError: IBizError): string {
+  if (bizError.code === ERROR_CODE.NLQ_SERVICE_UNAVAILABLE) return '智能查询服务未启动或连接失败';
   if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT) return 'AI 服务暂时不可用，请稍后重试';
   if (bizError.code === 429) return '查询过于频繁（每分钟最多 10 次），请稍后再试';
   return bizError.message || '查询失败，请稍后重试';

@@ -25,6 +25,7 @@ public enum ErrorCode {
     SCHEDULE_TEACHER_NOT_FOUND(42001, "课表导入-教师工号不存在"),
     SCHEDULE_LAB_NOT_FOUND(42002, "课表导入-实验室编号不存在"),
     SCHEDULE_TEACHER_CONFLICT(42003, "课表导入-同一课程号存在多位教师"),
+    SCHEDULE_REVISION_CONFLICT(42004, "课表导入-存在已修订记录，覆盖需确认"),
 
     // 实验项目复制 43xxx
     NO_PREVIOUS_EXPERIMENTS(43001, "上学期无实验项目"),
@@ -33,6 +34,7 @@ public enum ErrorCode {
     NLQ_UNSAFE(44001, "NL2SQL 问题无法安全转换"),
     NLQ_PERMISSION_REJECT(44002, "NL2SQL 无法建立数据权限"),
     NLQ_MODEL_TIMEOUT(44003, "NL2SQL 外部模型超时或不可用"),
+    NLQ_SERVICE_UNAVAILABLE(44004, "智能查询服务未启动或连接失败"),
 
     // 通用业务 45xxx
     NOT_IMPLEMENTED(45001, "功能尚未实现");

@@ -18,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
@@ -88,6 +89,9 @@ public class NlqService {
         } catch (RestClientResponseException e) {
             log.error("NL2SQL service error: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (ResourceAccessException e) {
+            log.error("NL2SQL service unreachable: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.NLQ_SERVICE_UNAVAILABLE);
         } catch (Exception e) {
             log.error("NL2SQL request failed", e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
@@ -144,6 +148,9 @@ public class NlqService {
         } catch (RestClientResponseException e) {
             log.error("NL2SQL agent service error: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (ResourceAccessException e) {
+            log.error("NL2SQL agent service unreachable: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.NLQ_SERVICE_UNAVAILABLE);
         } catch (Exception e) {
             log.error("NL2SQL agent request failed", e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
@@ -173,6 +180,9 @@ public class NlqService {
         } catch (RestClientResponseException e) {
             log.error("NL2SQL recognize-schedule service error: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (ResourceAccessException e) {
+            log.error("NL2SQL recognize-schedule service unreachable: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.NLQ_SERVICE_UNAVAILABLE);
         } catch (Exception e) {
             log.error("NL2SQL recognize-schedule request failed", e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
@@ -205,6 +215,9 @@ public class NlqService {
         } catch (RestClientResponseException e) {
             log.error("NL2SQL archive service error: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (ResourceAccessException e) {
+            log.error("NL2SQL archive service unreachable: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.NLQ_SERVICE_UNAVAILABLE);
         } catch (Exception e) {
             log.error("NL2SQL archive request failed", e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
@@ -239,6 +252,9 @@ public class NlqService {
         } catch (RestClientResponseException e) {
             log.error("NL2SQL narrative service error: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (ResourceAccessException e) {
+            log.error("NL2SQL narrative service unreachable: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.NLQ_SERVICE_UNAVAILABLE);
         } catch (Exception e) {
             log.error("NL2SQL narrative request failed", e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);

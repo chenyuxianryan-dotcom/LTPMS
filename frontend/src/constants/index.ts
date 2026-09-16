@@ -10,6 +10,7 @@ export const ERROR_CODE = {
   NLQ_UNSAFE: 44001,
   NLQ_PERMISSION_FAILED: 44002,
   NLQ_MODEL_TIMEOUT: 44003,
+  NLQ_SERVICE_UNAVAILABLE: 44004,
 } as const;
 
 export const ROLE = {
@@ -49,6 +50,17 @@ export const WEEK_TYPE_MAP: Record<string, string> = {
   ALL: '全周',
   ODD: '单周',
   EVEN: '双周',
+};
+
+/** 修订字段展示映射（课表行 + 课程聚合行共用） */
+export const REVISION_FIELD_LABELS: Record<string, string> = {
+  labCode: '上课地点',
+  classNames: '上课班级',
+  studentCount: '选课人数',
+  rawScheduleText: '上课时间',
+  courseName: '课程名称',
+  major: '专业',
+  totalHours: '总学时',
 };
 
 /** NL2SQL 示例问题 */
