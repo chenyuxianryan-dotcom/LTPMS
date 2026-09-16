@@ -3,14 +3,12 @@
     <div class="page-header">
       <div>
         <div class="page-header__title">课表管理</div>
-        <div class="page-header__desc">Excel 导入课表，系统按「课程号 + 学期」自动归并生成实验课程</div>
+        <div class="page-header__desc">全校课表总览；课表由教师本人在「课程管理」页导入，系统按「课程号 + 学期」自动归并生成实验课程</div>
       </div>
       <div class="filter-bar">
         <el-select v-model="semesterId" placeholder="选择学期" style="width: 220px" @change="handleSearch">
           <el-option v-for="item in semesters" :key="item.id" :label="item.semesterName" :value="item.id" />
         </el-select>
-        <el-button type="primary" :icon="Upload" :disabled="!semesterId" @click="importVisible = true">导入课表</el-button>
-        <el-button type="success" plain :icon="Camera" :disabled="!semesterId" @click="photoImportVisible = true">拍照导入</el-button>
         <el-button type="danger" plain :disabled="selectedIds.length === 0" @click="handleBatchDelete">
           批量删除（{{ selectedIds.length }}）
         </el-button>
@@ -49,32 +47,12 @@
       @current-change="loadData"
       @size-change="loadData"
     />
-
-    <ImportDialog
-      v-model="importVisible"
-      title="课表导入"
-      action="/schedules/import"
-      template-url="/schedules/import/template"
-      preview-url="/schedules/import/preview"
-      :extra-data="semesterId ? { semesterId } : undefined"
-      @success="refreshAll"
-    />
-
-    <SchedulePhotoImportDialog
-      v-if="semesterId"
-      v-model="photoImportVisible"
-      :semester-id="semesterId"
-      @success="refreshAll"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Camera, Upload } from '@element-plus/icons-vue';
-import ImportDialog from '@/components/ImportDialog.vue';
-import SchedulePhotoImportDialog from '@/components/SchedulePhotoImportDialog.vue';
 import { apiGetLabOpeningOverview, apiListLabOpenings } from '@/api/labOpening';
 import { apiBatchDeleteSchedules, apiListSchedules } from '@/api/schedule';
 import { apiListSemesters } from '@/api/semester';
@@ -89,8 +67,6 @@ const total = ref(0);
 const loading = ref(false);
 const records = ref<ISchedule[]>([]);
 const selectedIds = ref<number[]>([]);
-const importVisible = ref(false);
-const photoImportVisible = ref(false);
 const openingsByLab = ref<Map<string, ILabOpening[]>>(new Map());
 const overviewMap = ref<Map<string, IOpenOverviewItem>>(new Map());
 

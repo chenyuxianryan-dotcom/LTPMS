@@ -96,6 +96,33 @@
   --sql-block-bg: #0f172a;
   --sql-block-text: #e2e8f0;
   --sql-block-comment: #94a3b8;
+
+  /* ===== Course Palette 课程色板（同课程同色：浅底 + 深字 + 边框） =====
+   * 取色函数 utils/courseColor.ts（哈希与 Java 导出实现保持一致） */
+  --course-1-bg: #eff6ff;
+  --course-1-fg: #1d4ed8;
+  --course-1-border: #dbeafe;
+  --course-2-bg: #ecfdf5;
+  --course-2-fg: #047857;
+  --course-2-border: #d1fae5;
+  --course-3-bg: #fffbeb;
+  --course-3-fg: #b45309;
+  --course-3-border: #fde68a;
+  --course-4-bg: #fff1f2;
+  --course-4-fg: #be123c;
+  --course-4-border: #fecdd3;
+  --course-5-bg: #f5f3ff;
+  --course-5-fg: #6d28d9;
+  --course-5-border: #ede9fe;
+  --course-6-bg: #ecfeff;
+  --course-6-fg: #0e7490;
+  --course-6-border: #cffafe;
+  --course-7-bg: #fff7ed;
+  --course-7-fg: #c2410c;
+  --course-7-border: #fed7aa;
+  --course-8-bg: #eef2ff;
+  --course-8-fg: #4338ca;
+  --course-8-border: #e0e7ff;
 }
 
 /* ===== 暗色主题 fallback ===== */

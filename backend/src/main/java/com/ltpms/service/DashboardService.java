@@ -4,14 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltpms.dto.DashboardStats;
 import com.ltpms.entity.*;
 import com.ltpms.mapper.*;
+import com.ltpms.util.WeekMath;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -212,9 +212,16 @@ public class DashboardService {
      */
     private List<DashboardStats.WeekCell> buildWeekCells(Semester current, Long userId) {
         int totalWeeks = 20;
-        if (current != null && current.getStartDate() != null && current.getEndDate() != null) {
-            long days = ChronoUnit.DAYS.between(current.getStartDate(), current.getEndDate());
-            totalWeeks = (int) Math.min(25, Math.max(1, days / 7 + 1));
+        if (current != null && current.getEndDate() != null) {
+            LocalDate week1Start = current.getWeek1StartDate() != null ? current.getWeek1StartDate() : current.getStartDate();
+            int computed = WeekMath.totalWeeks(week1Start, current.getEndDate());
+            if (computed <= 0 && current.getStartDate() != null) {
+                long days = ChronoUnit.DAYS.between(current.getStartDate(), current.getEndDate());
+                computed = (int) (days / 7 + 1);
+            }
+            if (computed > 0) {
+                totalWeeks = Math.min(25, computed);
+            }
         }
         boolean[] usedWeeks = new boolean[totalWeeks + 1];
 
@@ -231,7 +238,7 @@ public class DashboardService {
                 if (!times.isEmpty()) {
                     // 优先使用结构化时间段数据
                     for (ScheduleTime st : times) {
-                        for (int week : parseWeekRange(st.getWeekRange(), st.getWeekType())) {
+                        for (int week : WeekMath.parseWeeks(st.getWeekRange(), st.getWeekType())) {
                             if (week >= 1 && week <= totalWeeks) {
                                 usedWeeks[week] = true;
                             }
@@ -240,7 +247,7 @@ public class DashboardService {
                 } else {
                     // schedule_time 为空时回退解析 raw_schedule_text 中的周次段（如 "(1-16周)"）
                     for (Schedule s : mySchedules) {
-                        for (int week : parseWeeksFromRawText(s.getRawScheduleText())) {
+                        for (int week : WeekMath.parseWeeksFromRawText(s.getRawScheduleText())) {
                             if (week >= 1 && week <= totalWeeks) {
                                 usedWeeks[week] = true;
                             }
@@ -255,46 +262,6 @@ public class DashboardService {
             cells.add(new DashboardStats.WeekCell(w, usedWeeks[w]));
         }
         return cells;
-    }
-
-    /**
-     * 解析周次范围字符串（如 "1-16"、"1,3,5"、"8"），并结合单双周类型过滤。
-     */
-    private Set<Integer> parseWeekRange(String weekRange, String weekType) {
-        Set<Integer> weeks = new HashSet<>();
-        if (weekRange == null || weekRange.isBlank()) {
-            return weeks;
-        }
-        for (String part : weekRange.split(",")) {
-            String segment = part.trim();
-            if (segment.isEmpty()) {
-                continue;
-            }
-            if (segment.contains("-")) {
-                String[] bounds = segment.split("-", 2);
-                try {
-                    int from = Integer.parseInt(bounds[0].trim());
-                    int to = Integer.parseInt(bounds[1].trim());
-                    for (int w = from; w <= to; w++) {
-                        weeks.add(w);
-                    }
-                } catch (NumberFormatException ignored) {
-                    // 非法周次段直接跳过，不影响其余解析
-                }
-            } else {
-                try {
-                    weeks.add(Integer.parseInt(segment));
-                } catch (NumberFormatException ignored) {
-                    // 同上
-                }
-            }
-        }
-        if ("ODD".equalsIgnoreCase(weekType)) {
-            weeks.removeIf(w -> w % 2 == 0);
-        } else if ("EVEN".equalsIgnoreCase(weekType)) {
-            weeks.removeIf(w -> w % 2 == 1);
-        }
-        return weeks;
     }
 
     /**
@@ -319,45 +286,5 @@ public class DashboardService {
             }
         }
         return abbreviate(name);
-    }
-
-    /**
-     * 从原始课表文本（如 "周一第1-4节(1-16周)"）中解析周次集合，
-     * 作为 schedule_time 结构化数据缺失时的回退方案。
-     * 只解析括号内的周次段，避免把括号外的节次（第1-4节）误判为周次。
-     */
-    private Set<Integer> parseWeeksFromRawText(String raw) {
-        Set<Integer> weeks = new HashSet<>();
-        if (raw == null || raw.isBlank()) {
-            return weeks;
-        }
-        String type = "ALL";
-        if (raw.contains("单周")) {
-            type = "ODD";
-        } else if (raw.contains("双周")) {
-            type = "EVEN";
-        }
-        Matcher bracketMatcher = Pattern.compile("\\(([^()]+)\\)").matcher(raw);
-        while (bracketMatcher.find()) {
-            String segment = bracketMatcher.group(1);
-            Matcher weekMatcher = Pattern.compile("(\\d+)\\s*-\\s*(\\d+)|(\\d+)").matcher(segment);
-            while (weekMatcher.find()) {
-                if (weekMatcher.group(1) != null) {
-                    int from = Integer.parseInt(weekMatcher.group(1));
-                    int to = Integer.parseInt(weekMatcher.group(2));
-                    for (int w = from; w <= to; w++) {
-                        weeks.add(w);
-                    }
-                } else {
-                    weeks.add(Integer.parseInt(weekMatcher.group(3)));
-                }
-            }
-        }
-        if ("ODD".equals(type)) {
-            weeks.removeIf(w -> w % 2 == 0);
-        } else if ("EVEN".equals(type)) {
-            weeks.removeIf(w -> w % 2 == 1);
-        }
-        return weeks;
     }
 }

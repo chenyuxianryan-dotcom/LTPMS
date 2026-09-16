@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 周次解析与运算工具：统一 "1-16"、"1,3,5"、"8" 语义及单双周过滤，
@@ -185,6 +187,55 @@ public final class WeekMath {
             return 0;
         }
         return (int) (ChronoUnit.DAYS.between(week1StartDate, endDate) / 7) + 1;
+    }
+
+    /**
+     * 从含括号的原始课表文本中提取周次（如 "第(1-16)周"、"第(2-8,10)周"），不做单双周过滤。
+     *
+     * @param raw 原始课表时间文本
+     * @return 升序周次集合；无括号或无数字时返回空集合
+     */
+    public static Set<Integer> weeksFromBrackets(String raw) {
+        Set<Integer> weeks = new TreeSet<>();
+        if (raw == null || raw.isBlank()) {
+            return weeks;
+        }
+        Matcher bracketMatcher = Pattern.compile("\\(([^()]+)\\)").matcher(raw);
+        while (bracketMatcher.find()) {
+            String segment = bracketMatcher.group(1);
+            Matcher weekMatcher = Pattern.compile("(\\d+)\\s*-\\s*(\\d+)|(\\d+)").matcher(segment);
+            while (weekMatcher.find()) {
+                if (weekMatcher.group(1) != null) {
+                    int from = Integer.parseInt(weekMatcher.group(1));
+                    int to = Integer.parseInt(weekMatcher.group(2));
+                    for (int w = from; w <= to; w++) {
+                        weeks.add(w);
+                    }
+                } else {
+                    weeks.add(Integer.parseInt(weekMatcher.group(3)));
+                }
+            }
+        }
+        return weeks;
+    }
+
+    /**
+     * 从原始课表时间文本解析周次集合：括号内提取 + 单双周嗅探过滤。
+     *
+     * @param raw 原始课表时间文本
+     * @return 升序周次集合；无周次信息时返回空集合（调用方自行决定缺省）
+     */
+    public static Set<Integer> parseWeeksFromRawText(String raw) {
+        Set<Integer> weeks = weeksFromBrackets(raw);
+        if (weeks.isEmpty() || raw == null) {
+            return weeks;
+        }
+        if (raw.contains("单周")) {
+            weeks.removeIf(w -> w % 2 == 0);
+        } else if (raw.contains("双周")) {
+            weeks.removeIf(w -> w % 2 == 1);
+        }
+        return weeks;
     }
 
     private static void applyWeekType(Set<Integer> weeks, String weekType) {

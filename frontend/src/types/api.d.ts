@@ -195,6 +195,70 @@ export interface ISchedule {
   rawScheduleText?: string;
 }
 
+/** 课表时间槽（后端 SlotView：周次范围 + 实际生效周次） */
+export interface IScheduleSlot {
+  dayOfWeek: number;
+  startSection: number;
+  endSection: number;
+  weekRange: string;
+  weekType: TWeekType;
+  weeks: number[];
+}
+
+/** 教师课表项（/schedules/mine）：课程信息 + 时间槽 + 修订标记 */
+export interface IMyScheduleItem {
+  id: number;
+  courseCode: string;
+  courseName: string;
+  totalHours: number;
+  teacherId: number;
+  teacherName?: string | null;
+  labCode: string;
+  labName?: string | null;
+  classNames: string;
+  studentCount: number;
+  rawScheduleText?: string | null;
+  revisionCount: number;
+  slots: IScheduleSlot[];
+  createdAt?: string;
+}
+
+/** 字段级修订明细 */
+export interface IRevisionView {
+  fieldName: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+  sourceRole: TRole;
+  operatorName: string;
+  createdAt: string;
+}
+
+/** 课表导入解析预览（含修订冲突统计） */
+export interface IImportPreview {
+  totalCount: number;
+  validCount: number;
+  errors: { rowNum: number; message: string }[];
+  revisionConflicts: number;
+  conflictCourses: string[];
+}
+
+/** 课表导入结果 */
+export interface IScheduleImportResult {
+  successCount: number;
+  failedCount: number;
+  errors: { rowNum: number; message: string }[];
+}
+
+/** 教师课表上传进度（管理员审校页） */
+export interface ITeacherUploadStatus {
+  teacherId: number;
+  username: string;
+  realName?: string | null;
+  uploaded: boolean;
+  scheduleCount: number;
+  latestUploadAt?: string | null;
+}
+
 export interface ITeacher {
   id: number;
   username: string;

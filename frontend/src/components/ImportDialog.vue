@@ -31,14 +31,31 @@
     <!-- 导入预览（课表等支持先解析不入库的场景） -->
     <div v-if="previewUrl && previewResult" class="import-dialog__preview">
       <el-alert
-        :type="previewResult.errorRows.length > 0 ? 'warning' : 'success'"
+        :type="previewResult.errors.length > 0 || previewResult.revisionConflicts > 0 ? 'warning' : 'success'"
         :closable="false"
         show-icon
-        :title="`共 ${previewResult.totalCount} 行，可导入 ${previewResult.validCount} 行，异常 ${previewResult.errorRows.length} 行`"
+        :title="`共 ${previewResult.totalCount} 行，可导入 ${previewResult.validCount} 行，异常 ${previewResult.errors.length} 行`"
       />
-      <el-table v-if="previewResult.errorRows.length > 0" :data="previewResult.errorRows" size="small" max-height="200">
-        <el-table-column prop="row" label="行号" width="80" />
-        <el-table-column prop="reason" label="异常原因" />
+      <el-alert
+        v-if="previewResult.revisionConflicts > 0"
+        type="warning"
+        :closable="false"
+        show-icon
+        title="以下课程存在修订记录，导入将覆盖修订并被留痕（提交时需二次确认）"
+      >
+        <template #default>
+          <div class="import-dialog__conflicts">
+            <el-tag v-for="name in previewResult.conflictCourses" :key="name" size="small" type="warning" effect="light">
+              {{ name }}
+            </el-tag>
+          </div>
+        </template>
+      </el-alert>
+      <el-table v-if="previewResult.errors.length > 0" :data="previewResult.errors" size="small" max-height="200">
+        <el-table-column label="行号" width="80">
+          <template #default="{ row }">{{ row.rowNum === -1 ? '全局' : row.rowNum }}</template>
+        </el-table-column>
+        <el-table-column prop="message" label="异常原因" />
       </el-table>
     </div>
 
@@ -52,17 +69,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { UploadFilled } from '@element-plus/icons-vue';
 import type { UploadFile, UploadInstance, UploadRawFile } from 'element-plus';
 import { download, saveBlob, upload } from '@/utils/request';
-
-interface IPreviewResult {
-  totalCount: number;
-  validCount: number;
-  errorRows: { row: number; reason: string }[];
-  records: unknown[];
-}
+import type { IImportPreview, IScheduleImportResult } from '@/types/api';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -83,7 +94,7 @@ const uploadRef = ref<UploadInstance>();
 const file = ref<UploadRawFile | null>(null);
 const submitting = ref(false);
 const previewing = ref(false);
-const previewResult = ref<IPreviewResult | null>(null);
+const previewResult = ref<IImportPreview | null>(null);
 
 function emitVisible(value: boolean): void {
   emit('update:modelValue', value);
@@ -105,6 +116,7 @@ function handleExceed(files: File[]): void {
   uploadRef.value?.clearFiles();
   uploadRef.value?.handleStart(raw);
   file.value = raw;
+  previewResult.value = null;
 }
 
 function buildFormData(): FormData {
@@ -130,9 +142,33 @@ async function handlePreview(): Promise<void> {
   if (!props.previewUrl || !file.value) return;
   previewing.value = true;
   try {
-    previewResult.value = await upload<IPreviewResult>(props.previewUrl, buildFormData());
+    previewResult.value = await upload<IImportPreview>(props.previewUrl, buildFormData());
+  } catch {
+    // 错误由 request 拦截器统一提示
   } finally {
     previewing.value = false;
+  }
+}
+
+/** 提交前自动预览一次：有修订冲突时二次确认，确认后带 confirmOverwrite 覆盖 */
+async function confirmOverwriteIfNeeded(): Promise<boolean> {
+  if (!props.previewUrl) return false;
+  if (!previewResult.value) {
+    previewResult.value = await upload<IImportPreview>(props.previewUrl, buildFormData());
+  }
+  if (previewResult.value.revisionConflicts === 0) return false;
+  const names = previewResult.value.conflictCourses;
+  const shown = names.slice(0, 5).join('、');
+  const suffix = names.length > 5 ? ` 等 ${names.length} 门课程` : '';
+  try {
+    await ElMessageBox.confirm(
+      `本次导入将覆盖${shown}${suffix}的已有修订记录（系统会留痕并通知管理员）。确定继续导入吗？`,
+      '覆盖修订记录确认',
+      { type: 'warning', confirmButtonText: '继续导入', cancelButtonText: '取消' },
+    );
+    return true;
+  } catch {
+    return Promise.reject(new Error('cancelled'));
   }
 }
 
@@ -140,10 +176,15 @@ async function handleSubmit(): Promise<void> {
   if (!file.value) return;
   submitting.value = true;
   try {
-    const result = await upload<{ successCount?: number; failedCount?: number; errors?: { message: string }[] }>(
-      props.action,
-      buildFormData(),
-    );
+    let confirmOverwrite = false;
+    if (props.previewUrl) {
+      confirmOverwrite = await confirmOverwriteIfNeeded();
+    }
+    const formData = buildFormData();
+    if (confirmOverwrite) {
+      formData.append('confirmOverwrite', 'true');
+    }
+    const result = await upload<IScheduleImportResult>(props.action, formData);
     const failed = result?.failedCount ?? 0;
     if (failed > 0) {
       const first = result?.errors?.length ? `，如：${result.errors[0].message}` : '';
@@ -153,6 +194,9 @@ async function handleSubmit(): Promise<void> {
     }
     emit('success', result);
     emitVisible(false);
+  } catch (e) {
+    // 用户取消覆盖确认：静默返回；其余错误已由拦截器提示
+    void e;
   } finally {
     submitting.value = false;
   }
@@ -174,6 +218,12 @@ async function handleSubmit(): Promise<void> {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
+  }
+
+  &__conflicts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
   }
 }
 </style>

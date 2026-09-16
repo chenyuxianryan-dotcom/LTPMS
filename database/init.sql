@@ -105,6 +105,25 @@ CREATE TABLE `schedule_time` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='课表时间明细表';
 
 -- --------------------------------------------------------
+-- 5.1 课表/课程修订留痕表（字段级追加式历史）
+-- --------------------------------------------------------
+DROP TABLE IF EXISTS `schedule_revision`;
+CREATE TABLE `schedule_revision` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `target_type` VARCHAR(16) NOT NULL COMMENT '目标类型：SCHEDULE / COURSE',
+    `target_id` BIGINT NOT NULL COMMENT '目标行 ID（对应行被删除后记录保留为历史）',
+    `field_name` VARCHAR(64) NOT NULL COMMENT '字段名（如 labCode / courseName）',
+    `old_value` VARCHAR(255) DEFAULT NULL,
+    `new_value` VARCHAR(255) DEFAULT NULL,
+    `source_role` VARCHAR(16) NOT NULL COMMENT '来源角色：ADMIN / TEACHER（服务端判定）',
+    `operator_id` BIGINT NOT NULL,
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_rev_target` (`target_type`, `target_id`),
+    KEY `idx_rev_operator` (`operator_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='课表/课程修订留痕表';
+
+-- --------------------------------------------------------
 -- 6. 实验课程表（由课表自动生成）
 -- --------------------------------------------------------
 DROP TABLE IF EXISTS `course`;

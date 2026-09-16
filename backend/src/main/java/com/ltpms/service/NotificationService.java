@@ -105,15 +105,64 @@ public class NotificationService {
         List<User> admins = userMapper.selectList(
                 new LambdaQueryWrapper<User>().eq(User::getRole, "ADMIN"));
         for (User admin : admins) {
-            Notification notification = new Notification();
-            notification.setUserId(admin.getId());
-            notification.setTitle("新学期提醒");
-            notification.setContent("新学期即将开始，请及时创建新学期并导入课表。");
-            notification.setType("SEMESTER_REMIND");
-            notification.setRefUrl("/semesters");
-            notification.setIsRead(0);
-            notification.setCreatedAt(LocalDateTime.now());
-            notificationMapper.insert(notification);
+            create(admin.getId(), "新学期提醒", "新学期即将开始，请及时创建新学期并导入课表。", "SEMESTER_REMIND", "/semesters");
         }
+    }
+
+    /**
+     * 管理员修订了教师的课表/课程后，通知对应教师。
+     *
+     * @param teacherUserId 教师用户 ID
+     * @param detail        修订摘要（如 "上课地点：A101 → A102"）
+     */
+    @Transactional
+    public void createScheduleRevised(Long teacherUserId, String detail) {
+        if (teacherUserId == null) {
+            return;
+        }
+        create(teacherUserId, "课表已被修订", "管理员修订了你的课程安排：" + detail, "SCHEDULE_REVISED", "/courses");
+    }
+
+    /**
+     * 教师导入课表时覆盖了含修订留痕的旧记录，通知全体管理员知悉。
+     *
+     * @param teacherName 教师姓名
+     * @param count       被覆盖的记录条数
+     * @param detail      覆盖概要（如课程名列表）
+     */
+    @Transactional
+    public void createRevisionOverwritten(String teacherName, int count, String detail) {
+        List<User> admins = userMapper.selectList(
+                new LambdaQueryWrapper<User>().eq(User::getRole, "ADMIN"));
+        String content = teacherName + " 重新导入课表，覆盖了 " + count + " 条含修订记录的课程：" + detail;
+        for (User admin : admins) {
+            create(admin.getId(), "课表修订被覆盖", content, "REVISION_OVERWRITTEN", "/schedules");
+        }
+    }
+
+    /**
+     * 管理员催办后，提醒教师上传课表。
+     *
+     * @param teacherUserId 教师用户 ID
+     * @param semesterName  学期名称
+     */
+    @Transactional
+    public void createUploadRemind(Long teacherUserId, String semesterName) {
+        if (teacherUserId == null) {
+            return;
+        }
+        create(teacherUserId, "课表上传催办", "请尽快上传 " + semesterName + " 的课表。", "UPLOAD_REMIND", "/courses");
+    }
+
+    private void create(Long userId, String title, String content, String type, String refUrl) {
+        Notification notification = new Notification();
+        notification.setUserId(userId);
+        notification.setTitle(title);
+        notification.setContent(content);
+        notification.setType(type);
+        notification.setRefUrl(refUrl);
+        notification.setIsRead(0);
+        notification.setCreatedAt(LocalDateTime.now());
+        notificationMapper.insert(notification);
     }
 }

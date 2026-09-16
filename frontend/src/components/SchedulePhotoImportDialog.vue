@@ -77,9 +77,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { Loading, UploadFilled } from '@element-plus/icons-vue';
-import { apiImportScheduleRows, apiRecognizeSchedule, type IScheduleDraftRow } from '@/api/schedule';
+import { apiImportScheduleRows, apiPreviewScheduleRows, apiRecognizeSchedule, type IScheduleDraftRow } from '@/api/schedule';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -137,8 +137,30 @@ function resetDraft(): void {
 async function handleConfirm(): Promise<void> {
   confirming.value = true;
   try {
-    const result = await apiImportScheduleRows(props.semesterId, draftRows.value);
-    ElMessage.success(`导入成功 ${result.successCount} 条`);
+    const preview = await apiPreviewScheduleRows(props.semesterId, draftRows.value);
+    let confirmOverwrite = false;
+    if (preview.revisionConflicts > 0) {
+      const shown = preview.conflictCourses.slice(0, 5).join('、');
+      const suffix = preview.conflictCourses.length > 5 ? ` 等 ${preview.conflictCourses.length} 门课程` : '';
+      try {
+        await ElMessageBox.confirm(
+          `本次导入将覆盖${shown}${suffix}的已有修订记录（系统会留痕并通知管理员）。确定继续导入吗？`,
+          '覆盖修订记录确认',
+          { type: 'warning', confirmButtonText: '继续导入', cancelButtonText: '取消' },
+        );
+        confirmOverwrite = true;
+      } catch {
+        return;
+      }
+    }
+    const result = await apiImportScheduleRows(props.semesterId, draftRows.value, confirmOverwrite);
+    const failed = result.failedCount ?? 0;
+    if (failed > 0) {
+      const first = result.errors?.length ? `，如：${result.errors[0].message}` : '';
+      ElMessage.warning(`导入完成：成功 ${result.successCount} 条，失败 ${failed} 条${first}`);
+    } else {
+      ElMessage.success(`导入成功 ${result.successCount} 条`);
+    }
     emit('update:modelValue', false);
     emit('success');
     resetDraft();
