@@ -160,7 +160,7 @@ T = {i + 1: t for i, t in enumerate(tables)}
 # 封面
 # --------------------------------------------------------------------------
 set_para_text(P[8], "项目需求分析与设计方案（V2.0 修订版）")
-set_para_text(P[29], "2026 年 9 月 15 日")
+set_para_text(P[29], "2026 年 9 月 16 日")
 
 # --------------------------------------------------------------------------
 # 1 项目概述
@@ -536,6 +536,8 @@ shots = [
     (IMGDIR + r"\accept-nlq-fix-1.png", "图：智能查询「ASY-01 检索终端」实拍"),
     (IMGDIR + r"\widget-panel-open.png", "图：全局悬浮「阿实」对话面板实拍"),
     (IMGDIR + r"\e2e-my-dossier-teacher.png", "图：人员档案卡实拍（教师本人八维档案）"),
+    (IMGDIR + r"\lab-drum-shots\01-default.png", "图：实验室管理页「LAB UNIT 鼓机皮肤」实拍（默认视图）"),
+    (IMGDIR + r"\lab-drum-shots\06-create-dialog.png", "图：鼓机皮肤弹窗实拍（新建实验室）"),
 ]
 shot_elements = [
     mkpara(T_H3, "5.3.6 系统实现界面（实拍补充）【新增】"),
@@ -806,6 +808,9 @@ change_chapter = [
                                "+ 独立 MCP 进程"],
         ["A11", "报表接口", "原无命名接口 → 统一为 /reports/course-project-stats 与 /reports/person-hours"],
         ["A12", "学期状态", "原管理员手动「启用 / 停用」→ 现按日期自动派生（未开始/进行中/已结束），无手动启停"],
+        ["A13", "实验室管理页视觉", "原「通用浅色管理台」→ 现「LAB UNIT 鼓机」深色硬件皮肤：鼓垫行与拟物按键、16 步 LED 灯带、"
+                                    "设备数点阵、操作音效（Web Audio 合成，默认开启、页头可静音）、低强度环境动效"
+                                    "（遵循 prefers-reduced-motion）；页面内容、文案与功能行为零改动，其他页面零影响"],
     ]),
     mkpara(T_H2, "9.3 删除与明确不做（9 项）"),
     new_table(TBL_3, [
