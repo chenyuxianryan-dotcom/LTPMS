@@ -6,6 +6,7 @@ import 'element-plus/dist/index.css';
 import '@/styles/tokens.css';
 import '@/styles/element-overrides.scss';
 import '@/styles/index.scss';
+import '@/styles/drum-skin.css';
 import App from './App.vue';
 import router from './router';
 
