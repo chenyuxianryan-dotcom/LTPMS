@@ -43,7 +43,7 @@
             { 'stat-grid-card__cell--clickable': clickable },
           ]"
           :style="{ animationDelay: `${Math.min(index, 18) * 40}ms` }"
-          @click="emit('cellClick', cell)"
+          @click="emit('cellClick', cell, $event)"
         >
           {{ cell.code }}
           <span class="stat-grid-card__tip">
@@ -127,8 +127,8 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  /** 点击某个方格 */
-  (e: 'cellClick', cell: IStatCell): void;
+  /** 点击某个方格（event 供调用方定位锚点） */
+  (e: 'cellClick', cell: IStatCell, event: MouseEvent): void;
 }>();
 
 const router = useRouter();

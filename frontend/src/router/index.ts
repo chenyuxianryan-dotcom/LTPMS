@@ -46,6 +46,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '课表管理', icon: 'Clock', roles: [ROLE.ADMIN] },
       },
       {
+        path: 'schedules/teacher/:teacherId',
+        name: 'schedule-teacher',
+        component: () => import('@/pages/schedule/TeacherSchedulePage.vue'),
+        meta: { title: '教师课表', roles: [ROLE.ADMIN] },
+      },
+      {
         path: 'teachers',
         name: 'teachers',
         component: () => import('@/pages/teacher/TeacherPage.vue'),

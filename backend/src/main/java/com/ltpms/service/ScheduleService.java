@@ -70,7 +70,28 @@ public class ScheduleService {
         }
         wrapper.orderByDesc(Schedule::getCreatedAt);
         Page<Schedule> result = scheduleMapper.selectPage(new Page<>(page, size), wrapper);
+        enrichTeacherNames(result.getRecords());
         return PageResult.of(result);
+    }
+
+    /** 列表响应补充授课教师姓名（实体无此表字段，前端列展示用） */
+    private void enrichTeacherNames(List<Schedule> records) {
+        Set<Long> teacherIds = records.stream()
+                .map(Schedule::getTeacherId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (teacherIds.isEmpty()) {
+            return;
+        }
+        Map<Long, String> nameMap = new HashMap<>();
+        for (User user : userMapper.selectBatchIds(teacherIds)) {
+            nameMap.put(user.getId(), user.getRealName() != null ? user.getRealName() : user.getUsername());
+        }
+        for (Schedule record : records) {
+            if (record.getTeacherId() != null) {
+                record.setTeacherName(nameMap.get(record.getTeacherId()));
+            }
+        }
     }
 
     /**
@@ -506,11 +527,28 @@ public class ScheduleService {
     public List<TeacherUploadStatus> uploadProgress(Long semesterId) {
         List<User> teachers = userMapper.selectList(
                 new LambdaQueryWrapper<User>().eq(User::getRole, "TEACHER"));
-        Map<Long, List<Schedule>> byTeacher = scheduleMapper.selectList(
-                        new LambdaQueryWrapper<Schedule>().eq(Schedule::getSemesterId, semesterId))
-                .stream()
+        List<Schedule> semesterSchedules = scheduleMapper.selectList(
+                new LambdaQueryWrapper<Schedule>().eq(Schedule::getSemesterId, semesterId));
+        Map<Long, List<Schedule>> byTeacher = semesterSchedules.stream()
                 .filter(s -> s.getTeacherId() != null)
                 .collect(Collectors.groupingBy(Schedule::getTeacherId));
+
+        // 教师维度修订统计 = 本人课表行的行级修订 + 本人课程的课程级修订
+        Map<Long, Long> scheduleRevisionCounts = revisionService.counts(
+                RevisionService.TARGET_SCHEDULE,
+                semesterSchedules.stream().map(Schedule::getId).collect(Collectors.toList()));
+        List<Course> semesterCourses = courseMapper.selectList(
+                new LambdaQueryWrapper<Course>().eq(Course::getSemesterId, semesterId));
+        Map<Long, Long> courseRevisionCounts = revisionService.counts(
+                RevisionService.TARGET_COURSE,
+                semesterCourses.stream().map(Course::getId).collect(Collectors.toList()));
+        Map<Long, Long> courseRevisionsByTeacher = new HashMap<>();
+        for (Course course : semesterCourses) {
+            if (course.getTeacherId() != null) {
+                courseRevisionsByTeacher.merge(course.getTeacherId(),
+                        courseRevisionCounts.getOrDefault(course.getId(), 0L), Long::sum);
+            }
+        }
 
         List<TeacherUploadStatus> result = new ArrayList<>();
         for (User teacher : teachers) {
@@ -520,8 +558,11 @@ public class ScheduleService {
                     .filter(Objects::nonNull)
                     .max(LocalDateTime::compareTo)
                     .orElse(null);
+            long revisionCount = own.stream()
+                    .mapToLong(s -> scheduleRevisionCounts.getOrDefault(s.getId(), 0L))
+                    .sum() + courseRevisionsByTeacher.getOrDefault(teacher.getId(), 0L);
             result.add(new TeacherUploadStatus(teacher.getId(), teacher.getUsername(), teacher.getRealName(),
-                    !own.isEmpty(), own.size(), latest));
+                    !own.isEmpty(), own.size(), latest, revisionCount));
         }
         return result;
     }
@@ -768,6 +809,7 @@ public class ScheduleService {
      * 教师上传进度：是否已上传、课表条数与最近上传时间。
      */
     public record TeacherUploadStatus(Long teacherId, String username, String realName,
-                                      boolean uploaded, long scheduleCount, LocalDateTime latestUploadAt) {
+                                      boolean uploaded, long scheduleCount, LocalDateTime latestUploadAt,
+                                      long revisionCount) {
     }
 }

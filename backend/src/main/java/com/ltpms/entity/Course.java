@@ -1,6 +1,7 @@
 package com.ltpms.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -25,4 +26,12 @@ public class Course {
     private BigDecimal totalHours;
     private String major;
     private LocalDateTime createdAt;
+
+    /** 授课教师姓名（非表字段，列表响应补充） */
+    @TableField(exist = false)
+    private String teacherName;
+
+    /** 学期名称（非表字段，列表响应补充） */
+    @TableField(exist = false)
+    private String semesterName;
 }

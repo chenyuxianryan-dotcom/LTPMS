@@ -257,6 +257,8 @@ export interface ITeacherUploadStatus {
   uploaded: boolean;
   scheduleCount: number;
   latestUploadAt?: string | null;
+  /** 该教师本学期数据的修订条数（行级 + 课程级） */
+  revisionCount: number;
 }
 
 export interface ITeacher {

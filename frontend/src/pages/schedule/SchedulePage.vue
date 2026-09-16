@@ -3,112 +3,100 @@
     <div class="page-header">
       <div>
         <div class="page-header__title">课表管理</div>
-        <div class="page-header__desc">全校课表总览；课表由教师本人在「课程管理」页导入，系统按「课程号 + 学期」自动归并生成实验课程</div>
+        <div class="page-header__desc">{{ viewDesc }}</div>
       </div>
       <div class="filter-bar">
         <el-select v-model="semesterId" placeholder="选择学期" style="width: 220px" @change="handleSearch">
           <el-option v-for="item in semesters" :key="item.id" :label="item.semesterName" :value="item.id" />
         </el-select>
-        <el-button type="danger" plain :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+        <el-radio-group v-model="view">
+          <el-radio-button value="shelf">教师书架</el-radio-button>
+          <el-radio-button value="table">全校总表</el-radio-button>
+        </el-radio-group>
+        <el-button
+          v-if="view === 'table'"
+          type="danger"
+          plain
+          :disabled="selectedIds.length === 0"
+          @click="handleBatchDelete"
+        >
           批量删除（{{ selectedIds.length }}）
         </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="records" border stripe @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="44" />
-      <el-table-column prop="courseCode" label="课程号" width="120" />
-      <el-table-column prop="courseName" label="课程名" min-width="180" />
-      <el-table-column prop="teacherName" label="授课教师" width="110" />
-      <el-table-column prop="labCode" label="上课地点" width="120" />
-      <el-table-column label="开放注记" min-width="140">
-        <template #default="{ row }">
-          <el-tooltip v-if="noteOf(row.labCode).type !== 'none'" :content="noteOf(row.labCode).tip" placement="top" :show-after="200">
-            <el-tag :type="noteOf(row.labCode).tagType" size="small" :effect="noteOf(row.labCode).effect">
-              {{ noteOf(row.labCode).text }}
-            </el-tag>
-          </el-tooltip>
-          <span v-else class="schedule-page__muted">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="classNames" label="上课班级" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="studentCount" label="人数" width="80" align="right" class-name="tabular-nums" />
-      <el-table-column prop="totalHours" label="实验学时" width="100" align="right" class-name="tabular-nums" />
-      <el-table-column prop="rawScheduleText" label="上课时间" min-width="150" show-overflow-tooltip />
-    </el-table>
+    <TeacherShelf v-if="view === 'shelf'" :semester-id="semesterId" @open="handleOpenTeacher" />
 
-    <el-pagination
-      v-model:current-page="page"
-      v-model:page-size="size"
-      :total="total"
-      layout="total, prev, pager, next, sizes"
-      :page-sizes="[10, 20, 50]"
-      class="page-container__pagination"
-      @current-change="loadData"
-      @size-change="loadData"
-    />
+    <template v-else>
+      <el-table v-loading="loading" :data="records" border stripe @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="44" />
+        <el-table-column prop="courseCode" label="课程号" width="120" />
+        <el-table-column prop="courseName" label="课程名" min-width="180" />
+        <el-table-column prop="teacherName" label="授课教师" width="110" />
+        <el-table-column prop="labCode" label="上课地点" width="120" />
+        <el-table-column label="开放注记" min-width="140">
+          <template #default="{ row }">
+            <el-tooltip v-if="noteOf(row.labCode).type !== 'none'" :content="noteOf(row.labCode).tip" placement="top" :show-after="200">
+              <el-tag :type="noteOf(row.labCode).tagType" size="small" :effect="noteOf(row.labCode).effect">
+                {{ noteOf(row.labCode).text }}
+              </el-tag>
+            </el-tooltip>
+            <span v-else class="schedule-page__muted">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="classNames" label="上课班级" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="studentCount" label="人数" width="80" align="right" class-name="tabular-nums" />
+        <el-table-column prop="totalHours" label="实验学时" width="100" align="right" class-name="tabular-nums" />
+        <el-table-column prop="rawScheduleText" label="上课时间" min-width="150" show-overflow-tooltip />
+      </el-table>
+
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="size"
+        :total="total"
+        layout="total, prev, pager, next, sizes"
+        :page-sizes="[10, 20, 50]"
+        class="page-container__pagination"
+        @current-change="loadData"
+        @size-change="loadData"
+      />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import TeacherShelf from '@/components/schedule/TeacherShelf.vue';
 import { apiGetLabOpeningOverview, apiListLabOpenings } from '@/api/labOpening';
 import { apiBatchDeleteSchedules, apiListSchedules } from '@/api/schedule';
 import { apiListSemesters } from '@/api/semester';
-import { WEEKDAY_LABELS, WEEK_TYPE_MAP } from '@/constants';
-import type { ILabOpening, ISchedule, ISemester, IOpenOverviewItem } from '@/types/api';
+import { buildLabNoteIndex, labNoteOf, type ILabNote, type ILabNoteIndex } from '@/utils/labNote';
+import { markFolderOpen, type IFolderContext } from '@/utils/folderTransition';
+import type { ISchedule, ISemester } from '@/types/api';
 
+const router = useRouter();
 const semesterId = ref<number | null>(null);
 const semesters = ref<ISemester[]>([]);
+const view = ref<'shelf' | 'table'>('shelf');
 const page = ref(1);
 const size = ref(20);
 const total = ref(0);
 const loading = ref(false);
 const records = ref<ISchedule[]>([]);
 const selectedIds = ref<number[]>([]);
-const openingsByLab = ref<Map<string, ILabOpening[]>>(new Map());
-const overviewMap = ref<Map<string, IOpenOverviewItem>>(new Map());
+const labNotes = ref<ILabNoteIndex>({ openingsByLab: new Map(), overviewMap: new Map() });
 
-interface IOpenNote {
-  type: 'none' | 'open' | 'conflict' | 'unplanned';
-  text: string;
-  tip: string;
-  tagType: 'info' | 'danger';
-  effect: 'light' | 'dark';
-}
+const viewDesc = computed(() =>
+  view.value === 'shelf'
+    ? '点击教师书本打开其课表；支持搜索教师、按导入状态筛选、一键催办未导入'
+    : '全校课表总览；课表由教师本人在「课程管理」页导入，系统按「课程号 + 学期」自动归并生成实验课程',
+);
 
 /** 按实验室聚合的开放注记：矛盾 > 未开放 > 正常开放段数 */
-function noteOf(labCode: string): IOpenNote {
-  const conflictCount = overviewMap.value.get(labCode)?.conflictCount ?? 0;
-  if (conflictCount > 0) {
-    return {
-      type: 'conflict',
-      text: `矛盾 ${conflictCount} 处`,
-      tip: '该校表与实验室开放时段存在时间矛盾（详见数据智能页）',
-      tagType: 'danger',
-      effect: 'dark',
-    };
-  }
-  const enabled = (openingsByLab.value.get(labCode) ?? []).filter((slot) => slot.enabled === 1);
-  if (!enabled.length) {
-    return {
-      type: 'unplanned',
-      text: '未开放',
-      tip: '本学期该实验室未配置开放计划（有课但实验室未开放）',
-      tagType: 'danger',
-      effect: 'light',
-    };
-  }
-  return {
-    type: 'open',
-    text: `${enabled.length} 段开放`,
-    tip: enabled
-      .map((slot) => `周${WEEKDAY_LABELS[slot.dayOfWeek - 1]} ${slot.startSection}-${slot.endSection}节 ${slot.weekRange}周(${WEEK_TYPE_MAP[slot.weekType] ?? slot.weekType})`)
-      .join('；'),
-    tagType: 'info',
-    effect: 'light',
-  };
+function noteOf(labCode: string): ILabNote {
+  return labNoteOf(labNotes.value, labCode);
 }
 
 async function loadSemesters(): Promise<void> {
@@ -141,23 +129,17 @@ async function loadOpenings(): Promise<void> {
       apiListLabOpenings({ semesterId: semesterId.value }),
       apiGetLabOpeningOverview(semesterId.value),
     ]);
-    const grouped = new Map<string, ILabOpening[]>();
-    for (const slot of openings) {
-      const list = grouped.get(slot.labCode) ?? [];
-      list.push(slot);
-      grouped.set(slot.labCode, list);
-    }
-    openingsByLab.value = grouped;
-    overviewMap.value = new Map(overview.labs.map((item) => [item.labCode, item]));
+    labNotes.value = buildLabNoteIndex(openings, overview.labs);
   } catch {
-    openingsByLab.value = new Map();
-    overviewMap.value = new Map();
+    labNotes.value = { openingsByLab: new Map(), overviewMap: new Map() };
   }
 }
 
-/** 课表与开放注记一并刷新 */
+/** 课表与开放注记一并刷新（开放注记仅总表视图需要） */
 async function refreshAll(): Promise<void> {
-  await Promise.all([loadData(), loadOpenings()]);
+  if (view.value === 'table') {
+    await Promise.all([loadData(), loadOpenings()]);
+  }
 }
 
 function handleSearch(): void {
@@ -177,8 +159,23 @@ async function handleBatchDelete(): Promise<void> {
   await refreshAll();
 }
 
+/** 书架点击：登记过渡起点后跳转教师课表页 */
+function handleOpenTeacher(ctx: IFolderContext): void {
+  markFolderOpen(ctx);
+  void router.push({
+    path: `/schedules/teacher/${ctx.teacherId}`,
+    query: semesterId.value ? { semesterId: String(semesterId.value) } : undefined,
+  });
+}
+
 onMounted(() => {
   void loadSemesters();
+});
+
+watch(view, () => {
+  if (view.value === 'table') {
+    void refreshAll();
+  }
 });
 </script>
 

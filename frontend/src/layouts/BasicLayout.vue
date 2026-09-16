@@ -113,6 +113,7 @@
     <AvatarPickerDialog v-model="avatarPickerVisible" :user="pickerUser" @saved="onAvatarSaved" />
     <ChangePasswordDialog v-model="changePwdVisible" />
     <NlqWidget />
+    <FolderTransition />
   </el-container>
 </template>
 
@@ -123,6 +124,7 @@ import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Clock,
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AvatarPickerDialog from '@/components/AvatarPickerDialog.vue';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue';
+import FolderTransition from '@/components/schedule/FolderTransition.vue';
 import NlqWidget from '@/components/NlqWidget.vue';
 import { apiGetUnreadCount, apiListNotifications, apiMarkAllNotificationsRead, apiMarkNotificationRead } from '@/api/notification';
 import { resolveAvatarUrl } from '@/utils/avatar';

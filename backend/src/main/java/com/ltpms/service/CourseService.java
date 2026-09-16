@@ -8,9 +8,11 @@ import com.ltpms.common.PageResult;
 import com.ltpms.dto.CourseEditRequest;
 import com.ltpms.entity.Course;
 import com.ltpms.entity.Experiment;
+import com.ltpms.entity.Semester;
 import com.ltpms.entity.User;
 import com.ltpms.mapper.CourseMapper;
 import com.ltpms.mapper.ExperimentMapper;
+import com.ltpms.mapper.SemesterMapper;
 import com.ltpms.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,9 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -39,6 +43,7 @@ public class CourseService {
 
     private final CourseMapper courseMapper;
     private final UserMapper userMapper;
+    private final SemesterMapper semesterMapper;
     private final ExperimentMapper experimentMapper;
     private final RevisionService revisionService;
     private final NotificationService notificationService;
@@ -60,7 +65,47 @@ public class CourseService {
             wrapper.eq(Course::getTeacherId, currentUserId);
         }
         wrapper.orderByDesc(Course::getCreatedAt);
-        return courseMapper.selectList(wrapper);
+        List<Course> courses = courseMapper.selectList(wrapper);
+        enrichNames(courses);
+        return courses;
+    }
+
+    /** 列表响应补充授课教师姓名与学期名称（实体无此表字段，前端列展示用） */
+    private void enrichNames(List<Course> courses) {
+        if (courses.isEmpty()) {
+            return;
+        }
+        Set<Long> teacherIds = courses.stream()
+                .map(Course::getTeacherId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (!teacherIds.isEmpty()) {
+            Map<Long, String> nameMap = new HashMap<>();
+            for (User user : userMapper.selectBatchIds(teacherIds)) {
+                nameMap.put(user.getId(), user.getRealName() != null ? user.getRealName() : user.getUsername());
+            }
+            for (Course course : courses) {
+                if (course.getTeacherId() != null) {
+                    course.setTeacherName(nameMap.get(course.getTeacherId()));
+                }
+            }
+        }
+        Set<Long> semesterIds = courses.stream()
+                .map(Course::getSemesterId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (!semesterIds.isEmpty()) {
+            Map<Long, String> semesterMap = new HashMap<>();
+            for (Semester semester : semesterMapper.selectBatchIds(semesterIds)) {
+                semesterMap.put(semester.getId(),
+                        semester.getSemesterName() != null ? semester.getSemesterName() : semester.getAcademicYear());
+            }
+            for (Course course : courses) {
+                if (course.getSemesterId() != null) {
+                    course.setSemesterName(semesterMap.get(course.getSemesterId()));
+                }
+            }
+        }
     }
 
     /**

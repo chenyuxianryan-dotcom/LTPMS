@@ -7,6 +7,7 @@ import type {
   IRevisionView,
   ISchedule,
   IScheduleImportResult,
+  ITeacherUploadStatus,
 } from '@/types/api';
 
 export function apiListSchedules(params: {
@@ -59,6 +60,16 @@ export function apiDownloadScheduleTemplate(): Promise<Blob> {
 
 export function apiBatchDeleteSchedules(ids: number[]): Promise<void> {
   return post('/schedules/batch-delete', { ids });
+}
+
+/** 教师上传进度（管理员）：是否已导入、条数、最近上传时间、修订条数 */
+export function apiGetUploadProgress(semesterId: number): Promise<ITeacherUploadStatus[]> {
+  return get<ITeacherUploadStatus[]>('/schedules/upload-progress', { semesterId });
+}
+
+/** 向指定教师发送课表上传催办通知（管理员），返回实际发送数量 */
+export function apiSendUploadRemind(semesterId: number, teacherIds: number[]): Promise<number> {
+  return post<number>('/schedules/upload-remind', { semesterId, teacherIds });
 }
 
 /** 课表照片识别草稿行（与导入列对齐） */
