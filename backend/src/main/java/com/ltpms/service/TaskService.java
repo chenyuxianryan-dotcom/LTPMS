@@ -182,7 +182,7 @@ public class TaskService {
     // ---------------------------------------------------------------- 编辑（含 r2-B2 留痕）
 
     /**
-     * 归属老师/ADMIN 编辑任务；deadline 等关键考核字段修改自动写 LAB_TASK 字段级修订留痕。
+     * 归属老师编辑任务；管理员只读（2026-09-20 权限边界）；deadline 等关键考核字段修改自动写 LAB_TASK 字段级修订留痕。
      */
     @Transactional
     public TaskView update(Long taskId, TaskUpdateRequest request, Long userId, String role) {

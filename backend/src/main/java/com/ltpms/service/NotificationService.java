@@ -168,7 +168,7 @@ public class NotificationService {
         if (userId == null) {
             return;
         }
-        create(userId, title, content, "LAB_TASK", "/projects/" + projectId);
+        create(userId, title, content, "LAB_TASK", "/experiments/" + projectId);
     }
 
     private void create(Long userId, String title, String content, String type, String refUrl) {

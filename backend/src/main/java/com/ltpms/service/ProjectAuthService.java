@@ -15,7 +15,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * 课题模块行级权限唯一入口（技术方案 §4 硬红线 H2）：
- * ADMIN 直通 / TEACHER 比 teacher_id / STUDENT 查 lab_project_member。
+ * 读侧 ADMIN 直通 / TEACHER 比 teacher_id / STUDENT 查 lab_project_member；
+ * 写侧仅归属教师——ADMIN 全局只读（2026-09-20 权限边界收口：管理员可浏览，不可增删改验收）。
  * 本模块所有端点的可见/可写判定必须经由此类，禁止在业务 service 内再复制 if-else。
  */
 @Service
@@ -64,20 +65,29 @@ public class ProjectAuthService {
     }
 
     /**
-     * 写权限（建任务/验收/改课题/加移成员等）：仅归属教师或 ADMIN。
+     * 写权限（建任务/验收/改课题/加移成员等）：仅归属教师。
+     * ADMIN 只读——可经 requireReadable 浏览任意课题，但一切写操作 403。
      */
     public LabProject requireOwned(Long projectId, Long userId, String role) {
         return requireOwned(getProjectOrThrow(projectId), userId, role);
     }
 
     public LabProject requireOwned(LabProject project, Long userId, String role) {
-        if (SecurityUtils.ROLE_ADMIN.equals(role)) {
-            return project;
-        }
+        requireNotAdmin(role);
         if (SecurityUtils.ROLE_TEACHER.equals(role) && project.getTeacherId().equals(userId)) {
             return project;
         }
         throw new BusinessException(ErrorCode.FORBIDDEN);
+    }
+
+    /**
+     * 写侧角色闸门（2026-09-20 权限边界收口）：ADMIN 在实验项目模块全局只读。
+     * 供"成员可写"类路径使用（如数据集全员可传新版本——学生允许、管理员仍拒绝）。
+     */
+    public void requireNotAdmin(String role) {
+        if (SecurityUtils.ROLE_ADMIN.equals(role)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "管理员为只读视角，不可执行该操作");
+        }
     }
 
     /** 学生视角：由登录用户 ID 取学生档案 */

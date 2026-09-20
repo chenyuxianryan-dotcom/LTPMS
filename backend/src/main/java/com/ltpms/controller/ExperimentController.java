@@ -119,6 +119,17 @@ public class ExperimentController {
     }
 
     /**
+     * 「从上学期复制」可行性探针（R3：按钮置灰依据，不落库）。
+     *
+     * @param courseId 当前课程 ID
+     * @return 是否有上学期目录 + 上学期名 + 可复制条数
+     */
+    @GetMapping("/copy-availability")
+    public Result<ExperimentService.CopyAvailability> copyAvailability(@RequestParam Long courseId) {
+        return Result.success(experimentService.copyAvailability(courseId, getCurrentUserId(), getCurrentRole()));
+    }
+
+    /**
      * 上学期智能迁移：预览可从上学期复制的实验项目（不落库）。
      *
      * @param semesterId 目标学期 ID，可选

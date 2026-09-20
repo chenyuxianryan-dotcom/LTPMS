@@ -94,6 +94,13 @@ export const MEMBER_SOURCE_MAP: Record<string, string> = {
   CREATE: '导入建档',
   MANUAL: '学生库勾选',
   COURSE_SNAPSHOT: '课程名单快照',
+  AUTO_SNAPSHOT: '课程名单带入',
+};
+
+/** 课题来源展示映射（M-Q4 Segmented：课程课题 / 独立课题） */
+export const PROJECT_SOURCE_MAP: Record<string, { label: string; tagType: 'primary' | 'info' }> = {
+  SYSTEM: { label: '课程课题', tagType: 'primary' },
+  USER: { label: '独立课题', tagType: 'info' },
 };
 
 /** 任务修订字段展示映射（lab_task 留痕） */
@@ -104,6 +111,6 @@ export const TASK_REVISION_FIELD_LABELS: Record<string, string> = {
   datasetId: '关联数据集',
 };
 
-/** 学生角色可见路由（守卫默认拒绝的白名单；页面 name 口径。
- *  /projects 列表接口后端为 T/A，学生不入内 —— 与技术文档 §4 该行的偏离，见交付报告 */
-export const STUDENT_ROUTE_NAMES = ['project-detail', 'my-tasks'] as const;
+/** 学生角色可见路由（守卫默认拒绝的白名单；页面 name 口径）
+ *  合并后学生可见 /experiments（列表仅本人课程容器）与容器详情 */
+export const STUDENT_ROUTE_NAMES = ['experiments', 'experiment-detail', 'my-tasks'] as const;

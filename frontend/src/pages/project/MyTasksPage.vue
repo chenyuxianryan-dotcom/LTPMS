@@ -16,7 +16,7 @@
 
     <div v-for="group in groups" :key="group.projectId" class="my-tasks__group">
       <div class="my-tasks__group-head">
-        <el-link type="primary" @click="router.push(`/projects/${group.projectId}?tab=progress`)">
+        <el-link type="primary" @click="router.push(`/experiments/${group.projectId}?tab=progress`)">
           {{ group.projectName }}
         </el-link>
         <span class="my-tasks__group-count">{{ group.tasks.length }} 项</span>

@@ -78,10 +78,10 @@ async function load(): Promise<void> {
 
 onMounted(load);
 
-/** 版本删除与后端 B3 对齐：上传者本人、归属教师或 ADMIN */
+/** 版本删除与后端 B3 对齐：上传者本人或归属教师——管理员只读（2026-09-20 权限边界，后端 403） */
 function canDeleteVersion(row: IDatasetVersion): boolean {
-  if (userStore.isAdmin) return true;
-  if (!userStore.isStudent) return true; // 教师视角（能进管理 Tab 即归属老师/ADMIN）
+  if (userStore.isAdmin) return false;
+  if (!userStore.isStudent) return true; // 教师视角（能进管理 Tab 即归属老师）
   return row.uploaderId === userStore.user?.id;
 }
 

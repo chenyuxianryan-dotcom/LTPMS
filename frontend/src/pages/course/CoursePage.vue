@@ -28,6 +28,8 @@
               导入我的课表
             </el-button>
           </template>
+          <!-- 管理员统一入口（2026-09-20 权限边界）：实验项目菜单已移至本模块页头，进入后为只读视图 -->
+          <el-button v-else plain :icon="Box" @click="goExperimentProjects">实验项目</el-button>
         </div>
       </div>
     </div>
@@ -185,7 +187,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Camera, Upload } from '@element-plus/icons-vue';
+import { Box, Camera, Upload } from '@element-plus/icons-vue';
 import CourseEditDialog from '@/components/schedule/CourseEditDialog.vue';
 import ImportDialog from '@/components/ImportDialog.vue';
 import RevisionDrawer from '@/components/schedule/RevisionDrawer.vue';
@@ -357,6 +359,12 @@ function openCourseRevisions(course: ICourse | null): void {
 function goExperiments(row: ICourse): void {
   tickUnitLed();
   void router.push({ path: '/experiments', query: { courseId: String(row.id) } });
+}
+
+/** 管理员统一入口（2026-09-20 权限边界）：实验项目菜单已移至课程管理页头，进入后为只读视图 */
+function goExperimentProjects(): void {
+  tickUnitLed();
+  void router.push('/experiments');
 }
 
 onMounted(async () => {

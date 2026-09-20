@@ -24,6 +24,17 @@
           <el-button link type="danger" @click="handleRemove(row)">移出</el-button>
         </template>
       </el-table-column>
+      <template #empty>
+        <el-empty :image-size="60">
+          <template #description>
+            <template v-if="canManage">
+              该课名单尚未导入，容器暂无成员 —— 先去导入课程名单，再回容器继续组队
+            </template>
+            <template v-else>暂无成员</template>
+          </template>
+          <el-button v-if="canManage" type="primary" :icon="Upload" @click="importVisible = true">导入课程名单</el-button>
+        </el-empty>
+      </template>
     </el-table>
 
     <!-- 学生库勾选带入 -->

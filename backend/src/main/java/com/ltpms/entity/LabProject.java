@@ -23,6 +23,8 @@ public class LabProject {
     /** 可选归类标签，不产生成员关系 */
     private Long courseId;
     private Long semesterId;
+    /** SYSTEM=课程容器（系统生成，course/semester 锁定）/ USER=自建课题 */
+    private String source;
     private String description;
     private String status;
     private LocalDateTime createdAt;

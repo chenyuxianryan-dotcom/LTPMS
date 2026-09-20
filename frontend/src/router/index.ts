@@ -67,7 +67,14 @@ const routes: RouteRecordRaw[] = [
         path: 'experiments',
         name: 'experiments',
         component: () => import('@/pages/experiment/ExperimentPage.vue'),
-        meta: { title: '实验项目', icon: 'Flask', roles: [ROLE.TEACHER] },
+        // ADMIN 保留访问权但无菜单入口（入口在「课程管理」页头）；页内全局只读——2026-09-20 权限边界
+        meta: { title: '实验项目', icon: 'Flask', roles: [ROLE.ADMIN, ROLE.TEACHER, ROLE.STUDENT] },
+      },
+      {
+        path: 'experiments/:id',
+        name: 'experiment-detail',
+        component: () => import('@/pages/project/ProjectDetailPage.vue'),
+        meta: { title: '实验项目详情', roles: [ROLE.ADMIN, ROLE.TEACHER, ROLE.STUDENT] },
       },
       {
         path: 'reports',
@@ -87,17 +94,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/insight/InsightPage.vue'),
         meta: { title: '数据智能', icon: 'TrendCharts', roles: [ROLE.ADMIN, ROLE.TEACHER] },
       },
-      {
-        path: 'projects',
-        name: 'projects',
-        component: () => import('@/pages/project/ProjectPage.vue'),
-        meta: { title: '课题项目', icon: 'Folder', roles: [ROLE.ADMIN, ROLE.TEACHER] },
-      },
+      // M-Q5：课题/实验两模块合并为「实验项目」，旧 /projects 入口重定向到新址（含深链 query）
+      { path: 'projects', redirect: '/experiments' },
       {
         path: 'projects/:id',
-        name: 'project-detail',
-        component: () => import('@/pages/project/ProjectDetailPage.vue'),
-        meta: { title: '课题详情', roles: [ROLE.ADMIN, ROLE.TEACHER, ROLE.STUDENT] },
+        redirect: (to) => ({ path: `/experiments/${to.params.id}`, query: to.query }),
       },
       {
         path: 'my-tasks',

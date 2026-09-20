@@ -7,6 +7,7 @@ import com.ltpms.common.ErrorCode;
 import com.ltpms.dto.ExperimentRequest;
 import com.ltpms.entity.Course;
 import com.ltpms.entity.Experiment;
+import com.ltpms.entity.LabProject;
 import com.ltpms.entity.Semester;
 import com.ltpms.mapper.CourseMapper;
 import com.ltpms.mapper.ExperimentMapper;
@@ -44,6 +45,26 @@ public class ExperimentService {
     private final CourseMapper courseMapper;
     private final SemesterMapper semesterMapper;
     private final CodeGenerator codeGenerator;
+    private final ProjectAuthService projectAuthService;
+
+    /**
+     * 容器实验目录（M-Q2/M-Q8）：读权限单路收口 ProjectAuthService（H2），
+     * 目录内容 = 容器课程的 experiment 行（学生只读可见，写仍走 /experiments 教师端点）。
+     *
+     * @param projectId     容器课题 ID
+     * @param currentUserId 当前用户 ID
+     * @param role          当前角色
+     * @return 该课程实验目录
+     */
+    public List<Experiment> listByContainer(Long projectId, Long currentUserId, String role) {
+        LabProject project = projectAuthService.requireReadable(projectId, currentUserId, role);
+        if (project.getCourseId() == null) {
+            return new ArrayList<>();
+        }
+        return experimentMapper.selectList(new LambdaQueryWrapper<Experiment>()
+                .eq(Experiment::getCourseId, project.getCourseId())
+                .orderByAsc(Experiment::getSortOrder));
+    }
 
     /**
      * 查询实验项目列表，可按课程筛选；教师角色仅返回本人课程的实验项目。
@@ -114,6 +135,12 @@ public class ExperimentService {
         checkPermission(course, currentUserId, role);
         checkCurrentSemester(course.getSemesterId());
 
+        // 归属课程不可变更（2026-09-20 收口）：权限按"实验当前所属课程"判，若落库用请求体的 courseId，
+        // 归属教师可把自己的实验搬进他人课程；且编号前缀绑课程，搬移即失配
+        if (!experiment.getCourseId().equals(request.getCourseId())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "实验项目归属课程不可变更");
+        }
+
         Experiment update = toEntity(request);
         update.setId(id);
         update.setExperimentCode(experiment.getExperimentCode());
@@ -175,6 +202,45 @@ public class ExperimentService {
         }
 
         return copyExperiments(previousCourse.getId(), currentCourse.getId());
+    }
+
+    /**
+     * 「从上学期复制」可行性探针（R3：容器目录 Tab 按钮置灰依据，不落库）。
+     * 仅回答"是否有上学期同课程号目录"，动作本身仍沿用 copyFromPrevious 的 43001 兜底。
+     * 读侧放行 ADMIN（2026-09-20 权限边界：只读可查，前端亦不渲染按钮）；写侧由 copyFromPrevious 拦截。
+     *
+     * @param courseId      当前课程 ID
+     * @param currentUserId 当前用户 ID
+     * @param role          当前角色
+     * @return available + 上学期名 + 可复制条数
+     */
+    public CopyAvailability copyAvailability(Long courseId, Long currentUserId, String role) {
+        Course currentCourse = courseMapper.selectById(courseId);
+        if (currentCourse == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+        }
+        // 只读探针（2026-09-20 权限边界）：ADMIN 只读可查；写侧动作仍由 copyFromPrevious 的 checkPermission 拦截
+        if (!"ADMIN".equals(role)) {
+            checkPermission(currentCourse, currentUserId, role);
+        }
+        Semester currentSemester = currentCourse.getSemesterId() == null
+                ? null : semesterMapper.selectById(currentCourse.getSemesterId());
+        if (currentSemester == null) {
+            return new CopyAvailability(false, null, 0);
+        }
+        Course previousCourse = findPreviousCourse(currentCourse.getCourseCode(), currentSemester);
+        if (previousCourse == null) {
+            return new CopyAvailability(false, null, 0);
+        }
+        long count = experimentMapper.selectCount(
+                new LambdaQueryWrapper<Experiment>().eq(Experiment::getCourseId, previousCourse.getId()));
+        Semester previousSemester = semesterMapper.selectById(previousCourse.getSemesterId());
+        return new CopyAvailability(count > 0,
+                previousSemester == null ? null : previousSemester.getSemesterName(), (int) count);
+    }
+
+    /** 上学期复制可行性（预览用，不落库）。 */
+    public record CopyAvailability(boolean available, String previousSemesterName, int previousExperimentCount) {
     }
 
     /**
@@ -310,11 +376,15 @@ public class ExperimentService {
         return courses.isEmpty() ? null : courses.get(0);
     }
 
+    /**
+     * 课程级写权限（2026-09-20 权限边界收口）：仅课程归属教师。
+     * ADMIN 全局只读——实验目录的新增/编辑/删除/导入/复制/探针一律 403（读侧 list 不受影响）。
+     */
     private void checkPermission(Course course, Long currentUserId, String role) {
         if ("ADMIN".equals(role)) {
-            return;
+            throw new BusinessException(ErrorCode.FORBIDDEN, "管理员为只读视角，实验目录由课程教师维护");
         }
-        if (!currentUserId.equals(course.getTeacherId())) {
+        if (!"TEACHER".equals(role) || !currentUserId.equals(course.getTeacherId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
     }

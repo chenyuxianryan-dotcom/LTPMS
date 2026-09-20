@@ -1,11 +1,15 @@
 <template>
   <div>
     <div class="dataset-tab__bar">
-      <el-button type="primary" :icon="Upload" :loading="uploading" @click="pickFile">上传数据集</el-button>
-      <span class="dataset-tab__hint">
-        支持 xlsx / csv / txt / zip / 图片（≤50MB，按内容魔数校验）；同名文件将弹出「挂为新版本 / 换名新建」二选一（只增不覆盖）
-      </span>
-      <input ref="fileInput" type="file" class="dataset-tab__file" @change="onFilePicked" />
+      <template v-if="!isAdminView">
+        <el-button type="primary" :icon="Upload" :loading="uploading" @click="pickFile">上传数据集</el-button>
+        <span class="dataset-tab__hint">
+          支持 xlsx / csv / txt / zip / 图片（≤50MB，按内容魔数校验）；同名文件将弹出「挂为新版本 / 换名新建」二选一（只增不覆盖）
+        </span>
+        <input ref="fileInput" type="file" class="dataset-tab__file" @change="onFilePicked" />
+      </template>
+      <!-- 管理员只读（2026-09-20 权限边界）：可展开版本、下载/预览，不可上传/改名/删除 -->
+      <span v-else class="dataset-tab__hint">管理员只读视图：展开数据集可查看版本、预览与下载，上传与改名/删除由课程教师或学生成员操作</span>
     </div>
 
     <el-table v-loading="loading" :data="datasets" border stripe row-key="id">
@@ -23,7 +27,8 @@
       <el-table-column label="创建时间" width="150">
         <template #default="{ row }">{{ fmtDateTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <!-- 操作列（传新版本/改名/删除）均为写侧：管理员只读视图整体隐藏 -->
+      <el-table-column v-if="!isAdminView" label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="uploadNewVersion(row)">传新版本</el-button>
           <el-button v-if="canManageDataset(row)" link type="primary" @click="openEdit(row)">改名/描述</el-button>
@@ -67,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { Upload } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { apiAddVersion, apiCreateDataset, apiDeleteDataset, apiListDatasets, apiUpdateDataset } from '@/api/project';
@@ -80,6 +85,8 @@ import VersionList from './VersionList.vue';
 const props = defineProps<{ project: IProject; canManage: boolean }>();
 
 const userStore = useUserStore();
+/** 管理员只读视图（2026-09-20 权限边界）：后端写侧已 403，前端同步隐藏写入口 */
+const isAdminView = computed(() => userStore.isAdmin);
 const loading = ref(false);
 const uploading = ref(false);
 const datasets = ref<IDataset[]>([]);
@@ -95,8 +102,9 @@ async function load(): Promise<void> {
 
 onMounted(load);
 
-/** 数据集改名/删除权限与后端 requireManager 对齐：管理视角或创建者本人 */
+/** 数据集改名/删除权限与后端 requireManager 对齐：管理视角或创建者本人；管理员只读（后端 403） */
 function canManageDataset(row: IDataset): boolean {
+  if (userStore.isAdmin) return false;
   return props.canManage || row.createdById === userStore.user?.id;
 }
 

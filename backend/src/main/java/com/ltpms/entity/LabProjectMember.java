@@ -19,7 +19,7 @@ public class LabProjectMember {
 
     private Long projectId;
     private Long studentId;
-    /** CREATE / MANUAL / COURSE_SNAPSHOT */
+    /** CREATE / MANUAL / COURSE_SNAPSHOT / AUTO_SNAPSHOT */
     private String source;
     private LocalDateTime joinedAt;
 }

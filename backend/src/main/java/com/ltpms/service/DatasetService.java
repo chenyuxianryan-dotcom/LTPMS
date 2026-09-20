@@ -151,11 +151,13 @@ public class DatasetService {
 
     /**
      * 新建数据集并落 v1。项目内同名（未删）→ 不静默挂链，返回既有摘要由前端二选一（r2-C4）。
+     * 写侧成员可传（学生允许），但 ADMIN 只读（2026-09-20 权限边界收口）。
      */
     @Transactional
     public CreateOutcome create(Long projectId, String datasetName, String description,
                                 MultipartFile file, Long userId, String role) {
         LabProject project = authService.requireReadable(projectId, userId, role);
+        authService.requireNotAdmin(role);
         authService.requireActive(project);
         StoredFile stored = storeFile(file);
         String name = StringUtils.hasText(datasetName) ? datasetName.trim()
@@ -184,12 +186,13 @@ public class DatasetService {
         return new CreateOutcome(false, null, dataset);
     }
 
-    /** 上传新版本（全员可传，版本链只增不覆盖） */
+    /** 上传新版本（全员可传，版本链只增不覆盖）；ADMIN 只读（2026-09-20 权限边界收口） */
     @Transactional
     public VersionView addVersion(Long datasetId, MultipartFile file, String note,
                                   Long userId, String role) {
         LabDataset dataset = getDatasetOrThrow(datasetId);
         LabProject project = authService.requireReadable(dataset.getProjectId(), userId, role);
+        authService.requireNotAdmin(role);
         authService.requireActive(project);
         StoredFile stored = storeFile(file);
         int nextVersion = dataset.getLatestVersion() + 1;
@@ -242,7 +245,7 @@ public class DatasetService {
 
     // ---------------------------------------------------------------- 改名 / 软删（Q5 + B3）
 
-    /** 数据集改名/描述：创建者本人 + 归属老师/ADMIN */
+    /** 数据集改名/描述：创建者本人 + 归属老师；ADMIN 只读（2026-09-20 权限边界收口） */
     @Transactional
     public DatasetView update(Long datasetId, DatasetUpdateRequest request, Long userId, String role) {
         LabDataset dataset = getDatasetOrThrow(datasetId);
@@ -262,7 +265,7 @@ public class DatasetService {
                 dataset.getCreatedAt());
     }
 
-    /** 数据集软删：创建者本人 + 归属老师/ADMIN */
+    /** 数据集软删：创建者本人 + 归属老师；ADMIN 只读（2026-09-20 权限边界收口） */
     @Transactional
     public void deleteDataset(Long datasetId, Long userId, String role) {
         LabDataset dataset = getDatasetOrThrow(datasetId);
@@ -271,15 +274,18 @@ public class DatasetService {
         datasetMapper.deleteById(datasetId);
     }
 
-    /** 版本软删（r2-B3）：该版本上传者本人 + 归属老师/ADMIN；数据集与其余版本不动 */
+    /**
+     * 版本软删（r2-B3）：该版本上传者本人 + 归属老师；ADMIN 只读（2026-09-20 权限边界收口）；
+     * 数据集与其余版本不动。
+     */
     @Transactional
     public void deleteVersion(Long versionId, Long userId, String role) {
         LabDatasetVersion version = getVersionOrThrow(versionId);
         LabDataset dataset = getDatasetOrThrow(version.getDatasetId());
         LabProject project = authService.getProjectOrThrow(dataset.getProjectId());
+        authService.requireNotAdmin(role);
         authService.requireActive(project);
-        boolean privileged = SecurityUtils.ROLE_ADMIN.equals(role)
-                || (SecurityUtils.ROLE_TEACHER.equals(role) && project.getTeacherId().equals(userId));
+        boolean privileged = SecurityUtils.ROLE_TEACHER.equals(role) && project.getTeacherId().equals(userId);
         if (!privileged && !version.getUploaderId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
@@ -464,10 +470,11 @@ public class DatasetService {
                 v.getCreatedAt());
     }
 
+    /** 改名/删除数据集：创建者本人 + 归属老师；ADMIN 只读（2026-09-20 权限边界收口） */
     private void requireManager(LabDataset dataset, Long userId, String role) {
         LabProject project = authService.getProjectOrThrow(dataset.getProjectId());
-        boolean privileged = SecurityUtils.ROLE_ADMIN.equals(role)
-                || (SecurityUtils.ROLE_TEACHER.equals(role) && project.getTeacherId().equals(userId));
+        authService.requireNotAdmin(role);
+        boolean privileged = SecurityUtils.ROLE_TEACHER.equals(role) && project.getTeacherId().equals(userId);
         if (!privileged && !dataset.getCreatedBy().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅创建者本人与课题老师可操作数据集");
         }

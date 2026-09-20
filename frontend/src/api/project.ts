@@ -4,6 +4,7 @@ import type {
   IDataset,
   IDatasetPreview,
   IDatasetVersion,
+  IExperiment,
   IMyTaskGroup,
   IProject,
   IProjectMember,
@@ -17,16 +18,12 @@ import type {
 
 /* ------------------------------------------------------------------ 课题 */
 
-export function apiListProjects(): Promise<IProject[]> {
-  return get<IProject[]>('/projects');
+/** source=SYSTEM 课程课题（容器）/ USER 独立课题；缺省返回全部可见 */
+export function apiListProjects(source?: 'SYSTEM' | 'USER'): Promise<IProject[]> {
+  return get<IProject[]>('/projects', source ? { source } : undefined);
 }
 
-export function apiCreateProject(body: {
-  projectName: string;
-  description?: string;
-  courseId?: number | null;
-  semesterId?: number | null;
-}): Promise<IProject> {
+export function apiCreateProject(body: { projectName: string; description?: string }): Promise<IProject> {
   return post<IProject>('/projects', body);
 }
 
@@ -36,9 +33,34 @@ export function apiGetProject(id: number): Promise<IProject> {
 
 export function apiUpdateProject(
   id: number,
-  body: { projectName?: string; description?: string; courseId?: number | null; semesterId?: number | null },
+  body: { projectName?: string; description?: string },
 ): Promise<IProject> {
   return put<IProject>(`/projects/${id}`, body);
+}
+
+/** 课程容器懒生成（R1：幂等 GET-or-create，命中已有直接返回；生成即快照课程名单） */
+export function apiEnsureCourseContainer(courseId: number): Promise<IProject> {
+  return post<IProject>('/projects/ensure-course-container', { courseId });
+}
+
+/** 批量 ensure 本人当前学期课程容器（ADMIN 返回空列表，不被动建容器） */
+export function apiEnsureMyCourseContainers(): Promise<IProject[]> {
+  return post<IProject[]>('/projects/ensure-my-course-containers');
+}
+
+/** 归档定格（S7）：SYSTEM 容器禁删但可归档，归档后全写接口 403 */
+export function apiArchiveProject(id: number): Promise<IProject> {
+  return post<IProject>(`/projects/${id}/archive`);
+}
+
+/** 删除课题：SYSTEM 容器 403；独立课题仅空壳可删 */
+export function apiDeleteProject(id: number): Promise<void> {
+  return del<void>(`/projects/${id}`);
+}
+
+/** 容器实验目录（学生可读：容器课程维度的 experiment 行，替代全局 /experiments） */
+export function apiContainerExperiments(projectId: number): Promise<IExperiment[]> {
+  return get<IExperiment[]>(`/projects/${projectId}/experiments`);
 }
 
 /* ------------------------------------------------------------------ 成员 */

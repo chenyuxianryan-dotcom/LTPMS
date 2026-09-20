@@ -4,6 +4,9 @@ import type { IExperiment } from '@/types/api';
 
 export type TExperimentPayload = Omit<IExperiment, 'id' | 'experimentCode' | 'courseId' | 'courseName'>;
 
+/** 编辑提交必须回带 courseId：后端 ExperimentRequest 该字段 @NotNull，且取该字段值做归属落库 */
+export type TExperimentUpdate = Partial<TExperimentPayload> & { courseId: number };
+
 export function apiListExperiments(params: { courseId?: number }): Promise<IExperiment[]> {
   return get<IExperiment[]>('/experiments', params);
 }
@@ -12,7 +15,7 @@ export function apiCreateExperiment(courseId: number, data: TExperimentPayload):
   return post('/experiments', { ...data, courseId });
 }
 
-export function apiUpdateExperiment(id: number, data: Partial<TExperimentPayload>): Promise<void> {
+export function apiUpdateExperiment(id: number, data: TExperimentUpdate): Promise<void> {
   return put(`/experiments/${id}`, data);
 }
 
@@ -29,7 +32,18 @@ export function apiDownloadExperimentTemplate(): Promise<Blob> {
 }
 
 export function apiCopyFromPrevious(courseId: number): Promise<{ copiedCount: number }> {
-  return post('/experiments/copy-from-previous', { courseId });
+  return post('/experiments/copy-from-previous', null, { params: { courseId } });
+}
+
+/** 「从上学期复制」可行性探针（R3：按钮置灰依据，不落库） */
+export interface ICopyAvailability {
+  available: boolean;
+  previousSemesterName: string | null;
+  previousExperimentCount: number;
+}
+
+export function apiCopyAvailability(courseId: number): Promise<ICopyAvailability> {
+  return get<ICopyAvailability>('/experiments/copy-availability', { courseId });
 }
 
 /** 上学期迁移草稿（预览） */

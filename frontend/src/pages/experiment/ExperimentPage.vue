@@ -2,113 +2,88 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <div class="page-header__title">实验项目</div>
-        <div class="page-header__desc">维护我的实验项目；历史学期只读，可从上学期复制</div>
+        <div class="page-header__title">
+          实验项目
+          <el-tag v-if="isAdmin" size="small" type="info" effect="plain" class="experiment-page__ro-tag">只读</el-tag>
+        </div>
+        <div class="page-header__desc">{{ headerDesc }}</div>
       </div>
       <div class="filter-bar">
-        <el-select v-model="courseId" placeholder="选择课程" style="width: 280px" @change="loadExperiments">
-          <el-option
-            v-for="item in courses"
-            :key="item.id"
-            :label="`${item.courseName}（${item.semesterName ?? ''}）`"
-            :value="item.id"
-          />
-        </el-select>
-        <el-tooltip content="从上学期同课程号复制实验项目" placement="top">
-          <span>
-            <el-button :icon="CopyDocument" :disabled="!courseId || !isCurrentSemester" @click="handleCopyFromPrevious">
-              从上学期复制
-            </el-button>
-          </span>
-        </el-tooltip>
-        <el-button :icon="RefreshLeft" :disabled="!isCurrentSemester" @click="openMigration">上学期智能迁移</el-button>
-        <el-button type="primary" :icon="Plus" :disabled="!courseId || !isCurrentSemester" @click="openCreate">新建实验项目</el-button>
-        <el-button :icon="Upload" :disabled="!courseId || !isCurrentSemester" @click="importVisible = true">批量导入</el-button>
+        <el-segmented v-model="segment" :options="SEGMENT_OPTIONS" @change="load" />
+        <el-input v-model="keyword" placeholder="搜索课题名 / 编号" clearable style="width: 200px" />
+        <template v-if="isTeacher">
+          <el-tooltip :content="migrationDisabledReason" placement="top" :disabled="!migrationDisabledReason">
+            <span>
+              <el-button :icon="RefreshLeft" :disabled="!!migrationDisabledReason" @click="openMigration">
+                上学期智能迁移
+              </el-button>
+            </span>
+          </el-tooltip>
+          <el-button type="primary" :icon="Plus" @click="openCreate">新建课题</el-button>
+        </template>
       </div>
     </div>
 
-    <el-alert
-      v-if="courseId && !isCurrentSemester"
-      type="info"
-      :closable="false"
-      show-icon
-      title="历史学期数据只读，不可编辑"
-      class="experiment-page__notice"
-    />
-
-    <el-table v-loading="loading" :data="records" border stripe>
-      <el-table-column prop="experimentCode" label="实验编号" width="170" class-name="font-mono" />
-      <el-table-column prop="experimentName" label="实验名称" min-width="180" />
-      <el-table-column prop="category" label="类别" width="110" />
-      <el-table-column prop="type" label="类型" width="110" />
-      <el-table-column prop="subject" label="所属学科" width="120" />
-      <el-table-column prop="requirement" label="要求" width="110" />
-      <el-table-column prop="groupSize" label="每组人数" width="95" align="right" class-name="tabular-nums" />
-      <el-table-column prop="hours" label="学时" width="80" align="right" class-name="tabular-nums" />
-      <el-table-column label="操作" width="270" fixed="right">
+    <el-table v-loading="loading" :data="filtered" border stripe>
+      <el-table-column prop="projectCode" label="课题编号" width="140" class-name="font-mono" />
+      <el-table-column label="课题名称" min-width="200">
         <template #default="{ row }">
-          <el-button link type="primary" :disabled="!isCurrentSemester" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" :disabled="!isCurrentSemester" @click="handleDelete(row)">删除</el-button>
-          <el-button link type="success" @click="openMaterial(row)">材料清单</el-button>
-          <el-button link type="success" @click="openArchive(row)">AI 档案</el-button>
+          <el-link type="primary" @click="goDetail(row.id)">{{ row.projectName }}</el-link>
+        </template>
+      </el-table-column>
+      <el-table-column label="类型" min-width="170">
+        <template #default="{ row }">
+          <el-tag :type="PROJECT_SOURCE_MAP[row.source]?.tagType ?? 'info'" effect="light" size="small">
+            {{ PROJECT_SOURCE_MAP[row.source]?.label ?? row.source }}
+          </el-tag>
+          <span v-if="row.courseName" class="experiment-page__course">{{ row.courseName }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column v-if="isAdmin" prop="teacherName" label="指导教师" width="110" />
+      <el-table-column prop="memberCount" label="成员数" width="90" align="center" />
+      <el-table-column label="完成度" width="180" align="center">
+        <template #default="{ row }">
+          <el-progress :percentage="Math.round(row.projectRate)" :stroke-width="14" text-inside />
+        </template>
+      </el-table-column>
+      <el-table-column label="逾期" width="80" align="center">
+        <template #default="{ row }">
+          <span :class="{ 'experiment-page__overdue': row.overdueCount > 0 }">{{ row.overdueCount }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="90" align="center">
+        <template #default="{ row }">
+          <el-tag :type="PROJECT_STATUS_MAP[row.status]?.tagType ?? 'info'" effect="light">
+            {{ PROJECT_STATUS_MAP[row.status]?.label ?? row.status }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="createdAt" label="创建时间" width="170" />
+      <el-table-column label="操作" :width="isTeacher ? 150 : 80" fixed="right">
+        <template #default="{ row }">
+          <template v-if="isTeacher">
+            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="row.source === 'USER'" link type="danger" @click="handleDelete(row)">删除</el-button>
+          </template>
+          <el-button link type="primary" @click="goDetail(row.id)">进入</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="editing ? '编辑实验项目' : '新建实验项目'" width="560px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="实验名称" prop="experimentName">
-          <el-input v-model="form.experimentName" />
+    <el-dialog v-model="formVisible" :title="editingId ? '编辑课题' : '新建课题'" width="480px">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+        <el-form-item label="课题名称" prop="projectName">
+          <el-input v-model="form.projectName" maxlength="64" placeholder="如：鼓点时序数据分析课题" />
         </el-form-item>
-        <el-form-item label="实验类别" prop="category">
-          <el-select v-model="form.category" filterable allow-create default-first-option clearable placeholder="选择或输入自定义类别" style="width: 100%">
-            <el-option v-for="item in optionsFor('category')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="实验类型" prop="type">
-          <el-select v-model="form.type" filterable allow-create default-first-option clearable placeholder="选择或输入自定义类型" style="width: 100%">
-            <el-option v-for="item in optionsFor('type')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="所属学科" prop="subject">
-          <el-select v-model="form.subject" filterable allow-create default-first-option clearable placeholder="选择或输入自定义学科" style="width: 100%">
-            <el-option v-for="item in optionsFor('subject')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="实验要求" prop="requirement">
-          <el-select v-model="form.requirement" filterable allow-create default-first-option clearable placeholder="选择或输入自定义要求" style="width: 100%">
-            <el-option v-for="item in optionsFor('requirement')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="实验者类别" prop="experimenterType">
-          <el-select v-model="form.experimenterType" filterable allow-create default-first-option clearable placeholder="选择或输入自定义类别" style="width: 100%">
-            <el-option v-for="item in optionsFor('experimenter_type')" :key="item.dictValue" :label="item.dictLabel" :value="item.dictValue" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="每组人数" prop="groupSize">
-          <el-input-number v-model="form.groupSize" :min="1" />
-        </el-form-item>
-        <el-form-item label="实验学时" prop="hours">
-          <el-input-number v-model="form.hours" :min="0.5" :step="0.5" />
-        </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sortOrder" :min="0" />
+        <el-form-item label="课题描述">
+          <el-input v-model="form.description" type="textarea" :rows="3" maxlength="500" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="formVisible = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
-
-    <ImportDialog
-      v-model="importVisible"
-      title="实验项目导入"
-      action="/experiments/import"
-      template-url="/experiments/import/template"
-      :extra-data="courseId ? { courseId } : undefined"
-      @success="loadExperiments"
-    />
 
     <!-- 上学期智能迁移草稿确认 -->
     <el-dialog v-model="migrationVisible" title="上学期智能迁移" width="720px" :close-on-click-modal="false">
@@ -141,196 +116,148 @@
         </el-button>
       </template>
     </el-dialog>
-
-    <!-- 材料清单 -->
-    <el-dialog v-model="materialVisible" :title="`材料清单 · ${materialTarget?.experimentName ?? ''}`" width="640px">
-      <div v-loading="materialLoading">
-        <el-empty v-if="!materialLoading && !materialText" description="暂无清单" :image-size="60" />
-        <pre v-else class="experiment-page__material">{{ materialText }}</pre>
-      </div>
-      <template #footer>
-        <el-button @click="materialVisible = false">关闭</el-button>
-        <el-button type="primary" :disabled="!materialText" @click="copyMaterial">复制清单</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 实验项目数字档案（AI 生成，共用 ArchiveDialog） -->
-    <ArchiveDialog
-      v-model="archiveVisible"
-      entity-type="experiment"
-      :entity-id="archiveTarget?.id ?? null"
-      :entity-title="archiveTarget?.experimentName ?? ''"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
-import { CopyDocument, Plus, RefreshLeft, Upload } from '@element-plus/icons-vue';
-import ImportDialog from '@/components/ImportDialog.vue';
+import { Plus, RefreshLeft } from '@element-plus/icons-vue';
 import {
-  apiCopyFromPrevious,
-  apiCreateExperiment,
-  apiDeleteExperiment,
-  apiListExperiments,
-  apiMigrationConfirm,
-  apiMigrationPreview,
-  apiUpdateExperiment,
-  type IMigrationDraft,
-} from '@/api/experiment';
-import { apiNlqAgent } from '@/api/nlq';
-import { apiListCourses } from '@/api/course';
+  apiCreateProject,
+  apiDeleteProject,
+  apiEnsureCourseContainer,
+  apiEnsureMyCourseContainers,
+  apiListProjects,
+  apiUpdateProject,
+} from '@/api/project';
 import { apiListSemesters } from '@/api/semester';
-import { apiListDictsByType } from '@/api/dict';
-import { DICT_TYPES, ERROR_CODE } from '@/constants';
-import type { ICourse, IDictItem, IExperiment, ISemester } from '@/types/api';
-import type { IBizError } from '@/utils/request';
+import { apiMigrationConfirm, apiMigrationPreview, type IMigrationDraft } from '@/api/experiment';
+import { PROJECT_SOURCE_MAP, PROJECT_STATUS_MAP } from '@/constants';
+import { useUserStore } from '@/store/user';
+import type { IProject, ISemester } from '@/types/api';
 
-const currentRoute = useRoute();
+type TSegment = 'ALL' | 'SYSTEM' | 'USER';
 
-const courses = ref<ICourse[]>([]);
-const semesters = ref<ISemester[]>([]);
-const courseId = ref<number | null>(null);
-const records = ref<IExperiment[]>([]);
+const SEGMENT_OPTIONS: { label: string; value: TSegment }[] = [
+  { label: '全部', value: 'ALL' },
+  { label: '课程课题', value: 'SYSTEM' },
+  { label: '我的课题', value: 'USER' },
+];
+
+const route = useRoute();
+const router = useRouter();
+const userStore = useUserStore();
+const isAdmin = computed(() => userStore.isAdmin);
+const isStudent = computed(() => userStore.isStudent);
+/** 教师写侧身份（2026-09-20 权限边界）：新建/编辑/删除/迁移仅教师可用，管理员为只读 */
+const isTeacher = computed(() => userStore.role === 'TEACHER');
+
+const headerDesc = computed(() => {
+  if (isStudent.value) return '我的实验项目：查看实验目录、任务与进度';
+  if (isAdmin.value) return '只读视图：可浏览全部课程课题与独立课题，实验项目由课程教师维护';
+  return '课程课题由系统按课程生成、承载实验目录；独立课题自建自管';
+});
+
 const loading = ref(false);
-const saving = ref(false);
-const dialogVisible = ref(false);
-const importVisible = ref(false);
-const editing = ref(false);
-const formRef = ref<FormInstance>();
+const records = ref<IProject[]>([]);
+const keyword = ref('');
+const segment = ref<TSegment>('ALL');
 
-// 上学期智能迁移
-const migrationVisible = ref(false);
-const migrationLoading = ref(false);
-const migrating = ref(false);
-const migrationDrafts = ref<IMigrationDraft[]>([]);
-
-// 材料清单
-const materialVisible = ref(false);
-const materialLoading = ref(false);
-const materialText = ref('');
-const materialTarget = ref<IExperiment | null>(null);
-
-// 数字档案
-const archiveVisible = ref(false);
-const archiveTarget = ref<IExperiment | null>(null);
-
-function openArchive(row: IExperiment): void {
-  archiveTarget.value = row;
-  archiveVisible.value = true;
-}
-
-const dictOptions = reactive<Record<string, IDictItem[]>>({
-  category: [],
-  type: [],
-  subject: [],
-  requirement: [],
-  experimenter_type: [],
+const filtered = computed(() => {
+  const kw = keyword.value.trim().toLowerCase();
+  if (!kw) return records.value;
+  return records.value.filter(
+    (p) => p.projectName.toLowerCase().includes(kw) || p.projectCode.toLowerCase().includes(kw),
+  );
 });
 
-/** 字典类型 → 表单字段名 映射 */
-const DICT_TO_FORM_KEY: Record<string, keyof typeof form> = {
-  category: 'category',
-  type: 'type',
-  subject: 'subject',
-  requirement: 'requirement',
-  experimenter_type: 'experimenterType',
-};
-
-/**
- * 返回某字典类型的下拉选项；若当前表单值（含历史/手动输入的自定义值）不在字典中，
- * 则动态补一个同文案选项，保证编辑时能正确回显。
- */
-function optionsFor(dictType: string): IDictItem[] {
-  const options = [...(dictOptions[dictType] ?? [])];
-  const value = form[DICT_TO_FORM_KEY[dictType]] as string;
-  if (value && !options.some((item) => item.dictValue === value)) {
-    options.push({ id: 0, dictType, dictLabel: value, dictValue: value, sortOrder: 0, status: 1 } as IDictItem);
-  }
-  return options;
-}
-
-const EMPTY_FORM = {
-  id: 0,
-  experimentName: '',
-  category: '',
-  type: '',
-  subject: '',
-  requirement: '',
-  experimenterType: '',
-  groupSize: 1,
-  hours: 2,
-  sortOrder: 0,
-};
-const form = reactive({ ...EMPTY_FORM });
-
-const rules: FormRules = {
-  experimentName: [{ required: true, message: '请输入实验名称', trigger: 'blur' }],
-  category: [{ required: true, message: '请选择实验类别', trigger: 'change' }],
-  type: [{ required: true, message: '请选择实验类型', trigger: 'change' }],
-  subject: [{ required: true, message: '请选择所属学科', trigger: 'change' }],
-  requirement: [{ required: true, message: '请选择实验要求', trigger: 'change' }],
-  experimenterType: [{ required: true, message: '请选择实验者类别', trigger: 'change' }],
-};
-
-/** 当前课程是否属于进行中的学期（历史学期只读） */
-const isCurrentSemester = computed(() => {
-  const course = courses.value.find((item) => item.id === courseId.value);
-  if (!course) return false;
-  const semester = semesters.value.find((item) => item.id === course.semesterId);
-  return semester?.status === 'ACTIVE';
-});
-
-async function loadCourses(): Promise<void> {
-  courses.value = await apiListCourses();
-  const fromQuery = Number(currentRoute.query.courseId);
-  if (fromQuery && courses.value.some((item) => item.id === fromQuery)) {
-    courseId.value = fromQuery;
-  } else if (courses.value.length > 0) {
-    courseId.value = courses.value[0].id;
-  }
-  await loadExperiments();
-}
-
-async function loadExperiments(): Promise<void> {
-  if (!courseId.value) return;
+async function load(): Promise<void> {
   loading.value = true;
   try {
-    records.value = await apiListExperiments({ courseId: courseId.value });
+    const source = segment.value === 'ALL' ? undefined : segment.value;
+    records.value = await apiListProjects(source);
   } finally {
     loading.value = false;
   }
 }
 
-async function loadDicts(): Promise<void> {
-  await Promise.all(DICT_TYPES.map(async (item) => {
-    dictOptions[item.value] = await apiListDictsByType(item.value);
-  }));
+function goDetail(id: number): void {
+  void router.push(`/experiments/${id}`);
 }
+
+/* ------------------------------------------------------------- 读侧 ensure */
+
+const semesters = ref<ISemester[]>([]);
+const migrationDisabledReason = computed(() =>
+  semesters.value.some((item) => item.status === 'ACTIVE') ? '' : '当前无进行中的学期，暂不可迁移',
+);
+
+/** 带参深链（课程页 / Dashboard 就绪度方格）：确保容器存在并直达其实验目录 Tab */
+async function followCourseDeepLink(): Promise<boolean> {
+  const courseId = Number(route.query.courseId);
+  if (!courseId || isStudent.value) return false;
+  const container = await apiEnsureCourseContainer(courseId);
+  void router.replace({ path: `/experiments/${container.id}`, query: { tab: 'catalog' } });
+  return true;
+}
+
+/** 管理员深链（2026-09-20 权限边界）：只在已加载列表中只读定位容器，绝不触发 ensure 写侧 */
+async function followCourseDeepLinkReadonly(): Promise<boolean> {
+  const courseId = Number(route.query.courseId);
+  if (!courseId) return false;
+  const container = records.value.find((p) => p.courseId === courseId && p.source === 'SYSTEM');
+  if (container) {
+    void router.replace({ path: `/experiments/${container.id}`, query: { tab: 'catalog' } });
+  } else {
+    ElMessage.info('该课程尚未生成实验项目容器，暂无可查看内容');
+  }
+  return false;
+}
+
+onMounted(async () => {
+  // /semesters 是 ADMIN/TEACHER 端点（r2-H1 学生白名单未含），学生不查，避免 403 中断挂载
+  if (isAdmin.value) {
+    // 管理员只读（2026-09-20 权限边界）：不做任何 ensure 写侧，仅加载后只读定位深链容器
+    await load();
+    await followCourseDeepLinkReadonly();
+    return;
+  }
+  if (!isStudent.value) {
+    semesters.value = await apiListSemesters();
+    if (await followCourseDeepLink()) return;
+  } else {
+    // 学生侧读侧 ensure（R1/AC1）：教师从未访问也保证本课容器与名单快照就位
+    await apiEnsureMyCourseContainers().catch(() => undefined);
+  }
+  await load();
+});
+
+/* ------------------------------------------------------------- 建/改/删 */
+
+const formVisible = ref(false);
+const saving = ref(false);
+const editingId = ref<number | null>(null);
+const formRef = ref<FormInstance>();
+const form = reactive({ projectName: '', description: '' });
+
+const rules: FormRules = {
+  projectName: [{ required: true, message: '请输入课题名称', trigger: 'blur' }],
+};
 
 function openCreate(): void {
-  editing.value = false;
-  Object.assign(form, EMPTY_FORM);
-  dialogVisible.value = true;
+  editingId.value = null;
+  form.projectName = '';
+  form.description = '';
+  formVisible.value = true;
 }
 
-function openEdit(row: IExperiment): void {
-  editing.value = true;
-  Object.assign(form, {
-    id: row.id,
-    experimentName: row.experimentName,
-    category: row.category,
-    type: row.type,
-    subject: row.subject,
-    requirement: row.requirement,
-    experimenterType: row.experimenterType,
-    groupSize: row.groupSize,
-    hours: row.hours,
-    sortOrder: row.sortOrder,
-  });
-  dialogVisible.value = true;
+function openEdit(row: IProject): void {
+  editingId.value = row.id;
+  form.projectName = row.projectName;
+  form.description = row.description ?? '';
+  formVisible.value = true;
 }
 
 async function handleSave(): Promise<void> {
@@ -338,39 +265,41 @@ async function handleSave(): Promise<void> {
   if (!valid) return;
   saving.value = true;
   try {
-    const { id, ...payload } = form;
-    if (editing.value) {
-      await apiUpdateExperiment(id, payload);
-    } else if (courseId.value) {
-      await apiCreateExperiment(courseId.value, payload);
+    if (editingId.value == null) {
+      await apiCreateProject({ projectName: form.projectName, description: form.description || undefined });
+      ElMessage.success('课题已创建');
+    } else {
+      await apiUpdateProject(editingId.value, { projectName: form.projectName, description: form.description });
+      ElMessage.success('课题已更新');
     }
-    ElMessage.success('保存成功');
-    dialogVisible.value = false;
-    await loadExperiments();
+    formVisible.value = false;
+    await load();
   } finally {
     saving.value = false;
   }
 }
 
-async function handleDelete(row: IExperiment): Promise<void> {
-  await ElMessageBox.confirm(`确定删除实验项目「${row.experimentName}」吗？`, '删除确认', { type: 'warning' });
-  await apiDeleteExperiment(row.id);
+async function handleDelete(row: IProject): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除独立课题「${row.projectName}」吗？已含成员/任务/数据的课题不可删除，可归档留痕。`,
+      '删除确认',
+      { type: 'warning' },
+    );
+  } catch {
+    return;
+  }
+  await apiDeleteProject(row.id);
   ElMessage.success('删除成功');
-  await loadExperiments();
+  await load();
 }
 
-async function handleCopyFromPrevious(): Promise<void> {
-  if (!courseId.value) return;
-  try {
-    const result = await apiCopyFromPrevious(courseId.value);
-    ElMessage.success(`已复制 ${result.copiedCount} 个实验项目`);
-    await loadExperiments();
-  } catch (error) {
-    if ((error as IBizError).code === ERROR_CODE.PREVIOUS_SEMESTER_EMPTY) {
-      ElMessage.warning('上学期该课程无实验项目可复制');
-    }
-  }
-}
+/* ------------------------------------------------------------- 智能迁移 */
+
+const migrationVisible = ref(false);
+const migrationLoading = ref(false);
+const migrating = ref(false);
+const migrationDrafts = ref<IMigrationDraft[]>([]);
 
 async function openMigration(): Promise<void> {
   migrationVisible.value = true;
@@ -391,65 +320,35 @@ async function handleMigrationConfirm(): Promise<void> {
     const result = await apiMigrationConfirm();
     ElMessage.success(`迁移完成：${result.courseCount} 门课程，共 ${result.experimentCount} 个实验项目`);
     migrationVisible.value = false;
-    await loadExperiments();
+    await load();
   } catch {
     // 错误由 request 拦截器统一提示
   } finally {
     migrating.value = false;
   }
 }
-
-async function openMaterial(row: IExperiment): Promise<void> {
-  materialTarget.value = row;
-  materialVisible.value = true;
-  materialLoading.value = true;
-  materialText.value = '';
-  try {
-    const result = await apiNlqAgent(
-      `帮我生成实验项目「${row.experimentName}」（类别：${row.category ?? '-'}，要求：${row.requirement ?? '-'}，每组人数：${row.groupSize ?? '-'}）所需的器材与耗材清单，按「名称 | 数量 | 备注」三列输出`,
-    );
-    materialText.value = result.answer || '未能生成清单，请稍后重试';
-  } catch {
-    materialText.value = '生成失败，请稍后重试';
-  } finally {
-    materialLoading.value = false;
-  }
-}
-
-async function copyMaterial(): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(materialText.value);
-    ElMessage.success('已复制到剪贴板');
-  } catch {
-    ElMessage.warning('复制失败，请手动选择复制');
-  }
-}
-
-onMounted(async () => {
-  semesters.value = await apiListSemesters();
-  await loadDicts();
-  await loadCourses();
-});
 </script>
 
 <style scoped lang="scss">
-.experiment-page__notice {
-  margin-bottom: var(--space-4);
-}
+.experiment-page {
+  &__ro-tag {
+    margin-left: var(--space-2);
+    vertical-align: middle;
+  }
 
-.experiment-page__migration-tip {
-  margin-bottom: var(--space-3);
-}
+  &__course {
+    margin-left: var(--space-2);
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
 
-.experiment-page__material {
-  margin: 0;
-  padding: var(--space-4);
-  background: var(--bg-subtle);
-  border-radius: var(--radius-md);
-  font-family: monospace;
-  font-size: 13px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-all;
+  &__overdue {
+    font-weight: 700;
+    color: var(--el-color-danger);
+  }
+
+  &__migration-tip {
+    margin-bottom: var(--space-3);
+  }
 }
 </style>

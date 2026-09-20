@@ -469,6 +469,9 @@ export interface IProject {
   teacherName?: string;
   courseId?: number | null;
   semesterId?: number | null;
+  /** SYSTEM=课程课题（课程容器，承载实验目录）/ USER=独立课题（自建） */
+  source: 'SYSTEM' | 'USER';
+  courseName?: string | null;
   description?: string | null;
   status: 'ACTIVE' | 'ARCHIVED';
   createdAt: string;
@@ -484,7 +487,7 @@ export interface IProjectMember {
   realName: string;
   className?: string | null;
   major?: string | null;
-  source: 'CREATE' | 'MANUAL' | 'COURSE_SNAPSHOT';
+  source: 'CREATE' | 'MANUAL' | 'COURSE_SNAPSHOT' | 'AUTO_SNAPSHOT';
   joinedAt: string;
 }
 

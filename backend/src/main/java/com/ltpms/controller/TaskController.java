@@ -33,7 +33,7 @@ public class TaskController {
 
     private final TaskService taskService;
 
-    /** 编辑任务（归属老师/ADMIN）；关键字段修改自动写 LAB_TASK 修订留痕 */
+    /** 编辑任务（归属老师；管理员只读——2026-09-20 权限边界）；关键字段修改自动写 LAB_TASK 修订留痕 */
     @PutMapping("/{taskId}")
     @RequireRole({"ADMIN", "TEACHER"})
     public Result<TaskService.TaskView> update(@PathVariable Long taskId,
@@ -65,7 +65,7 @@ public class TaskController {
         return Result.success(taskService.submit(taskId, request, SecurityUtils.currentUserId()));
     }
 
-    /** 验收（归属老师/ADMIN）：ACCEPT→ACCEPTED / REJECT→REJECTED(+意见)，通知学生 */
+    /** 验收（归属老师；管理员只读）：ACCEPT→ACCEPTED / REJECT→REJECTED(+意见)，通知学生 */
     @PostMapping("/{taskId}/review")
     @RequireRole({"ADMIN", "TEACHER"})
     public Result<TaskService.TaskView> review(@PathVariable Long taskId,

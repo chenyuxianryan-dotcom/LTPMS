@@ -23,13 +23,13 @@
       <el-table-column label="关联数据" width="90" align="center">
         <template #default="{ row }">{{ row.datasetId ? `#${row.datasetId}` : '-' }}</template>
       </el-table-column>
-      <el-table-column v-if="canManage" label="操作" width="250" fixed="right">
+      <el-table-column v-if="canManage || auditView" label="操作" :width="canManage ? 250 : 150" fixed="right">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'SUBMITTED'" link type="success" @click="openReview(row)">验收</el-button>
-          <el-button v-if="canEdit(row)" link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="canManage && row.status === 'SUBMITTED'" link type="success" @click="openReview(row)">验收</el-button>
+          <el-button v-if="canManage && canEdit(row)" link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="openSubmissions(row)">提交记录</el-button>
           <el-button link type="primary" @click="openRevisions(row)">修订</el-button>
-          <el-button v-if="canDelete(row)" link type="danger" @click="handleDelete(row)">
+          <el-button v-if="canManage && canDelete(row)" link type="danger" @click="handleDelete(row)">
             {{ deleteLabel(row) }}
           </el-button>
         </template>
@@ -101,7 +101,8 @@ import { fmtDateTime, fmtFullDateTime } from '../projectUtils';
 import TaskFormDrawer from './TaskFormDrawer.vue';
 import TaskReviewDialog from './TaskReviewDialog.vue';
 
-const props = defineProps<{ project: IProject; canManage: boolean }>();
+/** auditView：管理员只读视角（2026-09-20 权限边界）——操作列仅保留提交记录/修订等读侧入口 */
+const props = defineProps<{ project: IProject; canManage: boolean; auditView?: boolean }>();
 
 const loading = ref(false);
 const tasks = ref<IProjectTask[]>([]);
