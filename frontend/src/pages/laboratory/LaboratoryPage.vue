@@ -1,16 +1,16 @@
 <template>
-  <div class="page-container lab-drum">
-    <div class="page-header drum-head">
-      <div class="drum-head__id">
+  <div class="page-container unit-skin">
+    <div class="page-header unit-head">
+      <div class="unit-head__id">
         <div class="page-header__title">实验室管理</div>
         <div class="page-header__desc">维护实验室基础信息，支持 Excel 批量导入</div>
       </div>
-      <div class="drum-head__console">
-        <div class="drum-head__row">
-          <div class="drum-nameplate">LTPMS LAB UNIT</div>
+      <div class="unit-head__console">
+        <div class="unit-head__row">
+          <div class="unit-nameplate">LTPMS LAB UNIT</div>
           <button
             type="button"
-            class="drum-mute"
+            class="unit-mute"
             :class="{ 'is-muted': drumMuted }"
             :title="drumMuted ? '音效已静音，点击开启' : '音效开启中，点击静音'"
             :aria-label="drumMuted ? '开启音效' : '静音'"
@@ -21,11 +21,11 @@
               <Headset v-else />
             </el-icon>
           </button>
-          <div class="drum-led-strip" aria-hidden="true">
+          <div class="unit-led-strip" aria-hidden="true">
             <span
               v-for="n in 16"
               :key="n"
-              class="drum-led-strip__dot"
+              class="unit-led-strip__dot"
               :class="{ 'is-hit': hitStep === n - 1 }"
               :style="{ '--i': n - 1 }"
             />
@@ -43,7 +43,7 @@
       </div>
     </div>
 
-    <div class="drum-table-panel">
+    <div class="unit-table-panel">
       <el-table
         v-loading="loading"
         :data="records"
@@ -57,9 +57,9 @@
         <el-table-column prop="manager" label="负责人" width="120" />
         <el-table-column label="设备数" width="130" align="right" class-name="tabular-nums">
           <template #default="{ row }">
-            <div class="drum-meter">
-              <span class="drum-meter__value">{{ row.deviceCount }}</span>
-              <span class="drum-meter__dots" aria-hidden="true">
+            <div class="unit-meter">
+              <span class="unit-meter__value">{{ row.deviceCount }}</span>
+              <span class="unit-meter__dots" aria-hidden="true">
                 <i v-for="n in 10" :key="n" :class="{ 'is-on': n <= deviceDots(row.deviceCount) }" />
               </span>
             </div>
@@ -93,7 +93,7 @@
       @size-change="handleSizeChange"
     />
 
-    <el-dialog v-model="dialogVisible" class="drum-dialog" :title="editing ? '编辑实验室' : '新建实验室'" width="480px">
+    <el-dialog v-model="dialogVisible" class="unit-dialog" :title="editing ? '编辑实验室' : '新建实验室'" width="480px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="实验室编号" prop="labCode">
           <el-input v-model="form.labCode" :disabled="editing" placeholder="如 36-401" />
@@ -119,7 +119,7 @@
 
     <ImportDialog
       v-model="importVisible"
-      class="drum-dialog"
+      class="unit-dialog"
       title="实验室导入"
       action="/laboratories/import"
       template-url="/laboratories/import/template"
@@ -129,7 +129,7 @@
     <!-- 实验台数字档案（AI 生成，无档案降级显示统计） -->
     <ArchiveDialog
       v-model="archiveVisible"
-      class="drum-dialog"
+      class="unit-dialog"
       entity-type="laboratory"
       :entity-id="archiveTarget?.id ?? null"
       :entity-title="archiveTarget ? `${archiveTarget.labCode} ${archiveTarget.labName}` : ''"
@@ -278,7 +278,7 @@ async function handleDelete(row: ILaboratory): Promise<void> {
   playDrum('snare');
   await ElMessageBox.confirm(`确定删除实验室「${row.labName}」吗？有关联数据时将无法删除。`, '删除确认', {
     type: 'warning',
-    customClass: 'drum-dialog',
+    customClass: 'unit-dialog',
   });
   await apiDeleteLaboratory(row.id);
   ElMessage.success('删除成功');
@@ -291,7 +291,7 @@ async function handleBatchDelete(): Promise<void> {
   await ElMessageBox.confirm(
     `确定批量删除选中的 ${selectedIds.value.length} 间实验室吗？已关联课表的实验室将被跳过。`,
     '批量删除确认',
-    { type: 'warning', customClass: 'drum-dialog' },
+    { type: 'warning', customClass: 'unit-dialog' },
   );
   const result = await apiDeleteLaboratories(selectedIds.value);
   if (result.failedCount === 0) {

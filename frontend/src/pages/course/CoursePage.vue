@@ -1,20 +1,34 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <div>
+  <div class="page-container unit-skin">
+    <div class="page-header unit-head">
+      <div class="unit-head__id">
         <div class="page-header__title">课程管理</div>
         <div class="page-header__desc">{{ isAdmin ? '全校实验课程' : '我任教的实验课程' }}（由课表导入自动生成）</div>
       </div>
-      <div class="filter-bar">
-        <el-select v-model="semesterId" placeholder="选择学期" style="width: 220px" @change="loadAll">
-          <el-option v-for="item in semesters" :key="item.id" :label="item.semesterName" :value="item.id" />
-        </el-select>
-        <template v-if="!isAdmin">
-          <el-button plain :icon="Camera" :disabled="!semesterId" @click="photoImportVisible = true">拍照导入</el-button>
-          <el-button type="primary" :icon="Upload" :disabled="!semesterId" @click="importVisible = true">
-            导入我的课表
-          </el-button>
-        </template>
+      <div class="unit-head__console">
+        <div class="unit-head__row">
+          <div class="unit-nameplate">LTPMS COURSE UNIT</div>
+          <div class="unit-led-strip" aria-hidden="true">
+            <span
+              v-for="n in 16"
+              :key="n"
+              class="unit-led-strip__dot"
+              :class="{ 'is-hit': hitStep === n - 1 }"
+              :style="{ '--i': n - 1 }"
+            />
+          </div>
+        </div>
+        <div class="filter-bar">
+          <el-select v-model="semesterId" placeholder="选择学期" style="width: 220px" @change="handleSemesterChange">
+            <el-option v-for="item in semesters" :key="item.id" :label="item.semesterName" :value="item.id" />
+          </el-select>
+          <template v-if="!isAdmin">
+            <el-button plain :icon="Camera" :disabled="!semesterId" @click="openPhotoImport">拍照导入</el-button>
+            <el-button type="primary" :icon="Upload" :disabled="!semesterId" @click="openImport">
+              导入我的课表
+            </el-button>
+          </template>
+        </div>
       </div>
     </div>
 
@@ -60,7 +74,13 @@
             <div class="course-card__name" :title="course.courseName">{{ course.courseName }}</div>
             <div class="course-card__meta">
               <span>{{ course.major || '面向专业待补充' }}</span>
-              <span>{{ course.totalHours }} 实验学时</span>
+            </div>
+            <div class="course-card__meter">
+              <span class="course-card__meter-value">{{ course.totalHours }}</span>
+              <span class="course-card__meter-label">实验学时</span>
+              <span class="course-card__meter-dots" aria-hidden="true">
+                <i v-for="n in 10" :key="n" :class="{ 'is-on': n <= hoursDots(course.totalHours) }" />
+              </span>
             </div>
             <div v-if="statsOf(course.courseCode)" class="course-card__stats">
               每周 {{ statsOf(course.courseCode)?.sections }} 节 · {{ statsOf(course.courseCode)?.classes }} 个教学班
@@ -84,23 +104,40 @@
     </template>
 
     <!-- 管理员视图：只读表格（可查看全校课程，编辑入口见课表审校） -->
-    <el-table v-else v-loading="loading" :data="records" border stripe>
-      <el-table-column prop="courseCode" label="课程号" width="120" />
-      <el-table-column prop="courseName" label="课程名" min-width="180" />
-      <el-table-column prop="teacherName" label="授课教师" width="110" />
-      <el-table-column prop="semesterName" label="学期" width="150" />
-      <el-table-column prop="major" label="面向专业" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="totalHours" label="实验学时" width="100" align="right" class-name="tabular-nums" />
-      <el-table-column label="操作" width="130" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="goExperiments(row)">实验项目</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div v-else class="unit-table-panel">
+      <el-table
+        v-loading="loading"
+        :data="records"
+        :row-class-name="rowClassName"
+        @row-click="handleRowClick"
+      >
+        <el-table-column prop="courseCode" label="课程号" width="120" />
+        <el-table-column prop="courseName" label="课程名" min-width="180" />
+        <el-table-column prop="teacherName" label="授课教师" width="110" />
+        <el-table-column prop="semesterName" label="学期" width="150" />
+        <el-table-column prop="major" label="面向专业" min-width="160" show-overflow-tooltip />
+        <el-table-column label="实验学时" width="150" align="right" class-name="tabular-nums">
+          <template #default="{ row }">
+            <div class="unit-meter">
+              <span class="unit-meter__value">{{ row.totalHours }}</span>
+              <span class="unit-meter__dots" aria-hidden="true">
+                <i v-for="n in 10" :key="n" :class="{ 'is-on': n <= hoursDots(row.totalHours) }" />
+              </span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="130" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="goExperiments(row)">实验项目</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
 
     <ImportDialog
       v-if="!isAdmin"
       v-model="importVisible"
+      class="unit-dialog"
       title="导入我的课表"
       action="/schedules/import"
       template-url="/schedules/import/template"
@@ -112,12 +149,14 @@
     <SchedulePhotoImportDialog
       v-if="!isAdmin && semesterId"
       v-model="photoImportVisible"
+      class="unit-dialog"
       :semester-id="semesterId"
       @success="loadAll"
     />
 
     <ScheduleEditDialog
       v-model="editVisible"
+      class="unit-dialog"
       :item="editingItem"
       :semester-id="semesterId"
       @success="loadAll"
@@ -126,6 +165,7 @@
 
     <CourseEditDialog
       v-model="courseEditVisible"
+      class="unit-dialog"
       :course="editingCourse"
       :revision-count="revisionCount(editingCourse)"
       @success="loadAll"
@@ -134,6 +174,7 @@
 
     <RevisionDrawer
       v-model="revisionVisible"
+      class="unit-dialog"
       :title="revisionTitle"
       :target-type="revisionTargetType"
       :target-id="revisionTargetId"
@@ -142,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Camera, Upload } from '@element-plus/icons-vue';
 import CourseEditDialog from '@/components/schedule/CourseEditDialog.vue';
@@ -156,11 +197,15 @@ import { apiMySchedules } from '@/api/schedule';
 import { apiListSemesters } from '@/api/semester';
 import { useUserStore } from '@/store/user';
 import { courseColor } from '@/utils/courseColor';
+import { tickUnitLed, unitLedStep } from '@/utils/unitLed';
 import type { ICourse, IMyScheduleItem, ISemester } from '@/types/api';
 
 const router = useRouter();
 const userStore = useUserStore();
 const isAdmin = computed(() => userStore.isAdmin);
+
+/** LED 灯带走位（无声）：切换学期 / 点击行 / 开弹窗时推进 */
+const hitStep = unitLedStep();
 
 const semesterId = ref<number | null>(null);
 const semesters = ref<ISemester[]>([]);
@@ -182,6 +227,11 @@ const revisionVisible = ref(false);
 const revisionTitle = ref('');
 const revisionTargetType = ref<'SCHEDULE' | 'COURSE'>('SCHEDULE');
 const revisionTargetId = ref<number | null>(null);
+
+/** 实验学时点阵：每灯 8 学时，10 灯满量程 80 */
+function hoursDots(hours: number): number {
+  return Math.max(0, Math.min(10, Math.ceil(hours / 8)));
+}
 
 /** 课程卡片统计：每周节数 = 各行时间槽节次跨度之和；教学班数 = 课表行数 */
 const courseStats = computed<Map<string, { sections: number; classes: number }>>(() => {
@@ -209,6 +259,24 @@ function revisionCount(course: ICourse | null): number {
 function cardStyle(course: ICourse): Record<string, string> {
   const color = courseColor(course.courseCode);
   return { background: color.bg, borderColor: color.border, color: color.fg };
+}
+
+const pulseRowId = ref<number | null>(null);
+let pulseTimer: number | undefined;
+
+function rowClassName({ row }: { row: ICourse }): string {
+  return pulseRowId.value === row.id ? 'is-pad-hit' : '';
+}
+
+function handleRowClick(row: ICourse, _column: unknown, event: Event): void {
+  const target = event.target as HTMLElement | null;
+  if (target?.closest('button, .el-button, .el-checkbox, input, a')) return;
+  tickUnitLed();
+  pulseRowId.value = row.id;
+  window.clearTimeout(pulseTimer);
+  pulseTimer = window.setTimeout(() => {
+    pulseRowId.value = null;
+  }, 300);
 }
 
 async function loadCourses(): Promise<void> {
@@ -240,19 +308,37 @@ async function loadAll(): Promise<void> {
   await Promise.all([loadCourses(), loadScheduleItems()]);
 }
 
+function handleSemesterChange(): void {
+  tickUnitLed();
+  void loadAll();
+}
+
+function openImport(): void {
+  tickUnitLed();
+  importVisible.value = true;
+}
+
+function openPhotoImport(): void {
+  tickUnitLed();
+  photoImportVisible.value = true;
+}
+
 function openScheduleEdit(item: IMyScheduleItem): void {
+  tickUnitLed();
   editingItem.value = item;
   editVisible.value = true;
 }
 
 function openCourseEdit(course: ICourse | null): void {
   if (!course) return;
+  tickUnitLed();
   editingCourse.value = course;
   courseEditVisible.value = true;
 }
 
 function openScheduleRevisions(item: IMyScheduleItem | null): void {
   if (!item) return;
+  tickUnitLed();
   revisionTitle.value = `${item.courseName} · 修订记录`;
   revisionTargetType.value = 'SCHEDULE';
   revisionTargetId.value = item.id;
@@ -261,6 +347,7 @@ function openScheduleRevisions(item: IMyScheduleItem | null): void {
 
 function openCourseRevisions(course: ICourse | null): void {
   if (!course) return;
+  tickUnitLed();
   revisionTitle.value = `${course.courseName} · 修订记录`;
   revisionTargetType.value = 'COURSE';
   revisionTargetId.value = course.id;
@@ -268,6 +355,7 @@ function openCourseRevisions(course: ICourse | null): void {
 }
 
 function goExperiments(row: ICourse): void {
+  tickUnitLed();
   void router.push({ path: '/experiments', query: { courseId: String(row.id) } });
 }
 
@@ -278,6 +366,10 @@ onMounted(async () => {
     semesterId.value = current.id;
   }
   await loadAll();
+});
+
+onBeforeUnmount(() => {
+  window.clearTimeout(pulseTimer);
 });
 </script>
 
@@ -316,6 +408,16 @@ onMounted(async () => {
   }
 }
 
+/* 周课表卡片：按压物理（仅本页生效，不改动共享组件） */
+.unit-skin :deep(.week-card) {
+  box-shadow: var(--unit-key-shadow);
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: var(--unit-key-shadow-press);
+  }
+}
+
 .course-card {
   display: flex;
   flex-direction: column;
@@ -323,11 +425,17 @@ onMounted(async () => {
   padding: var(--space-4);
   border: 1px solid;
   border-radius: var(--radius-lg);
+  box-shadow: var(--unit-key-shadow);
   transition: box-shadow var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 
   &:hover {
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(1px);
+    box-shadow: var(--unit-key-shadow-press);
   }
 
   &__head {
@@ -367,6 +475,44 @@ onMounted(async () => {
     }
   }
 
+  /* 实验学时：点阵读数（沿用课程色，随卡片文字色走） */
+  &__meter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+    font-size: 12px;
+  }
+
+  &__meter-value {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  &__meter-label {
+    opacity: 0.75;
+  }
+
+  &__meter-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+
+    i {
+      width: 3.5px;
+      height: 3.5px;
+      border-radius: 50%;
+      background: currentcolor;
+      opacity: 0.25;
+    }
+
+    i.is-on {
+      opacity: 1;
+    }
+  }
+
   &__stats {
     font-size: 12px;
     font-weight: 500;
@@ -381,8 +527,19 @@ onMounted(async () => {
     padding-top: var(--space-2);
     border-top: 1px dashed currentcolor;
 
-    .el-button {
-      opacity: 0.9;
+    .el-button.is-link {
+      height: 26px;
+      padding: 0 10px;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      background-color: var(--bg-elevated);
+      box-shadow: var(--unit-key-shadow);
+      opacity: 1;
+
+      &:active {
+        transform: translateY(1px);
+        box-shadow: var(--unit-key-shadow-press);
+      }
     }
   }
 }

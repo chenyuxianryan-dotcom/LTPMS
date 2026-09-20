@@ -1,45 +1,59 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <div>
+  <div class="page-container unit-skin">
+    <div class="page-header unit-head">
+      <div class="unit-head__id">
         <div class="page-header__title">报表中心</div>
         <div class="page-header__desc">
           {{ isAdmin ? '查看全校统计报表，支持导出' : '可见全校汇总与本人任教明细，其他教师明细不可见' }}
         </div>
       </div>
-      <div class="filter-bar">
-        <el-select v-model="academicYear" placeholder="选择学年" style="width: 180px" @change="loadData">
-          <el-option v-for="year in academicYears" :key="year" :label="year" :value="year" />
-        </el-select>
-        <el-dropdown
-          trigger="click"
-          :disabled="!loaded || activeTab === 'narrative'"
-          @command="handleExportCommand"
-        >
-          <el-button :icon="Download" :disabled="!loaded || activeTab === 'narrative'">
-            导出<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="excel">导出 Excel</el-dropdown-item>
-              <el-dropdown-item command="pdf">导出 PDF</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+      <div class="unit-head__console">
+        <div class="unit-head__row">
+          <div class="unit-nameplate">LTPMS REPORT UNIT</div>
+          <div class="unit-led-strip" aria-hidden="true">
+            <span
+              v-for="n in 16"
+              :key="n"
+              class="unit-led-strip__dot"
+              :class="{ 'is-hit': hitStep === n - 1 }"
+              :style="{ '--i': n - 1 }"
+            />
+          </div>
+        </div>
+        <div class="filter-bar">
+          <el-select v-model="academicYear" placeholder="选择学年" style="width: 180px" @change="handleYearChange">
+            <el-option v-for="year in academicYears" :key="year" :label="year" :value="year" />
+          </el-select>
+          <el-dropdown
+            trigger="click"
+            :disabled="!loaded || activeTab === 'narrative'"
+            @command="handleExportCommand"
+          >
+            <el-button :icon="Download" :disabled="!loaded || activeTab === 'narrative'">
+              导出<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="excel">导出 Excel</el-dropdown-item>
+                <el-dropdown-item command="pdf">导出 PDF</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
       </div>
     </div>
 
-    <!-- 教师可见：全校汇总行 -->
+    <!-- 教师可见：全校汇总行（LED 数显） -->
     <div v-if="!isAdmin && reportData?.summary" class="report-page__summary">
-      <div class="stat-card">
+      <div class="stat-card unit-readout">
         <div class="stat-card__label">全校课程总数</div>
         <div class="stat-card__value">{{ reportData.summary.courseCount }}</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card unit-readout">
         <div class="stat-card__label">全校实验项目总数</div>
         <div class="stat-card__value">{{ reportData.summary.experimentCount }}</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card unit-readout">
         <div class="stat-card__label">全校总人时数</div>
         <div class="stat-card__value">{{ reportData.summary.totalPersonHours }}</div>
       </div>
@@ -109,17 +123,26 @@
     </div>
 
     <template v-else>
-      <el-table v-loading="loading" :data="detailRows" border stripe>
-        <el-table-column
-          v-for="col in columns"
-          :key="col.key"
-          :prop="col.key"
-          :label="col.label"
-          :min-width="col.minWidth"
-          :align="col.right ? 'right' : undefined"
-          :class-name="col.right ? 'tabular-nums' : undefined"
-        />
-      </el-table>
+      <div class="unit-table-panel">
+        <!-- 人时数横向对比（仅人时数页签显示） -->
+        <div v-if="activeTab === 'person-hours'" ref="chartRef" class="report-page__chart" />
+        <el-table
+          v-loading="loading"
+          :data="detailRows"
+          :row-class-name="rowClassName"
+          @row-click="handleRowClick"
+        >
+          <el-table-column
+            v-for="col in columns"
+            :key="col.key"
+            :prop="col.key"
+            :label="col.label"
+            :min-width="col.minWidth"
+            :align="col.right ? 'right' : undefined"
+            :class-name="col.right ? 'tabular-nums' : undefined"
+          />
+        </el-table>
+      </div>
 
       <el-alert
         v-if="!isAdmin && loaded"
@@ -150,6 +173,7 @@ import {
 import { apiNlqNarrative, type INlqNarrativeResult } from '@/api/nlq';
 import { apiListSemesters } from '@/api/semester';
 import { useUserStore } from '@/store/user';
+import { tickUnitLed, unitLedStep } from '@/utils/unitLed';
 import { saveBlob } from '@/utils/request';
 import type { IReportData, IReportRow } from '@/types/api';
 
@@ -173,6 +197,9 @@ const COLUMN_DEFS: IReportColumn[] = [
 
 const userStore = useUserStore();
 const isAdmin = computed(() => userStore.isAdmin);
+
+/** LED 灯带走位（无声）：切换学年 / 切页签 / 点击行 / 导出时推进 */
+const hitStep = unitLedStep();
 
 const activeTab = ref<'course-project-stats' | 'person-hours' | 'narrative'>('course-project-stats');
 const academicYear = ref('');
@@ -200,16 +227,22 @@ function renderChart(): void {
   if (activeTab.value !== 'person-hours' || detailRows.value.length === 0) return;
   void nextTick(() => {
     if (!chartRef.value) return;
+    if (chartInstance && chartInstance.getDom() !== chartRef.value) {
+      chartInstance.dispose();
+      chartInstance = null;
+    }
     chartInstance ??= echarts.init(chartRef.value);
+    const brand = getComputedStyle(document.documentElement).getPropertyValue('--brand-600').trim() || '#2563eb';
     const labels = detailRows.value.map((row) => String(row.courseName ?? row.labName ?? row.labCode ?? ''));
     const values = detailRows.value.map((row) => Number(row.personHours ?? 0));
-    chartInstance?.setOption({
+    chartInstance.setOption({
       tooltip: { trigger: 'axis' },
       grid: { left: 48, right: 24, bottom: 60, top: 24 },
       xAxis: { type: 'category', data: labels, axisLabel: { rotate: 30, fontSize: 12 } },
       yAxis: { type: 'value', name: '人时数' },
-      series: [{ type: 'bar', data: values, barMaxWidth: 32, itemStyle: { color: '#2563eb', borderRadius: [3, 3, 0, 0] } }],
+      series: [{ type: 'bar', data: values, barMaxWidth: 32, itemStyle: { color: brand, borderRadius: [3, 3, 0, 0] } }],
     });
+    chartInstance.resize();
   });
 }
 
@@ -232,12 +265,38 @@ async function loadData(): Promise<void> {
         ? await apiGetCourseProjectStats(params)
         : await apiGetPersonHours(params);
     loaded.value = true;
+    renderChart();
   } finally {
     loading.value = false;
   }
 }
 
+/** 明细行鼓垫脉冲（无选中语义，仅按压反馈） */
+const pulseRow = ref<IReportRow | null>(null);
+let pulseTimer: number | undefined;
+
+function rowClassName({ row }: { row: IReportRow }): string {
+  return pulseRow.value === row ? 'is-pad-hit' : '';
+}
+
+function handleRowClick(row: IReportRow, _column: unknown, event: Event): void {
+  const target = event.target as HTMLElement | null;
+  if (target?.closest('button, .el-button, .el-checkbox, input, a')) return;
+  tickUnitLed();
+  pulseRow.value = row;
+  window.clearTimeout(pulseTimer);
+  pulseTimer = window.setTimeout(() => {
+    pulseRow.value = null;
+  }, 300);
+}
+
+function handleYearChange(): void {
+  tickUnitLed();
+  void loadData();
+}
+
 function handleTabChange(): void {
+  tickUnitLed();
   if (activeTab.value !== 'narrative') void loadData();
 }
 
@@ -259,6 +318,7 @@ const narrativeLoading = ref(false);
 const narrativeResult = ref<INlqNarrativeResult | null>(null);
 
 async function handleGenerateNarrative(): Promise<void> {
+  tickUnitLed();
   narrativeLoading.value = true;
   narrativeResult.value = null;
   try {
@@ -288,6 +348,7 @@ const narrativeSemesterLabel = computed(() => {
 });
 
 function handleNarrativeExportCommand(command: string): void {
+  tickUnitLed();
   void handleNarrativeExport(command as 'excel' | 'pdf');
 }
 
@@ -315,6 +376,7 @@ async function handleNarrativeExport(format: 'excel' | 'pdf'): Promise<void> {
 }
 
 function handleExportCommand(command: string): void {
+  tickUnitLed();
   void handleExport(command as 'excel' | 'pdf');
 }
 
@@ -334,12 +396,20 @@ async function handleExport(format: 'excel' | 'pdf'): Promise<void> {
 }
 
 onMounted(async () => {
+  window.addEventListener('resize', handleChartResize);
   const semesters = await apiListSemesters();
   academicYears.value = extractAcademicYears(semesters);
   if (academicYears.value.length > 0) {
     academicYear.value = academicYears.value[0];
     await loadData();
   }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleChartResize);
+  window.clearTimeout(pulseTimer);
+  chartInstance?.dispose();
+  chartInstance = null;
 });
 </script>
 

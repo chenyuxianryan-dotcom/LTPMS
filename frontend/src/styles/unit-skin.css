@@ -1,0 +1,522 @@
+/**
+ * 机台皮肤（UNIT SKIN）— 全站模块共用
+ * 作用域：.unit-skin（页面根）/ .unit-dialog（页面弹窗，含 ElMessageBox customClass）
+ * 配色回归全站统一方案：所有颜色引用 tokens.css 变量（浅色表面 + 品牌蓝主色），
+ * 仅保留机台的结构、动效与按压物理（鼓垫行 / 拟物按键 / LED 灯带 / 点阵计量 / 数显 / 机键页签）。
+ * 音效不属于本皮肤：实验室管理页另有 drumKit 音效引擎，其余页面只走灯不出声。
+ */
+
+/* ===== Skin tokens（全站配色映射，不新增色板） ===== */
+:root {
+  --unit-panel: var(--bg-elevated);
+  --unit-pad: var(--bg-subtle);
+  --unit-pad-hover: var(--brand-50);
+  --unit-pad-press: var(--brand-100);
+  --unit-line: var(--border-default);
+  --unit-line-strong: var(--border-strong);
+  --unit-text: var(--text-primary);
+  --unit-text-dim: var(--text-secondary);
+  --unit-text-faint: var(--text-tertiary);
+  --unit-accent: var(--brand-600);
+  --unit-accent-bright: var(--brand-500);
+  --unit-accent-glow: rgba(37, 99, 235, 0.4);
+  --unit-accent-soft: rgba(37, 99, 235, 0.12);
+  --unit-red: var(--danger-500);
+  --unit-key-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --unit-key-shadow-press: inset 0 2px 4px rgba(15, 23, 42, 0.12);
+}
+
+/* ===== Element Plus 变量：仅保留非配色的圆角微调 ===== */
+.unit-skin,
+.unit-dialog {
+  --el-border-radius-base: 8px;
+}
+
+/* ===== 页头：整机面板 ===== */
+.unit-skin .page-header.unit-head {
+  align-items: flex-start;
+  padding: var(--space-4) var(--space-5);
+  background: var(--unit-panel);
+  border: 1px solid var(--unit-line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.unit-skin .unit-head__id {
+  position: relative;
+  z-index: 1;
+}
+
+.unit-skin .unit-head .page-header__title {
+  color: var(--unit-text);
+  letter-spacing: 0.04em;
+}
+
+.unit-skin .unit-head .page-header__title::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--unit-accent);
+  box-shadow: 0 0 8px var(--unit-accent-soft);
+  vertical-align: 2px;
+}
+
+.unit-skin .unit-head .page-header__desc {
+  color: var(--unit-text-faint);
+}
+
+.unit-skin .unit-head__console {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3);
+  position: relative;
+  z-index: 1;
+}
+
+.unit-skin .unit-head__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.unit-skin .unit-head .filter-bar {
+  margin-bottom: 0;
+  justify-content: flex-end;
+}
+
+/* ===== 装饰铭牌 ===== */
+.unit-nameplate {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-subtle));
+  border: 1px solid var(--unit-line);
+  box-shadow: inset 0 1px 0 var(--bg-elevated), 0 1px 2px rgba(15, 23, 42, 0.06);
+  color: var(--unit-text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-shadow: 0 1px 0 var(--bg-elevated);
+}
+
+.unit-nameplate::before,
+.unit-nameplate::after {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--border-subtle), var(--border-strong));
+}
+
+/* ===== 静音键（仅实验室管理页使用） ===== */
+.unit-mute {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--unit-line-strong);
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-subtle));
+  box-shadow: var(--unit-key-shadow);
+  color: var(--unit-text-dim);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 90ms ease;
+}
+
+.unit-mute:hover {
+  color: var(--unit-accent);
+  border-color: var(--unit-accent-bright);
+}
+
+.unit-mute:active {
+  transform: translateY(2px);
+  box-shadow: var(--unit-key-shadow-press);
+}
+
+.unit-mute.is-muted {
+  color: var(--unit-red);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+/* ===== 16 步 LED 灯带 ===== */
+.unit-led-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--bg-muted);
+  border: 1px solid var(--unit-line);
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.unit-led-strip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  animation: unit-led-breathe 7.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 450ms);
+}
+
+.unit-led-strip__dot.is-hit {
+  background: var(--unit-accent-bright);
+  box-shadow: 0 0 8px var(--unit-accent-glow);
+  animation: none;
+}
+
+@keyframes unit-led-breathe {
+  0%,
+  100% {
+    background: var(--border-strong);
+    box-shadow: none;
+  }
+
+  10% {
+    background: var(--unit-accent-bright);
+    box-shadow: 0 0 7px var(--unit-accent-glow);
+  }
+
+  20% {
+    background: var(--border-strong);
+    box-shadow: none;
+  }
+}
+
+/* ===== 按键化按钮（页面 + 页面弹窗）：保留键体阴影与按压缩放 ===== */
+.unit-skin .el-button,
+.unit-dialog .el-button {
+  box-shadow: var(--unit-key-shadow);
+  transition: color 120ms ease, border-color 120ms ease, box-shadow 90ms ease, transform 90ms ease;
+}
+
+.unit-skin .el-button:not(.is-disabled):active,
+.unit-dialog .el-button:not(.is-disabled):active {
+  transform: translateY(2px);
+  box-shadow: var(--unit-key-shadow-press);
+}
+
+/* 行内操作：拟物小按键 */
+.unit-skin .el-table .el-button.is-link {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--unit-line);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-elevated);
+  box-shadow: var(--unit-key-shadow);
+  font-size: 13px;
+  transition: color 120ms ease, border-color 120ms ease, transform 90ms ease, box-shadow 90ms ease;
+}
+
+.unit-skin .el-table .el-button.is-link:hover {
+  background-color: var(--bg-subtle);
+}
+
+.unit-skin .el-table .el-button.is-link:active {
+  transform: translateY(1px);
+  box-shadow: var(--unit-key-shadow-press);
+}
+
+.unit-skin .el-table .el-button.is-link.el-button--primary:hover {
+  border-color: var(--brand-500);
+}
+
+.unit-skin .el-table .el-button.is-link.el-button--success:hover {
+  border-color: var(--success-500);
+}
+
+.unit-skin .el-table .el-button.is-link.el-button--danger:hover {
+  border-color: var(--danger-500);
+}
+
+/* ===== 表格：面板与鼓垫行 ===== */
+.unit-skin .unit-table-panel {
+  padding: 8px 10px 12px;
+  background: var(--unit-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.unit-skin .el-table {
+  --el-table-border-color: transparent;
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+  --el-table-header-text-color: var(--unit-text-dim);
+  --el-table-text-color: var(--unit-text);
+  --el-table-row-hover-bg-color: transparent;
+  --el-table-striped-row-bg-color: transparent;
+}
+
+.unit-skin .el-table th.el-table__cell {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--unit-line);
+  background: transparent;
+  color: var(--unit-text-dim);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.unit-skin .el-table .el-table__body tr > td.el-table__cell {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  background-color: var(--unit-pad);
+  background-clip: padding-box;
+  border-top: 6px solid transparent;
+  transition: background-color 150ms ease, background-image 150ms ease;
+}
+
+.unit-skin .el-table .el-table__body tr > td.el-table__cell:first-child {
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+.unit-skin .el-table .el-table__body tr > td.el-table__cell:last-child {
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.unit-skin .el-table .el-table__body tr:hover > td.el-table__cell {
+  background-color: var(--unit-pad-hover);
+  background-image: linear-gradient(90deg, var(--unit-accent-bright), var(--unit-accent-bright));
+  background-size: 100% 2px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+}
+
+.unit-skin .el-table .el-table__body tr.is-pad-pressed > td.el-table__cell {
+  background-color: var(--unit-pad-press);
+}
+
+.unit-skin .el-table .el-table__body tr.is-pad-pressed > td.el-table__cell:first-child {
+  background-image: linear-gradient(180deg, var(--unit-accent), var(--unit-accent));
+  background-size: 3px 100%;
+  background-position: 0 0;
+  background-repeat: no-repeat;
+}
+
+.unit-skin .el-table .el-table__body tr.is-pad-hit > td.el-table__cell {
+  animation: unit-pad-flash 280ms ease-out;
+}
+
+@keyframes unit-pad-flash {
+  0% {
+    background-color: var(--unit-pad-press);
+  }
+
+  100% {
+    background-color: var(--unit-pad);
+  }
+}
+
+.unit-skin .el-table__empty-text {
+  color: var(--unit-text-faint);
+}
+
+/* 勾选：拨档 LED */
+.unit-skin .el-checkbox__inner {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background-color: var(--bg-elevated);
+  border-color: var(--unit-line-strong);
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.unit-skin .el-checkbox__input.is-checked .el-checkbox__inner,
+.unit-skin .el-checkbox__input.is-indeterminate .el-checkbox__inner {
+  background: var(--unit-accent);
+  border-color: var(--unit-accent);
+  box-shadow: 0 0 0 3px var(--unit-accent-soft);
+}
+
+.unit-skin .el-checkbox__inner::after {
+  border-color: var(--bg-elevated);
+}
+
+/* 状态：LED 灯珠 */
+.unit-skin .el-table .el-tag {
+  height: 22px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.unit-skin .el-table .el-tag::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+}
+
+.unit-skin .el-table .el-tag.el-tag--info::before {
+  opacity: 0.5;
+}
+
+/* 计量：LED 点阵条 */
+.unit-meter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.unit-meter__value {
+  color: var(--unit-text);
+}
+
+.unit-meter__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.unit-meter__dots i {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.unit-meter__dots i.is-on {
+  background: var(--unit-accent-bright);
+  box-shadow: 0 0 4px var(--unit-accent-glow);
+}
+
+/* ===== 数显读数（LED 数字显示，用于汇总卡） ===== */
+.stat-card.unit-readout {
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-subtle));
+  border: 1px solid var(--unit-line);
+  box-shadow: var(--unit-key-shadow);
+}
+
+.stat-card.unit-readout .stat-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-card.unit-readout .stat-card__label::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--unit-accent-bright);
+  box-shadow: 0 0 6px var(--unit-accent-glow);
+}
+
+.stat-card.unit-readout .stat-card__value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--unit-accent);
+  text-shadow: 0 0 12px var(--unit-accent-soft);
+}
+
+/* ===== 页签：机键式 ===== */
+.unit-skin .el-tabs__nav-wrap::after,
+.unit-skin .el-tabs__active-bar {
+  display: none;
+}
+
+.unit-skin .el-tabs__item {
+  height: 34px;
+  padding: 0 var(--space-4);
+  margin-right: var(--space-2);
+  border: 1px solid var(--unit-line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-subtle));
+  box-shadow: var(--unit-key-shadow);
+  color: var(--unit-text-dim);
+  font-size: 13px;
+  line-height: 32px;
+  transition: color 120ms ease, border-color 120ms ease, transform 90ms ease, box-shadow 90ms ease;
+}
+
+.unit-skin .el-tabs__item:not(.is-active):hover {
+  color: var(--unit-accent);
+  border-color: var(--unit-line-strong);
+}
+
+.unit-skin .el-tabs__item:not(.is-active):active {
+  transform: translateY(2px);
+  box-shadow: var(--unit-key-shadow-press);
+}
+
+.unit-skin .el-tabs__item.is-active {
+  color: var(--unit-accent);
+  border-color: var(--unit-accent-bright);
+  background: var(--brand-50);
+  box-shadow: 0 0 0 3px var(--unit-accent-soft);
+}
+
+/* ===== 分页：机键式 ===== */
+.unit-skin .el-pagination {
+  color: var(--unit-text-faint);
+  font-family: var(--font-mono);
+}
+
+.unit-skin .el-pagination .el-pager li,
+.unit-skin .el-pagination button.btn-prev,
+.unit-skin .el-pagination button.btn-next {
+  min-width: 30px;
+  height: 30px;
+  margin: 0 3px;
+  border: 1px solid var(--unit-line);
+  border-radius: 7px;
+  background-color: var(--bg-elevated);
+  box-shadow: var(--unit-key-shadow);
+  color: var(--unit-text-dim);
+  line-height: 28px;
+  transition: color 120ms ease, border-color 120ms ease, transform 90ms ease;
+}
+
+.unit-skin .el-pagination .el-pager li.is-active {
+  color: var(--unit-accent);
+  border-color: var(--unit-accent-bright);
+  background-color: var(--brand-50);
+  box-shadow: 0 0 0 3px var(--unit-accent-soft);
+}
+
+.unit-skin .el-pagination .el-pager li:not(.is-active):hover,
+.unit-skin .el-pagination button.btn-prev:hover,
+.unit-skin .el-pagination button.btn-next:hover {
+  color: var(--unit-accent);
+  border-color: var(--unit-line-strong);
+}
+
+.unit-skin .el-pagination .el-pager li:active,
+.unit-skin .el-pagination button.btn-prev:active,
+.unit-skin .el-pagination button.btn-next:active {
+  transform: translateY(2px);
+}
+
+/* ===== 弹窗：仅保留标题 LED 装饰点（配色回归全站浅色） ===== */
+.unit-dialog .el-dialog__title::before,
+.unit-dialog .el-message-box__title::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: var(--unit-accent);
+  box-shadow: 0 0 8px var(--unit-accent-soft);
+  vertical-align: 1px;
+}
