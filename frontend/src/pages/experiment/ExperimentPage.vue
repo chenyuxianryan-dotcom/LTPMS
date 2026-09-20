@@ -25,13 +25,13 @@
     </div>
 
     <el-table v-loading="loading" :data="filtered" border stripe>
-      <el-table-column prop="projectCode" label="课题编号" width="140" class-name="font-mono" />
-      <el-table-column label="课题名称" min-width="200">
+      <el-table-column prop="projectCode" label="课题编号" width="130" class-name="font-mono" />
+      <el-table-column label="课题名称" min-width="190">
         <template #default="{ row }">
           <el-link type="primary" @click="goDetail(row.id)">{{ row.projectName }}</el-link>
         </template>
       </el-table-column>
-      <el-table-column label="类型" min-width="170">
+      <el-table-column label="类型" min-width="188" show-overflow-tooltip>
         <template #default="{ row }">
           <el-tag :type="PROJECT_SOURCE_MAP[row.source]?.tagType ?? 'info'" effect="light" size="small">
             {{ PROJECT_SOURCE_MAP[row.source]?.label ?? row.source }}
@@ -39,14 +39,14 @@
           <span v-if="row.courseName" class="experiment-page__course">{{ row.courseName }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="isAdmin" prop="teacherName" label="指导教师" width="110" />
-      <el-table-column prop="memberCount" label="成员数" width="90" align="center" />
-      <el-table-column label="完成度" width="180" align="center">
+      <el-table-column v-if="isAdmin" prop="teacherName" label="指导教师" width="90" />
+      <el-table-column prop="memberCount" label="成员数" width="80" align="center" />
+      <el-table-column label="完成度" width="160" align="center">
         <template #default="{ row }">
-          <el-progress :percentage="Math.round(row.projectRate)" :stroke-width="14" text-inside />
+          <el-progress :percentage="Math.round(row.projectRate)" :stroke-width="10" />
         </template>
       </el-table-column>
-      <el-table-column label="逾期" width="80" align="center">
+      <el-table-column label="逾期" width="70" align="center">
         <template #default="{ row }">
           <span :class="{ 'experiment-page__overdue': row.overdueCount > 0 }">{{ row.overdueCount }}</span>
         </template>
@@ -58,14 +58,18 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="创建时间" width="170" />
-      <el-table-column label="操作" :width="isTeacher ? 150 : 80" fixed="right">
+      <el-table-column label="创建时间" width="150">
+        <template #default="{ row }">{{ fmtDateTime(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" :width="isTeacher ? 158 : 80" fixed="right">
         <template #default="{ row }">
-          <template v-if="isTeacher">
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button v-if="row.source === 'USER'" link type="danger" @click="handleDelete(row)">删除</el-button>
-          </template>
-          <el-button link type="primary" @click="goDetail(row.id)">进入</el-button>
+          <div class="experiment-page__ops">
+            <template v-if="isTeacher">
+              <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+              <el-button v-if="row.source === 'USER'" link type="danger" @click="handleDelete(row)">删除</el-button>
+            </template>
+            <el-button link type="primary" @click="goDetail(row.id)">进入</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -135,6 +139,7 @@ import {
 import { apiListSemesters } from '@/api/semester';
 import { apiMigrationConfirm, apiMigrationPreview, type IMigrationDraft } from '@/api/experiment';
 import { PROJECT_SOURCE_MAP, PROJECT_STATUS_MAP } from '@/constants';
+import { fmtDateTime } from '@/pages/project/projectUtils';
 import { useUserStore } from '@/store/user';
 import type { IProject, ISemester } from '@/types/api';
 
@@ -345,6 +350,16 @@ async function handleMigrationConfirm(): Promise<void> {
   &__overdue {
     font-weight: 700;
     color: var(--el-color-danger);
+  }
+
+  &__ops {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+
+    :deep(.el-button + .el-button) {
+      margin-left: 0;
+    }
   }
 
   &__migration-tip {
