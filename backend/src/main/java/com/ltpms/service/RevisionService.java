@@ -29,6 +29,8 @@ public class RevisionService {
 
     public static final String TARGET_SCHEDULE = "SCHEDULE";
     public static final String TARGET_COURSE = "COURSE";
+    /** 课题任务关键字段（deadline 等）修订留痕，表结构不改仅扩取值（r2-B2） */
+    public static final String TARGET_LAB_TASK = "LAB_TASK";
 
     private final ScheduleRevisionMapper scheduleRevisionMapper;
     private final UserMapper userMapper;

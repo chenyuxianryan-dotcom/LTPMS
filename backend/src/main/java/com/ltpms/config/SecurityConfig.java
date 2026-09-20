@@ -45,6 +45,19 @@ public class SecurityConfig {
                 // 头像等静态文件：img 标签无法带 Authorization 头，放行（仅图片资源，路径已做穿越防护）
                 .requestMatchers("/api/v1/files/avatar/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // r2-H1 收口：STUDENT 仅可达课题白名单，其余旧业务端点（其角色分支多为
+                // "TEACHER".equals 才过滤、else 静默走全量）一律不进学生，防越权读全校数据
+                .requestMatchers(
+                        "/api/v1/auth/**",
+                        "/api/v1/projects/**",
+                        "/api/v1/tasks/**",
+                        "/api/v1/datasets/**",
+                        "/api/v1/dataset-versions/**",
+                        "/api/v1/notifications/**",
+                        "/api/v1/users/**",
+                        "/api/v1/files/**")
+                    .hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+                .requestMatchers("/api/v1/**").hasAnyRole("ADMIN", "TEACHER")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex

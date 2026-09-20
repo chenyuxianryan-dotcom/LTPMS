@@ -112,7 +112,7 @@
 
     <AvatarPickerDialog v-model="avatarPickerVisible" :user="pickerUser" @saved="onAvatarSaved" />
     <ChangePasswordDialog v-model="changePwdVisible" />
-    <NlqWidget />
+    <NlqWidget v-if="!userStore.isStudent" />
     <FolderTransition />
   </el-container>
 </template>
@@ -120,7 +120,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Clock, Collection, DataAnalysis, Notebook, Odometer, OfficeBuilding, TrendCharts, User } from '@element-plus/icons-vue';
+import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Clock, Collection, DataAnalysis, Folder, List, Notebook, Odometer, OfficeBuilding, TrendCharts, User } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AvatarPickerDialog from '@/components/AvatarPickerDialog.vue';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue';
@@ -168,16 +168,18 @@ function toggleSidebar(): void {
 
 /** 主菜单（与路由表一致），按角色过滤；智能查询置顶为第一项 */
 const MENU_ITEMS: { path: string; title: string; icon: Component; roles?: string[] }[] = [
-  { path: '/nlq', title: '智能查询', icon: ChatDotRound },
-  { path: '/insight', title: '数据智能', icon: TrendCharts },
-  { path: '/dashboard', title: '概览', icon: Odometer },
+  { path: '/nlq', title: '智能查询', icon: ChatDotRound, roles: [ROLE.ADMIN, ROLE.TEACHER] },
+  { path: '/insight', title: '数据智能', icon: TrendCharts, roles: [ROLE.ADMIN, ROLE.TEACHER] },
+  { path: '/dashboard', title: '概览', icon: Odometer, roles: [ROLE.ADMIN, ROLE.TEACHER] },
+  { path: '/my-tasks', title: '我的任务', icon: List, roles: [ROLE.STUDENT] },
+  { path: '/projects', title: '课题项目', icon: Folder, roles: [ROLE.ADMIN, ROLE.TEACHER] },
   { path: '/laboratories', title: '实验室管理', icon: OfficeBuilding, roles: [ROLE.ADMIN] },
   { path: '/semesters', title: '学期管理', icon: Calendar, roles: [ROLE.ADMIN] },
   { path: '/schedules', title: '课表管理', icon: Clock, roles: [ROLE.ADMIN] },
   { path: '/teachers', title: '教师管理', icon: User, roles: [ROLE.ADMIN] },
-  { path: '/courses', title: '课程管理', icon: Notebook },
+  { path: '/courses', title: '课程管理', icon: Notebook, roles: [ROLE.ADMIN, ROLE.TEACHER] },
   { path: '/experiments', title: '实验项目', icon: Box, roles: [ROLE.TEACHER] },
-  { path: '/reports', title: '报表中心', icon: DataAnalysis },
+  { path: '/reports', title: '报表中心', icon: DataAnalysis, roles: [ROLE.ADMIN, ROLE.TEACHER] },
   { path: '/dicts', title: '字典管理', icon: Collection, roles: [ROLE.ADMIN] },
 ];
 
@@ -186,7 +188,11 @@ const menuItems = computed(() => MENU_ITEMS.filter((item) => !item.roles || item
 const activeMenu = computed(() => currentRoute.path);
 const currentTitle = computed(() => (currentRoute.meta?.title as string) ?? '');
 const avatarChar = computed(() => (userStore.user?.realName ?? 'U').slice(0, 1));
-const roleLabel = computed(() => (userStore.isAdmin ? '管理员' : '教师'));
+const roleLabel = computed(() => {
+  if (userStore.isAdmin) return '管理员';
+  if (userStore.isStudent) return '学生';
+  return '教师';
+});
 /** 当前登录用户的头像 URL（preset / 上传文件 / 按用户 ID 的默认分配） */
 const myAvatarUrl = computed(() =>
   userStore.user ? resolveAvatarUrl(userStore.user.id, userStore.user.avatar) : '',

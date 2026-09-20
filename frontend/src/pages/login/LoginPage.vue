@@ -11,8 +11,8 @@
       </div>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" size="large" @submit.prevent="handleLogin">
-        <el-form-item label="工号" prop="username">
-          <el-input v-model="form.username" placeholder="请输入工号" autocomplete="username" :prefix-icon="User" />
+        <el-form-item label="工号 / 学号" prop="username">
+          <el-input v-model="form.username" placeholder="请输入工号或学号" autocomplete="username" :prefix-icon="User" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input
@@ -56,7 +56,7 @@ const changePwdVisible = ref(false);
 const form = reactive({ username: '', password: '' });
 
 const rules: FormRules = {
-  username: [{ required: true, message: '请输入工号', trigger: 'blur' }],
+  username: [{ required: true, message: '请输入工号或学号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 };
 
@@ -97,7 +97,7 @@ async function handleChangePwdClosed(visible: boolean): Promise<void> {
 }
 
 async function redirectAfterLogin(): Promise<void> {
-  const redirect = (currentRoute.query.redirect as string) || '/dashboard';
+  const redirect = (currentRoute.query.redirect as string) || userStore.homePath;
   // 等待下一个 tick，确保 store 中的 token/user 已完成响应式更新，
   // 避免路由守卫在 isLoggedIn 仍为旧值时把已登录用户拦截回落地页
   await nextTick();

@@ -163,6 +163,46 @@ class TestAddWhereConditions:
         )
         assert "WHERE schedule.teacher_id = 5 GROUP BY lab_code" in result
 
+    def test_existing_where_before_order_by_not_glued(self):
+        # 回归：已有 WHERE + 尾部 ORDER BY 时，AND 条件须与 ORDER BY 留空格，
+        # 否则生成 "... teacher_id = 5ORDER BY ..." 触发 1064
+        result = add_where_conditions(
+            "SELECT * FROM course WHERE status = 1 ORDER BY created_at",
+            ["course.teacher_id = 5"],
+        )
+        assert "AND course.teacher_id = 5 ORDER BY created_at" in result
+        assert "= 5ORDER" not in result
+
+    def test_existing_where_before_group_by_not_glued(self):
+        result = add_where_conditions(
+            "SELECT * FROM course WHERE total_hours = 32 GROUP BY teacher_id",
+            ["course.teacher_id = 5"],
+        )
+        assert "AND course.teacher_id = 5 GROUP BY teacher_id" in result
+        assert "= 5GROUP" not in result
+
+    def test_lab_project_direct_injection(self):
+        result = inject_permission("SELECT * FROM lab_project", "TEACHER", 5)
+        assert "lab_project.teacher_id = 5" in result
+
+    def test_lab_project_task_backfill_join(self):
+        # 任务表无 teacher_id，须补 JOIN lab_project 兜底
+        result = inject_permission(
+            "SELECT * FROM lab_project_task WHERE status = 1", "TEACHER", 5
+        )
+        assert "JOIN lab_project" in result
+        assert "lab_project.teacher_id = 5" in result
+
+    def test_lab_task_submission_rejected(self):
+        # 二跳表一期不入白名单，教师查询应被安全拒绝
+        with pytest.raises(PermissionRejectError):
+            inject_permission("SELECT * FROM lab_task_submission", "TEACHER", 5)
+
+    def test_student_table_rejected(self):
+        # 规则②：student 一期不入白名单
+        with pytest.raises(PermissionRejectError):
+            inject_permission("SELECT * FROM student", "TEACHER", 5)
+
     def test_subquery_order_by_is_not_mistaken_for_tail(self):
         sql = "SELECT (SELECT id FROM schedule ORDER BY id LIMIT 1) AS x FROM course"
         result = add_where_conditions(sql, ["course.teacher_id = 5"])

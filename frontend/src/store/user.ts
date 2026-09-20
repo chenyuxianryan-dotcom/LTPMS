@@ -40,6 +40,9 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = computed(() => Boolean(token.value) && !isTokenExpired(token.value));
   const role = computed<TRole | ''>(() => user.value?.role ?? '');
   const isAdmin = computed(() => role.value === 'ADMIN');
+  const isStudent = computed(() => role.value === 'STUDENT');
+  /** 角色首页：学生没有 dashboard 等旧业务权限，落地「我的任务」（r2-C1） */
+  const homePath = computed(() => (role.value === 'STUDENT' ? '/my-tasks' : '/dashboard'));
   /** 首次登录（默认密码）强制改密 */
   const needChangePassword = computed(() => Boolean(user.value?.isDefaultPwd));
 
@@ -69,5 +72,18 @@ export const useUserStore = defineStore('user', () => {
     sessionStorage.removeItem(TOKEN_KEY);
   }
 
-  return { token, user, isLoggedIn, role, isAdmin, needChangePassword, login, fetchMe, changePassword, logout };
+  return {
+    token,
+    user,
+    isLoggedIn,
+    role,
+    isAdmin,
+    isStudent,
+    homePath,
+    needChangePassword,
+    login,
+    fetchMe,
+    changePassword,
+    logout,
+  };
 });

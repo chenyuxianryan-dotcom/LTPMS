@@ -11,11 +11,14 @@ export const ERROR_CODE = {
   NLQ_PERMISSION_FAILED: 44002,
   NLQ_MODEL_TIMEOUT: 44003,
   NLQ_SERVICE_UNAVAILABLE: 44004,
+  /** 同名数据集已存在 → 前端弹框二选一（挂新版本 / 换名新建，r2-C4） */
+  DATASET_NAME_CONFLICT: 46001,
 } as const;
 
 export const ROLE = {
   ADMIN: 'ADMIN',
   TEACHER: 'TEACHER',
+  STUDENT: 'STUDENT',
 } as const;
 
 /** 字典类型（experiment 枚举字段引用） */
@@ -69,3 +72,38 @@ export const NLQ_EXAMPLES = [
   '统计各实验室的实验课程数量',
   '本学期我开设的实验项目有多少学时？',
 ] as const;
+
+/** 课题任务状态展示映射（矩阵配色：绿=已验收 黄=进行中/待办 红=逾期 灰=关闭） */
+export const TASK_STATUS_MAP: Record<string, { label: string; tagType: 'success' | 'warning' | 'danger' | 'info' | 'primary' }> = {
+  NOT_STARTED: { label: '待领取', tagType: 'info' },
+  IN_PROGRESS: { label: '进行中', tagType: 'warning' },
+  SUBMITTED: { label: '待验收', tagType: 'primary' },
+  REJECTED: { label: '被驳回', tagType: 'danger' },
+  ACCEPTED: { label: '已验收', tagType: 'success' },
+  CLOSED: { label: '已关闭', tagType: 'info' },
+};
+
+/** 课题状态展示映射 */
+export const PROJECT_STATUS_MAP: Record<string, { label: string; tagType: 'success' | 'info' }> = {
+  ACTIVE: { label: '进行中', tagType: 'success' },
+  ARCHIVED: { label: '已归档', tagType: 'info' },
+};
+
+/** 课题成员来源展示映射 */
+export const MEMBER_SOURCE_MAP: Record<string, string> = {
+  CREATE: '导入建档',
+  MANUAL: '学生库勾选',
+  COURSE_SNAPSHOT: '课程名单快照',
+};
+
+/** 任务修订字段展示映射（lab_task 留痕） */
+export const TASK_REVISION_FIELD_LABELS: Record<string, string> = {
+  title: '任务标题',
+  description: '任务说明',
+  deadline: '截止时间',
+  datasetId: '关联数据集',
+};
+
+/** 学生角色可见路由（守卫默认拒绝的白名单；页面 name 口径。
+ *  /projects 列表接口后端为 T/A，学生不入内 —— 与技术文档 §4 该行的偏离，见交付报告 */
+export const STUDENT_ROUTE_NAMES = ['project-detail', 'my-tasks'] as const;

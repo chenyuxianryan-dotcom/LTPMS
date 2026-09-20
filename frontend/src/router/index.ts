@@ -19,13 +19,13 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('@/layouts/BasicLayout.vue'),
-    redirect: '/dashboard',
+    redirect: () => useUserStore().homePath,
     children: [
       {
         path: 'dashboard',
         name: 'dashboard',
         component: () => import('@/pages/dashboard/DashboardPage.vue'),
-        meta: { title: '概览', icon: 'Odometer' },
+        meta: { title: '概览', icon: 'Odometer', roles: [ROLE.ADMIN, ROLE.TEACHER] },
       },
       {
         path: 'laboratories',
@@ -61,7 +61,7 @@ const routes: RouteRecordRaw[] = [
         path: 'courses',
         name: 'courses',
         component: () => import('@/pages/course/CoursePage.vue'),
-        meta: { title: '课程管理', icon: 'Notebook' },
+        meta: { title: '课程管理', icon: 'Notebook', roles: [ROLE.ADMIN, ROLE.TEACHER] },
       },
       {
         path: 'experiments',
@@ -73,19 +73,37 @@ const routes: RouteRecordRaw[] = [
         path: 'reports',
         name: 'reports',
         component: () => import('@/pages/report/ReportPage.vue'),
-        meta: { title: '报表中心', icon: 'DataAnalysis' },
+        meta: { title: '报表中心', icon: 'DataAnalysis', roles: [ROLE.ADMIN, ROLE.TEACHER] },
       },
       {
         path: 'nlq',
         name: 'nlq',
         component: () => import('@/pages/nlq/NlqPage.vue'),
-        meta: { title: '智能查询', icon: 'ChatDotRound' },
+        meta: { title: '智能查询', icon: 'ChatDotRound', roles: [ROLE.ADMIN, ROLE.TEACHER] },
       },
       {
         path: 'insight',
         name: 'insight',
         component: () => import('@/pages/insight/InsightPage.vue'),
-        meta: { title: '数据智能', icon: 'TrendCharts' },
+        meta: { title: '数据智能', icon: 'TrendCharts', roles: [ROLE.ADMIN, ROLE.TEACHER] },
+      },
+      {
+        path: 'projects',
+        name: 'projects',
+        component: () => import('@/pages/project/ProjectPage.vue'),
+        meta: { title: '课题项目', icon: 'Folder', roles: [ROLE.ADMIN, ROLE.TEACHER] },
+      },
+      {
+        path: 'projects/:id',
+        name: 'project-detail',
+        component: () => import('@/pages/project/ProjectDetailPage.vue'),
+        meta: { title: '课题详情', roles: [ROLE.ADMIN, ROLE.TEACHER, ROLE.STUDENT] },
+      },
+      {
+        path: 'my-tasks',
+        name: 'my-tasks',
+        component: () => import('@/pages/project/MyTasksPage.vue'),
+        meta: { title: '我的任务', icon: 'List', roles: [ROLE.STUDENT] },
       },
       {
         path: 'dicts',
@@ -97,7 +115,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard',
+    redirect: () => useUserStore().homePath,
   },
 ];
 
@@ -113,9 +131,9 @@ router.beforeEach((to) => {
   document.title = meta.title ? `${meta.title} · LTPMS` : 'LTPMS · 实验教学项目管理系统';
 
   if (meta.public) {
-    // 已登录访问登录页/落地页 → 回首页
+    // 已登录访问登录页/落地页 → 回各自角色首页
     if (userStore.isLoggedIn && (to.name === 'login' || to.name === 'landing')) {
-      return '/dashboard';
+      return userStore.homePath;
     }
     return true;
   }
@@ -132,14 +150,14 @@ router.beforeEach((to) => {
         .fetchMe()
         .then(() => {
           if (meta.roles && !meta.roles.includes(userStore.role)) {
-            return '/dashboard';
+            return userStore.homePath;
           }
           return true;
         })
         .catch(() => '/login');
     }
     if (!meta.roles.includes(userStore.role)) {
-      return '/dashboard';
+      return userStore.homePath;
     }
   } else if (!userStore.user) {
     void userStore.fetchMe().catch(() => undefined);

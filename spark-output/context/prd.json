@@ -1,0 +1,38 @@
+{
+  "skill": "prd",
+  "generated_at": "2026-09-18T00:00:00+08:00",
+  "revision": "r2（冲突审查回写：C1 学生落地角色化 / C2 学号撞号校验 / C3 学生密码重置 / C4 同名数据集弹窗 / C5 登录文案 / B1 分母冻结 / B2 deadline 留痕 / B3 版本软删 / B4 平行班粒度 / B5 流式预览口径 / B6 文件安全 / H1 角色硬编码审计 / H4 课题术语）",
+  "tech_design_file": "LTPMS_课题项目_技术方案.md",
+  "project_name": "LTPMS 课题项目模块",
+  "direction": "lab-project-mgmt",
+  "prd_file": "spark-output/prd/lab-project-mgmt.md",
+  "sections_summary": {
+    "summary": "在 LTPMS 新增教师端牵头的「课题项目」模块：建项目、拉学生、派任务、验收锚点、文件级数据版本链共享、学生×任务热力矩阵量化。",
+    "primary_persona": "李老师（带课题的实验课教师）",
+    "product_goal": "让课题制工作流（建项目→派任务→共享数据→验收→量化）在 LTPMS 完整闭环，且交付成本不随项目数线性增长。",
+    "success_metrics": [
+      { "metric": "冷启动完成率（建项目→派完首批任务）", "target": "≤30 分钟", "timeframe": "上线前内测" },
+      { "metric": "任务验收流转率（提交后7天内被验收）", "target": "≥80%", "timeframe": "一学期" },
+      { "metric": "学生端周活", "target": "≥60%", "timeframe": "30 天" },
+      { "metric": "学生上传数据版本占比", "target": "≥40%", "timeframe": "一学期" }
+    ],
+    "feature_count": 7,
+    "in_scope_features": ["S1 项目创建与成员快照", "S2 任务派发-提交-验收闭环", "S3 学生×任务热力矩阵", "S4 数据集版本链", "S5 学生端最小工作区", "S6 课程选课名单", "S7 归档只读"],
+    "out_of_scope_features": ["小组任务/WBS", "在线结构化数据编辑", "数据工作台", "燃尽图趋势图表", "学生仪表盘/成绩报表/消息中心", "成员实时同步", "学生自助注册"],
+    "critical_assumption": "师生愿意为课题工作单独登录 Web 系统而非留在微信群；验证=1 个真实课题 2 周试点看学生端周活与提交。",
+    "mvp_stories": ["S1", "S2", "S3", "S5"]
+  },
+  "source_skills": {
+    "brief": false,
+    "stories": false,
+    "sitemap": false,
+    "flow_web": false,
+    "flow_mobile": false,
+    "frame": false,
+    "scope": false,
+    "check": false
+  },
+  "upstream_substitute": "会话内 Q1~Q7 拷问决策集 + 技术方案草案（9 表/约30接口），作为等价 Brief+Stories 输入",
+  "pending_confirmations": ["规则① 已提交任务不可删只能驳回关闭", "规则② student/course_student 不进 NLQ 白名单"],
+  "thin_sections": ["solution.design_assets", "metrics_alignment"]
+}

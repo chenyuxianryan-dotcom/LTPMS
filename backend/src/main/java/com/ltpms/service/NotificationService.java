@@ -154,6 +154,23 @@ public class NotificationService {
         create(teacherUserId, "课表上传催办", "请尽快上传 " + semesterName + " 的课表。", "UPLOAD_REMIND", "/courses");
     }
 
+    /**
+     * 课题任务流转通知（S2）：派发/提交/验收统一走此定向通知。
+     * type=LAB_TASK，ref_url 跳项目详情（学生点击依赖 r2-C1 守卫角色化）。
+     *
+     * @param userId    接收人
+     * @param title     通知标题
+     * @param content   通知正文
+     * @param projectId 所属课题 ID
+     */
+    @Transactional
+    public void createLabTask(Long userId, String title, String content, Long projectId) {
+        if (userId == null) {
+            return;
+        }
+        create(userId, title, content, "LAB_TASK", "/projects/" + projectId);
+    }
+
     private void create(Long userId, String title, String content, String type, String refUrl) {
         Notification notification = new Notification();
         notification.setUserId(userId);

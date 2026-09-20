@@ -15,7 +15,7 @@ export interface IPageResult<T> {
   size: number;
 }
 
-export type TRole = 'ADMIN' | 'TEACHER';
+export type TRole = 'ADMIN' | 'TEACHER' | 'STUDENT';
 
 export interface IUserInfo {
   id: number;
@@ -456,4 +456,158 @@ export interface IRecentQuery {
   question: string;
   time: string;
   success?: number;
+}
+
+/* ============================== 课题项目（lab project） ============================== */
+
+/** 课题列表行（行内汇总与矩阵同源 r2-B1） */
+export interface IProject {
+  id: number;
+  projectCode: string;
+  projectName: string;
+  teacherId: number;
+  teacherName?: string;
+  courseId?: number | null;
+  semesterId?: number | null;
+  description?: string | null;
+  status: 'ACTIVE' | 'ARCHIVED';
+  createdAt: string;
+  projectRate: number;
+  overdueCount: number;
+  memberCount: number;
+}
+
+/** 课题成员行 */
+export interface IProjectMember {
+  studentId: number;
+  studentNo: string;
+  realName: string;
+  className?: string | null;
+  major?: string | null;
+  source: 'CREATE' | 'MANUAL' | 'COURSE_SNAPSHOT';
+  joinedAt: string;
+}
+
+/** 学生档案检索行 */
+export interface IStudent {
+  id: number;
+  userId: number;
+  studentNo: string;
+  realName: string;
+  className?: string | null;
+  major?: string | null;
+  status: number;
+}
+
+/** 学生建档导入回执 */
+export interface IStudentImportResult {
+  successCount: number;
+  createdAccounts: number;
+  errors: { row: number; reason: string }[];
+}
+
+/** 任务视图（教师/学生同字段） */
+export interface IProjectTask {
+  id: number;
+  projectId: number;
+  title: string;
+  description?: string | null;
+  assigneeStudentId: number;
+  assigneeName?: string | null;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED' | 'REJECTED' | 'ACCEPTED' | 'CLOSED';
+  deadline?: string | null;
+  overdue: boolean;
+  datasetId?: number | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+/** 任务提交记录（半透明：仅本人/教师可见） */
+export interface ITaskSubmission {
+  id: number;
+  taskId: number;
+  submitterStudentId: number;
+  submitterName?: string | null;
+  content: string;
+  datasetVersionId?: number | null;
+  submittedAt: string;
+  reviewComment?: string | null;
+  reviewedAt?: string | null;
+}
+
+/** 学生「我的任务」按课题分组 */
+export interface IMyTaskGroup {
+  projectId: number;
+  projectName: string;
+  tasks: IProjectTask[];
+}
+
+/** 数据集视图 */
+export interface IDataset {
+  id: number;
+  projectId: number;
+  datasetName: string;
+  description?: string | null;
+  latestVersion: number;
+  createdById: number;
+  createdByName?: string | null;
+  createdAt: string;
+}
+
+/** 数据集版本视图 */
+export interface IDatasetVersion {
+  id: number;
+  datasetId: number;
+  versionNo: number;
+  originalFilename: string;
+  fileSize?: number | null;
+  fileType?: string | null;
+  uploaderId: number;
+  uploaderName?: string | null;
+  note?: string | null;
+  createdAt: string;
+}
+
+/** 版本预览载荷（csv/txt/xlsx） */
+export interface IDatasetPreview {
+  type: string;
+  rows: string[][];
+  truncated: boolean;
+  message?: string | null;
+}
+
+/** 进度矩阵格子 */
+export interface IProgressCell {
+  taskId: number;
+  taskTitle: string;
+  status: IProjectTask['status'];
+  overdue: boolean;
+}
+
+/** 进度矩阵学生行 */
+export interface IProgressStudentRow {
+  studentId: number;
+  name: string;
+  rate: number;
+  cells: IProgressCell[];
+}
+
+/** 进度矩阵任务列 */
+export interface IProgressTaskColumn {
+  taskId: number;
+  title: string;
+  status: IProjectTask['status'];
+  deadline?: string | null;
+  overdue: boolean;
+}
+
+/** 单课题完整统计（列表/详情/矩阵同源 r2-B1） */
+export interface IProjectStats {
+  projectRate: number;
+  total: number;
+  accepted: number;
+  overdueCount: number;
+  memberCount: number;
+  students: IProgressStudentRow[];
+  tasks: IProgressTaskColumn[];
 }

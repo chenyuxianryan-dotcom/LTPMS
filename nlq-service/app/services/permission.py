@@ -32,6 +32,25 @@ PERMISSION_RULES = {
     "operation_log": {
         "column": "operation_log.user_id",
     },
+    # 课题项目一期白名单（规则②）：仅 lab_project* 业务表，教师归属统一经
+    # lab_project.teacher_id 注入；lab_task_submission / lab_dataset_version 为二跳
+    # 表（本机制仅支持单跳 requires），故意不登记 —— 教师查询时被安全拒绝。
+    # student / course_student 一期不入白名单（规则②）。
+    "lab_project": {
+        "column": "lab_project.teacher_id",
+    },
+    "lab_project_member": {
+        "column": "lab_project.teacher_id",
+        "requires": {"table": "lab_project", "fk": "project_id", "pk": "id"},
+    },
+    "lab_project_task": {
+        "column": "lab_project.teacher_id",
+        "requires": {"table": "lab_project", "fk": "project_id", "pk": "id"},
+    },
+    "lab_dataset": {
+        "column": "lab_project.teacher_id",
+        "requires": {"table": "lab_project", "fk": "project_id", "pk": "id"},
+    },
 }
 
 # 教师可无约束访问的白名单表。user 表不在其中：它持有 real_name / phone / password，
@@ -155,9 +174,10 @@ def add_where_conditions(sql: str, conditions: list[str]) -> str:
         offset += len(token.value)
 
     if where_token is not None:
-        # 已有 WHERE，追加 AND
+        # 已有 WHERE，追加 AND。where_text 可能自带尾随空格（被 AND 前吸收），
+        # 若不补回尾部空格，紧接的 ORDER BY / GROUP BY 会与条件粘连成非法 SQL。
         where_text = str(where_token)
-        new_where = f"{where_text} AND {condition_str}"
+        new_where = f"{where_text.rstrip()} AND {condition_str} "
         return sql.replace(where_text, new_where, 1)
 
     if insert_at is not None:

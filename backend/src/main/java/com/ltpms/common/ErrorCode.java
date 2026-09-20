@@ -37,7 +37,10 @@ public enum ErrorCode {
     NLQ_SERVICE_UNAVAILABLE(44004, "智能查询服务未启动或连接失败"),
 
     // 通用业务 45xxx
-    NOT_IMPLEMENTED(45001, "功能尚未实现");
+    NOT_IMPLEMENTED(45001, "功能尚未实现"),
+
+    // 课题数据集 46xxx
+    DATASET_NAME_CONFLICT(46001, "同名数据集已存在，请选择挂为新版本或改名新建");
 
     private final int code;
     private final String message;

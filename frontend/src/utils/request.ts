@@ -49,7 +49,10 @@ request.interceptors.response.use(
       window.location.href = '/login';
       return Promise.reject(createBizError(result.code, result.message));
     }
-    showBizError(result.code, result.message);
+    // 46001 同名数据集冲突是 r2-C4 的正常分叉（调用方弹二选一），不做统一错误提示
+    if (result.code !== 46001) {
+      showBizError(result.code, result.message);
+    }
     return Promise.reject(createBizError(result.code, result.message));
   },
   (error) => {
