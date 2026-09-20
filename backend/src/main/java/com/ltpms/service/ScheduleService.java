@@ -410,6 +410,87 @@ public class ScheduleService {
     }
 
     /**
+     * 单条新增课表记录（不走整表导入）：教师强制归属本人、管理员可指定教师，
+     * 校验口径与导入行一致，并内联解析时间槽、按需生成课程。
+     *
+     * @param semesterId    归属学期 ID
+     * @param row           课表单行（课程号/课程名/实验室/班级/人数/上课时间）
+     * @param currentUserId 当前登录用户 ID
+     * @param role          当前登录用户角色
+     * @return 新增的课表记录
+     */
+    @Transactional
+    public Schedule createOne(Long semesterId, ScheduleImportRow row, Long currentUserId, String role) {
+        if (semesterId == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "请指定学期");
+        }
+        if (row == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少课程信息");
+        }
+        if ("TEACHER".equals(role)) {
+            User self = userMapper.selectById(currentUserId);
+            if (self == null) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "无法识别当前登录教师，请重新登录");
+            }
+            row.setTeacherId(self.getId());
+            row.setTeacherNo(self.getUsername());
+        } else {
+            if (row.getTeacherId() == null) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择授课教师");
+            }
+            User teacher = userMapper.selectById(row.getTeacherId());
+            if (teacher == null || !"TEACHER".equals(teacher.getRole())) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "授课教师不存在或不是教师账号");
+            }
+            row.setTeacherNo(teacher.getUsername());
+        }
+
+        List<RowError> errors = new ArrayList<>();
+        validateRow(row, 1, errors);
+        if (ScheduleTimeParser.parse(row.getRawScheduleText()) == null) {
+            errors.add(new RowError(1, "上课时间无法识别，请按「周一第1-2节(1-16周)」格式填写"));
+        }
+        if (!errors.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, errors.get(0).message());
+        }
+
+        Schedule schedule = new Schedule();
+        schedule.setSemesterId(semesterId);
+        schedule.setCourseCode(row.getCourseCode());
+        schedule.setCourseName(row.getCourseName());
+        schedule.setTotalHours(row.getTotalHours() != null ? BigDecimal.valueOf(row.getTotalHours()) : BigDecimal.ZERO);
+        schedule.setTeacherId(row.getTeacherId());
+        schedule.setLabCode(row.getLabCode());
+        schedule.setClassNames(row.getClassNames());
+        schedule.setStudentCount(row.getStudentCount());
+        schedule.setRawScheduleText(row.getRawScheduleText());
+        scheduleMapper.insert(schedule);
+        replaceScheduleTime(schedule.getId(), row.getRawScheduleText());
+        generateCourses(semesterId, groupByCourse(List.of(row)));
+        return schedule;
+    }
+
+    /**
+     * 单条删除课表记录（教师限本人、管理员不限），级联删除其结构化时间槽。
+     *
+     * @param id            课表记录 ID
+     * @param currentUserId 当前登录用户 ID
+     * @param role          当前登录用户角色
+     */
+    @Transactional
+    public void deleteOne(Long id, Long currentUserId, String role) {
+        Schedule schedule = scheduleMapper.selectById(id);
+        if (schedule == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "课表记录不存在");
+        }
+        if ("TEACHER".equals(role) && !schedule.getTeacherId().equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除本人的课表记录");
+        }
+        scheduleTimeMapper.delete(new LambdaQueryWrapper<ScheduleTime>().eq(ScheduleTime::getScheduleId, id));
+        scheduleMapper.deleteById(id);
+    }
+
+    /**
      * 编辑课表行（教师限本人、管理员不限）：字段级 diff 落修订留痕，
      * 上课时间变更时重建结构化时间槽；管理员修订会通知对应教师。
      *

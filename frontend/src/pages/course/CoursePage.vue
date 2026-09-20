@@ -29,7 +29,10 @@
             </el-button>
           </template>
           <!-- 管理员统一入口（2026-09-20 权限边界）：实验项目菜单已移至本模块页头，进入后为只读视图 -->
-          <el-button v-else plain :icon="Box" @click="goExperimentProjects">实验项目</el-button>
+          <template v-else>
+            <el-button plain :icon="Plus" :disabled="!semesterId" @click="openScheduleCreate">新增课程</el-button>
+            <el-button plain :icon="Box" @click="goExperimentProjects">实验项目</el-button>
+          </template>
         </div>
       </div>
     </div>
@@ -48,8 +51,10 @@
         <div class="course-page__section-head">
           <span class="course-page__section-title">我的周课表</span>
           <span class="course-page__section-sub">
-            {{ scheduleItems.length > 0 ? '点击课程卡片可修改上课地点 / 班级 / 人数 / 时间' : '本学期尚未导入课表' }}
+            {{ scheduleItems.length > 0 ? '点击课程卡片可修改上课地点 / 班级 / 人数 / 时间，或单独移除' : '可导入整表，也可单条新增课程' }}
           </span>
+          <div class="course-page__section-spacer" />
+          <el-button :icon="Plus" :disabled="!semesterId" @click="openScheduleCreate">新增课程</el-button>
         </div>
         <WeekGrid :items="scheduleItems" :loading="scheduleLoading" @select="openScheduleEdit" />
       </section>
@@ -156,6 +161,14 @@
       @success="loadAll"
     />
 
+    <ScheduleCreateDialog
+      v-model="scheduleCreateVisible"
+      class="unit-dialog"
+      :semester-id="semesterId"
+      :select-teacher="isAdmin"
+      @success="loadAll"
+    />
+
     <ScheduleEditDialog
       v-model="editVisible"
       class="unit-dialog"
@@ -187,10 +200,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Box, Camera, Upload } from '@element-plus/icons-vue';
+import { Box, Camera, Plus, Upload } from '@element-plus/icons-vue';
 import CourseEditDialog from '@/components/schedule/CourseEditDialog.vue';
 import ImportDialog from '@/components/ImportDialog.vue';
 import RevisionDrawer from '@/components/schedule/RevisionDrawer.vue';
+import ScheduleCreateDialog from '@/components/schedule/ScheduleCreateDialog.vue';
 import ScheduleEditDialog from '@/components/schedule/ScheduleEditDialog.vue';
 import SchedulePhotoImportDialog from '@/components/SchedulePhotoImportDialog.vue';
 import WeekGrid from '@/components/schedule/WeekGrid.vue';
@@ -222,6 +236,7 @@ const courseRevisionFlags = ref<Record<string, number>>({});
 
 const editVisible = ref(false);
 const editingItem = ref<IMyScheduleItem | null>(null);
+const scheduleCreateVisible = ref(false);
 const courseEditVisible = ref(false);
 const editingCourse = ref<ICourse | null>(null);
 
@@ -331,6 +346,12 @@ function openScheduleEdit(item: IMyScheduleItem): void {
   editVisible.value = true;
 }
 
+/** 单独新增课程（教师归本人 / 管理员指定教师），无需整表重新导入 */
+function openScheduleCreate(): void {
+  tickUnitLed();
+  scheduleCreateVisible.value = true;
+}
+
 function openCourseEdit(course: ICourse | null): void {
   if (!course) return;
   tickUnitLed();
@@ -407,6 +428,10 @@ onBeforeUnmount(() => {
   &__section-sub {
     font-size: 12px;
     color: var(--text-quaternary);
+  }
+
+  &__section-spacer {
+    flex: 1;
   }
 
   &__cards {

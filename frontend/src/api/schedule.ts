@@ -1,5 +1,5 @@
 /** 课表模块 /schedules */
-import { download, get, post, put, upload } from '@/utils/request';
+import { del, download, get, post, put, upload } from '@/utils/request';
 import type {
   IImportPreview,
   IMyScheduleItem,
@@ -26,6 +26,28 @@ export function apiMySchedules(params: {
   teacherId?: number;
 }): Promise<IMyScheduleItem[]> {
   return get<IMyScheduleItem[]>('/schedules/mine', params);
+}
+
+/** 单条新增课表记录：教师自动归属本人；管理员需带 teacherId 指定教师 */
+export function apiCreateSchedule(
+  semesterId: number,
+  body: {
+    courseCode: string;
+    courseName: string;
+    totalHours?: number | null;
+    teacherId?: number;
+    labCode: string;
+    classNames?: string;
+    studentCount: number | null;
+    rawScheduleText: string;
+  },
+): Promise<ISchedule> {
+  return post<ISchedule>('/schedules', body, { params: { semesterId } });
+}
+
+/** 单条删除课表记录：教师限本人、管理员不限 */
+export function apiDeleteSchedule(id: number): Promise<void> {
+  return del<void>(`/schedules/${id}`);
 }
 
 /** 编辑课表行（null 字段不修改） */

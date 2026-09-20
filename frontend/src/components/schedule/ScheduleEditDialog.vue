@@ -47,6 +47,7 @@
     </el-form>
 
     <template #footer>
+      <el-button type="danger" plain :loading="removing" @click="handleRemove">移除该课程</el-button>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
       <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
     </template>
@@ -55,9 +56,9 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { apiGetLabOpeningOverview } from '@/api/labOpening';
-import { apiUpdateSchedule } from '@/api/schedule';
+import { apiDeleteSchedule, apiUpdateSchedule } from '@/api/schedule';
 import type { IMyScheduleItem } from '@/types/api';
 
 const props = defineProps<{
@@ -73,6 +74,7 @@ const emit = defineEmits<{
 }>();
 
 const saving = ref(false);
+const removing = ref(false);
 const labs = ref<{ labCode: string; labName: string }[]>([]);
 const form = reactive({
   labCode: '',
@@ -111,6 +113,32 @@ async function handleSave(): Promise<void> {
     // 错误由 request 拦截器统一提示
   } finally {
     saving.value = false;
+  }
+}
+
+/** 单独移除本课表记录：只删该条及其时间槽，课程与实验数据保留 */
+async function handleRemove(): Promise<void> {
+  if (!props.item) return;
+  try {
+    await ElMessageBox.confirm(
+      `从本学期课表中移除「${props.item.courseName}」（${props.item.courseCode}）？`
+        + '仅移除本条课表记录及其时间槽，课程与实验数据保留。',
+      '移除课程',
+      { type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消' },
+    );
+  } catch {
+    return;
+  }
+  removing.value = true;
+  try {
+    await apiDeleteSchedule(props.item.id);
+    ElMessage.success('已移除');
+    emit('update:modelValue', false);
+    emit('success');
+  } catch {
+    // 错误由 request 拦截器统一提示
+  } finally {
+    removing.value = false;
   }
 }
 </script>

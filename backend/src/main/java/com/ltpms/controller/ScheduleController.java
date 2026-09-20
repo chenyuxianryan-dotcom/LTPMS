@@ -5,6 +5,7 @@ import com.ltpms.common.PageResult;
 import com.ltpms.common.Result;
 import com.ltpms.dto.ScheduleEditRequest;
 import com.ltpms.dto.ScheduleImportRequest;
+import com.ltpms.dto.ScheduleImportRow;
 import com.ltpms.dto.UploadRemindRequest;
 import com.ltpms.entity.Schedule;
 import com.ltpms.service.ScheduleService;
@@ -151,6 +152,32 @@ public class ScheduleController {
             @RequestParam(required = false) Integer week,
             @RequestParam(required = false) Long teacherId) {
         return Result.success(scheduleService.mine(semesterId, week, getCurrentUserId(), getCurrentRole(), teacherId));
+    }
+
+    /**
+     * 单条新增课表记录（教师限本人课表；管理员可指定教师）。
+     *
+     * @param semesterId 归属学期 ID
+     * @param row        课表单行（课程号/课程名/总学时/实验室编号/上课班级/选课人数/上课时间）
+     * @return 新增的课表记录
+     */
+    @PostMapping
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<Schedule> create(@RequestParam Long semesterId, @RequestBody ScheduleImportRow row) {
+        return Result.success(scheduleService.createOne(semesterId, row, getCurrentUserId(), getCurrentRole()));
+    }
+
+    /**
+     * 单条删除课表记录（教师限本人、管理员不限）。
+     *
+     * @param id 课表记录 ID
+     * @return 操作结果
+     */
+    @DeleteMapping("/{id}")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<Void> deleteOne(@PathVariable Long id) {
+        scheduleService.deleteOne(id, getCurrentUserId(), getCurrentRole());
+        return Result.success();
     }
 
     /**

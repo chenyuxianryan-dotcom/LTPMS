@@ -1,5 +1,5 @@
 <template>
-  <div v-loading="loading" class="week-grid">
+  <div ref="gridRef" v-loading="loading" class="week-grid">
     <div class="week-grid__head">
       <div class="week-grid__corner">节次</div>
       <div
@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { EditPen } from '@element-plus/icons-vue';
 import { SECTION_OPTIONS, WEEKDAY_LABELS, WEEK_TYPE_MAP } from '@/constants';
 import { courseColor } from '@/utils/courseColor';
@@ -68,8 +68,34 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'select', item: IMyScheduleItem): void }>();
 
-const ROW_HEIGHT = 64;
-const CARD_GAP = 4;
+/** 行高自适应区间：整张周课表在单屏内完整显示（矮屏压缩、宽屏保持紧凑默认值） */
+const ROW_HEIGHT_MAX = 48;
+const ROW_HEIGHT_MIN = 36;
+const BOTTOM_GAP = 32;
+const CARD_GAP = 2;
+
+const gridRef = ref<HTMLElement>();
+const rowHeight = ref(ROW_HEIGHT_MAX);
+
+/** 按可视高度回算行高，并同步写回 CSS 变量（卡片定位与表体网格严格同源） */
+function fitRowHeight(): void {
+  const el = gridRef.value;
+  if (!el) return;
+  const headHeight = el.querySelector<HTMLElement>('.week-grid__head')?.offsetHeight ?? 28;
+  const available = window.innerHeight - el.getBoundingClientRect().top - BOTTOM_GAP;
+  const raw = Math.floor((available - headHeight) / SECTION_OPTIONS.length);
+  rowHeight.value = Math.min(ROW_HEIGHT_MAX, Math.max(ROW_HEIGHT_MIN, raw));
+  el.style.setProperty('--week-row-height', `${rowHeight.value}px`);
+}
+
+onMounted(() => {
+  fitRowHeight();
+  window.addEventListener('resize', fitRowHeight);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', fitRowHeight);
+});
 
 interface IWeekCard {
   key: string;
@@ -111,8 +137,8 @@ const cardsByDay = computed<Map<number, IWeekCard[]>>(() => {
     for (const cluster of clusters) {
       const count = cluster.entries.length;
       cluster.entries.forEach((entry, index) => {
-        const top = (entry.slot.startSection - 1) * ROW_HEIGHT;
-        const height = (entry.slot.endSection - entry.slot.startSection + 1) * ROW_HEIGHT - CARD_GAP;
+        const top = (entry.slot.startSection - 1) * rowHeight.value;
+        const height = (entry.slot.endSection - entry.slot.startSection + 1) * rowHeight.value - CARD_GAP;
         const left = count === 1 ? '3px' : `calc(${(index * 100) / count}% + 2px)`;
         const width = count === 1 ? 'calc(100% - 6px)' : `calc(${100 / count}% - 4px)`;
         cards.push({
@@ -155,9 +181,9 @@ function labText(card: IWeekCard): string {
 
 <style scoped lang="scss">
 .week-grid {
-  --week-row-height: 64px;
+  --week-row-height: 48px;
   width: 100%;
-  min-width: 720px;
+  min-width: 640px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -165,15 +191,15 @@ function labText(card: IWeekCard): string {
 
   &__head {
     display: grid;
-    grid-template-columns: 64px repeat(7, minmax(90px, 1fr));
+    grid-template-columns: 56px repeat(7, minmax(80px, 1fr));
     border-bottom: 1px solid var(--border-default);
   }
 
   &__corner,
   &__head-cell {
-    padding: var(--space-2) var(--space-2);
+    padding: 4px 6px;
     text-align: center;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
     background: var(--bg-subtle);
@@ -195,7 +221,7 @@ function labText(card: IWeekCard): string {
 
   &__body {
     display: grid;
-    grid-template-columns: 64px repeat(7, minmax(90px, 1fr));
+    grid-template-columns: 56px repeat(7, minmax(80px, 1fr));
   }
 
   &__sections {
@@ -207,7 +233,7 @@ function labText(card: IWeekCard): string {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-tertiary);
     background: var(--bg-subtle);
     border-bottom: 1px solid var(--border-subtle);
@@ -257,8 +283,8 @@ function labText(card: IWeekCard): string {
   position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 5px 7px;
+  gap: 0;
+  padding: 2px 6px;
   border: 1px solid;
   border-radius: var(--radius-md);
   text-align: left;
@@ -275,15 +301,15 @@ function labText(card: IWeekCard): string {
   &__name {
     font-size: 12px;
     font-weight: 600;
-    line-height: 16px;
+    line-height: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   &__meta {
-    font-size: 11px;
-    line-height: 14px;
+    font-size: 10px;
+    line-height: 12px;
     opacity: 0.85;
     white-space: nowrap;
     overflow: hidden;
