@@ -1,0 +1,73 @@
+# 实验项目×课题项目 合并改造 全站文案 grep 清单（批次三前置工件，2026-09-20 实测）
+
+## frontend
+frontend/src/api/experiment.ts: 2
+frontend/src/api/project.ts: 3
+frontend/src/components/ArchiveDialog.vue: 1
+frontend/src/components/PersonDossier.vue: 1
+frontend/src/components/StatGridCard.vue: 1
+frontend/src/constants/index.ts: 4
+frontend/src/layouts/BasicLayout.vue: 2
+frontend/src/pages/course/CoursePage.vue: 2
+frontend/src/pages/dashboard/DashboardPage.vue: 10
+frontend/src/pages/dict/DictPage.vue: 1
+frontend/src/pages/experiment/ExperimentPage.vue: 15
+frontend/src/pages/landing/LandingPage.vue: 4
+frontend/src/pages/project/components/DatasetTab.vue: 1
+frontend/src/pages/project/components/MemberTab.vue: 1
+frontend/src/pages/project/components/TaskFormDrawer.vue: 1
+frontend/src/pages/project/MyTasksPage.vue: 2
+frontend/src/pages/project/ProjectDetailPage.vue: 7
+frontend/src/pages/project/ProjectPage.vue: 13
+frontend/src/pages/project/projectUtils.ts: 1
+frontend/src/pages/report/ReportPage.vue: 3
+frontend/src/router/index.ts: 3
+frontend/src/types/api.d.ts: 5
+
+## backend(注释/文案/枚举外的用户可见串)
+backend/src/main/java/com/ltpms/common/ErrorCode.java: 3
+backend/src/main/java/com/ltpms/config/SecurityConfig.java: 1
+backend/src/main/java/com/ltpms/controller/CourseController.java: 2
+backend/src/main/java/com/ltpms/controller/DatasetController.java: 1
+backend/src/main/java/com/ltpms/controller/ExperimentController.java: 19
+backend/src/main/java/com/ltpms/controller/NlqController.java: 1
+backend/src/main/java/com/ltpms/controller/ProjectController.java: 5
+backend/src/main/java/com/ltpms/controller/StudentController.java: 1
+backend/src/main/java/com/ltpms/controller/TaskController.java: 2
+backend/src/main/java/com/ltpms/dto/DashboardStats.java: 4
+backend/src/main/java/com/ltpms/dto/ExperimentRequest.java: 1
+backend/src/main/java/com/ltpms/dto/InsightStats.java: 1
+backend/src/main/java/com/ltpms/dto/project/MemberAddRequest.java: 1
+backend/src/main/java/com/ltpms/dto/project/ProjectRequest.java: 1
+backend/src/main/java/com/ltpms/entity/Experiment.java: 1
+backend/src/main/java/com/ltpms/entity/LabDataset.java: 1
+backend/src/main/java/com/ltpms/entity/LabProject.java: 1
+backend/src/main/java/com/ltpms/entity/LabProjectMember.java: 1
+backend/src/main/java/com/ltpms/entity/LabProjectTask.java: 1
+backend/src/main/java/com/ltpms/mapper/ExperimentMapper.java: 1
+backend/src/main/java/com/ltpms/service/CourseService.java: 3
+backend/src/main/java/com/ltpms/service/DashboardService.java: 9
+backend/src/main/java/com/ltpms/service/DatasetService.java: 2
+backend/src/main/java/com/ltpms/service/ExperimentService.java: 27
+backend/src/main/java/com/ltpms/service/InsightService.java: 6
+backend/src/main/java/com/ltpms/service/NotificationService.java: 2
+backend/src/main/java/com/ltpms/service/ProjectAuthService.java: 6
+backend/src/main/java/com/ltpms/service/ProjectService.java: 7
+backend/src/main/java/com/ltpms/service/ProjectStatsService.java: 4
+backend/src/main/java/com/ltpms/service/ReportService.java: 3
+backend/src/main/java/com/ltpms/service/RevisionService.java: 1
+backend/src/main/java/com/ltpms/service/StudentService.java: 5
+backend/src/main/java/com/ltpms/service/TaskService.java: 7
+backend/src/main/java/com/ltpms/util/CodeGenerator.java: 2
+
+## nlq-service
+nlq-service/app/routers/nlq.py: 1
+nlq-service/app/services/archive_service.py: 6
+nlq-service/app/services/dossier_sql.py: 1
+nlq-service/app/services/permission.py: 1
+nlq-service/app/services/person_tools.py: 10
+nlq-service/app/services/skill_loader.py: 1
+nlq-service/app/services/text_generation.py: 4
+
+## database
+16
