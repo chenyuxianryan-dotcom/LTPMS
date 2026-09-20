@@ -111,6 +111,8 @@ function openAdd(): void {
   candidates.value = [];
   searchKeyword.value = '';
   addVisible.value = true;
+  // 打开即拉取候选（排除已在组学生）：避免弹窗停留在"暂无数据"造成无法添加的错觉
+  void handleSearch();
 }
 
 async function handleSearch(): Promise<void> {

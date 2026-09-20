@@ -53,7 +53,7 @@
         <div class="stat-card__label">全校实验项目总数</div>
         <div class="stat-card__value">{{ reportData.summary.experimentCount }}</div>
       </div>
-      <div class="stat-card unit-readout">
+      <div v-if="activeTab === 'person-hours'" class="stat-card unit-readout">
         <div class="stat-card__label">全校总人时数</div>
         <div class="stat-card__value">{{ reportData.summary.totalPersonHours }}</div>
       </div>
@@ -208,11 +208,12 @@ const reportData = ref<IReportData | null>(null);
 const loading = ref(false);
 const loaded = ref(false);
 
+/** 明细列：样本行缺省（undefined/null）的列自动隐藏——课程项目统计表的 personHours 为 null，不参与渲染 */
 const columns = computed(() => {
   const rows = reportData.value?.detail ?? [];
   if (rows.length === 0) return [];
   const sample = rows[0];
-  return COLUMN_DEFS.filter((col) => sample[col.key] !== undefined);
+  return COLUMN_DEFS.filter((col) => sample[col.key] !== undefined && sample[col.key] !== null);
 });
 
 const detailRows = computed<IReportRow[]>(() => reportData.value?.detail ?? []);
