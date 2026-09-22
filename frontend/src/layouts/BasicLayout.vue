@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Clock, Collection, DataAnalysis, List, Notebook, Odometer, OfficeBuilding, TrendCharts, User } from '@element-plus/icons-vue';
+import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Clock, Collection, DataAnalysis, Files, List, Notebook, Odometer, OfficeBuilding, TrendCharts, User } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AvatarPickerDialog from '@/components/AvatarPickerDialog.vue';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue';
@@ -183,6 +183,8 @@ const MENU_ITEMS: { path: string; title: string; icon: Component; roles?: string
   { path: '/teachers', title: '教师管理', icon: User, roles: [ROLE.ADMIN] },
   { path: '/courses', title: '课程管理', icon: Notebook, roles: [ROLE.ADMIN, ROLE.TEACHER] },
   { path: '/reports', title: '报表中心', icon: DataAnalysis, roles: [ROLE.ADMIN, ROLE.TEACHER] },
+  // 锁① 知识域：制度与流程由管理员在此维护（上传即向量化）；教师侧入口在「课程管理」各课程卡片的「课程资料」
+  { path: '/knowledge', title: '制度与流程', icon: Files, roles: [ROLE.ADMIN] },
   { path: '/dicts', title: '字典管理', icon: Collection, roles: [ROLE.ADMIN] },
 ];
 
