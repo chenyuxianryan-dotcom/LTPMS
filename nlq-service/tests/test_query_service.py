@@ -124,6 +124,77 @@ class TestExecuteQuery:
         assert "查询执行失败" in r["error"]
 
 
+class TestNotADataQuestion:
+    """模型自陈「非数据问题」时的短路：不打库、不重试，带 44001 交给前端转顾问。
+
+    背景：制度/流程/资料类提问没有对应业务表，硬凑 SQL 只会报「表不存在」，
+    或者更糟——模型直接去捞知识库原文（无出处、绕过可见性），所以由模型显式
+    拒绝、链路立即结束，前端据 error_code 转阿实走 knowledge_search。
+    """
+
+    async def test_sentinel_short_circuits_with_unsafe_code(self, monkeypatch):
+        monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
+
+        calls = []
+
+        async def deepseek(messages):
+            calls.append(messages)
+            return "NOT_A_DATA_QUESTION"
+
+        monkeypatch.setattr(query_service, "call_deepseek", deepseek)
+
+        executed = []
+
+        async def execute(sql):
+            executed.append(sql)
+            return [], []
+
+        monkeypatch.setattr(query_service.db, "execute_with_columns", execute)
+
+        r = await query_service.execute_query("实验课请假要提前多久", "ADMIN", 1)
+
+        assert r["success"] is False
+        assert r["error_code"] == "NLQ_UNSAFE"
+        assert executed == []  # 非数据问题绝不触库
+        assert len(calls) == 1  # 不进入修复回合
+
+    async def test_sentinel_wins_over_trailing_sql(self, monkeypatch):
+        # 混写（哨兵 + 半截 SQL）一律按非数据问题处理：畸形输出不该硬跑
+        monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
+
+        async def deepseek(_):
+            return "NOT_A_DATA_QUESTION\nSELECT lab_code FROM laboratory"
+
+        monkeypatch.setattr(query_service, "call_deepseek", deepseek)
+
+        executed = []
+
+        async def execute(sql):
+            executed.append(sql)
+            return [], []
+
+        monkeypatch.setattr(query_service.db, "execute_with_columns", execute)
+
+        r = await query_service.execute_query("实验室管理规范是什么", "ADMIN", 1)
+
+        assert r["success"] is False
+        assert r["error_code"] == "NLQ_UNSAFE"
+        assert executed == []
+
+    async def test_failure_without_sentinel_has_no_error_code(self, monkeypatch):
+        monkeypatch.setattr(query_service, "build_messages", _fake_build_messages)
+
+        async def deepseek(_):
+            return "DELETE FROM course"
+
+        monkeypatch.setattr(query_service, "call_deepseek", deepseek)
+
+        r = await query_service.execute_query("删掉课程", "ADMIN", 1)
+
+        assert r["success"] is False
+        assert r["error_code"] is None  # 危险 SQL 不是「非数据问题」，前端按普通失败展示
+
+
 class TestRepairRound:
     """校验/执行失败时带错误反馈重生成一次（上限 1 次修复）"""
 

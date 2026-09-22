@@ -35,6 +35,10 @@ ltpms:
     lab-file-dir: ${UPLOAD_LAB_FILE_DIR:./uploads/lab}
     # 课题数据集单文件大小上限（MB，配置项）
     lab-max-file-size-mb: ${UPLOAD_LAB_MAX_FILE_MB:50}
+    # 知识库文档私有存储目录（不进静态放行，下载一律鉴权接口）
+    kb-file-dir: ${UPLOAD_KB_FILE_DIR:./uploads/kb}
+    # 知识库单文件大小上限（MB）
+    kb-max-file-size-mb: ${UPLOAD_KB_MAX_FILE_MB:20}
   nlq:
     service-url: ${NLQ_SERVICE_URL:http://localhost:8001}
     internal-token: ${NLQ_INTERNAL_TOKEN:}

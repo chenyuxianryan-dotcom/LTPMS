@@ -40,11 +40,16 @@ class SchemaCache:
         self._last_refresh = datetime.now()
 
     async def _load_tables(self):
+        # knowledge_* 是 Agent 的知识库通道：只经 knowledge_search 检索（带出处引用
+        # 与可见性过滤）。若把这两表交给 NL2SQL，模型会绕过该通道直接捞原文——
+        # 既没有出处标注，也不套知识库 ACL（教师侧还会撞权限层被拒）。
+        # 用 LEFT() 而非 LIKE 'knowledge%'：库层的 % 参数插值会把字面量 % 当占位符炸掉。
         sql = """
         SELECT TABLE_NAME as `name`, COLUMN_NAME as `column`, COLUMN_TYPE as `type`,
                COLUMN_KEY as `key`, COLUMN_COMMENT as `comment`
         FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE()
+          AND LEFT(TABLE_NAME, 9) <> 'knowledge'
         ORDER BY TABLE_NAME, ORDINAL_POSITION
         """
         return await db.execute(sql)

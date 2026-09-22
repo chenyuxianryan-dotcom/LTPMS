@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     zhipu_api_url: str = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
     zhipu_vision_model: str = "glm-4v-flash"
 
+    # DashScope 文本向量化（知识库检索）；key 为空时知识库检索优雅降级
+    dashscope_api_key: str = ""
+    embedding_api_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings"
+    embedding_model: str = "text-embedding-v4"
+    embedding_dim: int = 1024
+    embedding_timeout: float = 30.0
+
     db_host: str = "127.0.0.1"
     db_port: int = 3306
     db_name: str = "ltpms_db"

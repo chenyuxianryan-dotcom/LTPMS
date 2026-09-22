@@ -344,6 +344,14 @@ export interface INlqResult {
   rowCount?: number;
   executionTime?: number;
   error?: string;
+  /** 非数据问题（制度/流程/资料）：服务端接力顾问的作答与出处轨迹 */
+  consult?: IConsultResult | null;
+}
+
+/** 顾问接力作答（问题不是数据问题时由服务端同请求转阿实） */
+export interface IConsultResult {
+  answer: string;
+  steps: IAgentStep[];
 }
 
 /** Agent 单步工具调用轨迹 */
@@ -373,6 +381,28 @@ export interface IDossierToolResult {
   error?: string;
   display?: { blocks: IDossierBlock[] };
   model_view?: { dimension?: string; count?: number; digest?: string; person_ref?: string };
+}
+
+/** knowledge_search 命中的段落：带出处字段，上屏只读不改写 */
+export interface IKnowledgeBlock {
+  documentId: number;
+  title: string;
+  heading: string | null;
+  /** 来源分类中文名：制度与流程 / 课程资料 */
+  source: string;
+  courseName: string | null;
+  content: string;
+  /** 检索得分（余弦相似度 + 关键词加权），仅用于排查，不上屏 */
+  score: number;
+}
+
+/** 知识库检索工具返回结构（双份载荷：display 带原文上屏，model_view 摘要回喂模型） */
+export interface IKnowledgeToolResult {
+  ok: boolean;
+  count?: number;
+  error?: string;
+  display?: { blocks: IKnowledgeBlock[] };
+  model_view?: { count?: number; matches?: unknown[]; note?: string };
 }
 
 /** Agent 多轮对话结果（nlq-service 返回 snake_case） */

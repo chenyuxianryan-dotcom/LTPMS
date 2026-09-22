@@ -1,5 +1,12 @@
 <template>
   <div class="page-container unit-skin">
+    <CourseMaterialDialog
+      v-model="materialVisible"
+      :course-id="materialCourse?.id ?? 0"
+      :course-name="materialCourse?.courseName ?? ''"
+      class="unit-dialog"
+    />
+
     <div class="page-header unit-head">
       <div class="unit-head__id">
         <div class="page-header__title">课程管理</div>
@@ -94,6 +101,7 @@
             </div>
             <div class="course-card__actions">
               <el-button link size="small" @click="goExperiments(course)">实验项目</el-button>
+              <el-button link size="small" @click="openCourseMaterial(course)">课程资料</el-button>
               <el-button link size="small" @click="openCourseEdit(course)">编辑</el-button>
               <el-button
                 v-if="revisionCount(course) > 0"
@@ -202,6 +210,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Box, Camera, Plus, Upload } from '@element-plus/icons-vue';
 import CourseEditDialog from '@/components/schedule/CourseEditDialog.vue';
+import CourseMaterialDialog from '@/components/CourseMaterialDialog.vue';
 import ImportDialog from '@/components/ImportDialog.vue';
 import RevisionDrawer from '@/components/schedule/RevisionDrawer.vue';
 import ScheduleCreateDialog from '@/components/schedule/ScheduleCreateDialog.vue';
@@ -239,6 +248,8 @@ const editingItem = ref<IMyScheduleItem | null>(null);
 const scheduleCreateVisible = ref(false);
 const courseEditVisible = ref(false);
 const editingCourse = ref<ICourse | null>(null);
+const materialVisible = ref(false);
+const materialCourse = ref<ICourse | null>(null);
 
 const revisionVisible = ref(false);
 const revisionTitle = ref('');
@@ -357,6 +368,14 @@ function openCourseEdit(course: ICourse | null): void {
   tickUnitLed();
   editingCourse.value = course;
   courseEditVisible.value = true;
+}
+
+/** 课程资料入库（教师自助）：入库后阿实可带出处回答本课程问题 */
+function openCourseMaterial(course: ICourse | null): void {
+  if (!course) return;
+  tickUnitLed();
+  materialCourse.value = course;
+  materialVisible.value = true;
 }
 
 function openScheduleRevisions(item: IMyScheduleItem | null): void {

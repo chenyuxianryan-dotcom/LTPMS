@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from app.services.agent_service import run_agent_query
 from app.services.archive_service import ArchiveCache, generate_archive
+from app.services.embeddings import EmbeddingUnavailableError, embed_texts
 from app.services.narrative_service import generate_narrative
 from app.services.query_service import execute_query
 from app.services.schema_cache import schema_cache
@@ -50,6 +51,8 @@ class QueryResponse(BaseModel):
     row_count: int | None = None
     execution_time: int | None = None
     error: str | None = None
+    # 机器可读的失败分类（当前只有 NLQ_UNSAFE：问题本身不是数据问题）
+    error_code: str | None = None
 
 
 class RecognizeRequest(BaseModel):
@@ -87,6 +90,19 @@ class NarrativeResponse(BaseModel):
     error: str | None = None
 
 
+class EmbedRequest(BaseModel):
+    texts: list[str]
+    # document=入库文本 / query=检索提问；编码方向不同，混用会掉召回
+    text_type: str = "document"
+
+
+class EmbedResponse(BaseModel):
+    success: bool
+    vectors: list[list[float]] = []
+    dim: int = 0
+    error: str | None = None
+
+
 @router.post("/query", response_model=QueryResponse)
 async def query(
     request: QueryRequest,
@@ -104,6 +120,7 @@ async def query(
         row_count=result["row_count"],
         execution_time=result["execution_time"],
         error=result["error"],
+        error_code=result.get("error_code"),
         suggestions=generate_suggestions(question, result["columns"]),
     )
 
@@ -168,6 +185,20 @@ async def narrative(
         scope=result["scope"],
         error=result["error"],
     )
+
+
+@router.post("/embed", response_model=EmbedResponse)
+async def embed(request: EmbedRequest):
+    """批量文本向量化（内部端点，Java 侧文档入库专用）：最多 10 条/请求。"""
+    if not request.texts:
+        return EmbedResponse(success=False, error="texts 不能为空")
+    if len(request.texts) > 10:
+        return EmbedResponse(success=False, error="单次最多 10 条文本")
+    try:
+        vectors = await embed_texts(request.texts, request.text_type)
+    except EmbeddingUnavailableError as e:
+        return EmbedResponse(success=False, error=str(e))
+    return EmbedResponse(success=True, vectors=vectors, dim=len(vectors[0]) if vectors else 0)
 
 
 def generate_suggestions(question: str, columns: list[str] | None = None) -> list[str]:

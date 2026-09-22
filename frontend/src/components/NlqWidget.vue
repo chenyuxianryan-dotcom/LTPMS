@@ -35,7 +35,10 @@
             v-for="(msg, index) in messages"
             :key="index"
             class="nlq-widget__msg"
-            :class="[`is-${msg.role}`, { 'has-dossier': dossierSteps(msg.steps).length > 0 }]"
+            :class="[
+              `is-${msg.role}`,
+              { 'has-dossier': dossierSteps(msg.steps).length > 0 || knowledgeSteps(msg.steps).length > 0 },
+            ]"
           >
             <div class="nlq-widget__msg-bubble">{{ msg.content }}</div>
 
@@ -44,6 +47,13 @@
               v-if="dossierSteps(msg.steps).length > 0"
               :steps="msg.steps ?? []"
               class="nlq-widget__dossier"
+            />
+
+            <!-- 知识库出处：段落原文 + 出处（《标题》· 段落标题），未命中挂「非课程指定」 -->
+            <KnowledgeSources
+              v-if="msg.role === 'assistant'"
+              :steps="msg.steps ?? []"
+              class="nlq-widget__sources"
             />
 
             <!-- 其余工具过程折叠展示 -->
@@ -137,6 +147,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Close } from '@element-plus/icons-vue';
+import KnowledgeSources from '@/components/KnowledgeSources.vue';
 import PersonDossier from '@/components/PersonDossier.vue';
 import { apiNlqAgent } from '@/api/nlq';
 import { ERROR_CODE, NLQ_EXAMPLES } from '@/constants';
@@ -201,8 +212,13 @@ function resolveErrorText(bizError: IBizError): string {
   return bizError.message || '查询失败，请稍后重试';
 }
 
-/** 档案工具带 display.blocks（原始行要上屏）；其余工具只在轨迹里留一行 */
+/** 知识库检索单独出出处卡；档案工具带 display.blocks（原始行要上屏）；其余工具只在轨迹里留一行 */
+function isKnowledgeStep(step: IAgentStep): boolean {
+  return step.tool === 'knowledge_search';
+}
+
 function isDossierStep(step: IAgentStep): boolean {
+  if (isKnowledgeStep(step)) return false;
   const result = step.result as { display?: { blocks?: unknown } } | undefined;
   return Array.isArray(result?.display?.blocks);
 }
@@ -211,8 +227,12 @@ function dossierSteps(steps?: IAgentStep[]): IAgentStep[] {
   return (steps ?? []).filter(isDossierStep);
 }
 
+function knowledgeSteps(steps?: IAgentStep[]): IAgentStep[] {
+  return (steps ?? []).filter(isKnowledgeStep);
+}
+
 function plainSteps(steps?: IAgentStep[]): IAgentStep[] {
-  return (steps ?? []).filter((step) => !isDossierStep(step));
+  return (steps ?? []).filter((step) => !isDossierStep(step) && !isKnowledgeStep(step));
 }
 
 async function scrollToBottom(): Promise<void> {
@@ -485,6 +505,10 @@ onBeforeUnmount(() => {
   &__dossier {
     align-self: stretch;
     margin-top: 6px;
+  }
+
+  &__sources {
+    align-self: stretch;
   }
 
   &__msg-bubble {

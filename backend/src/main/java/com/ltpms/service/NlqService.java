@@ -23,6 +23,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -99,7 +100,34 @@ public class NlqService {
             saveHistory(userId, role, request.getQuestion(), generatedSql, resultSummary, success);
         }
 
+        // 非数据问题（制度/流程/资料）：同请求内接力转 Agent 走知识库检索，答案与出处
+        // 放进 consult 字段一起返回。刻意不再让前端另发一次请求——限流器是 1 次/6 秒
+        // 的平滑桶（无突发额度），背靠背的第二次调用必然 429，用户只会看到「查询过于频繁」。
+        if (result != null && "NLQ_UNSAFE".equals(result.get("error_code"))) {
+            return consultFallback(request.getQuestion(), userId, role, result);
+        }
+
         return result;
+    }
+
+    /**
+     * 非数据问题的顾问接力：转发 Agent（knowledge_search 带出处作答），
+     * 包成 {success=false, error_code=NLQ_UNSAFE, consult={answer, steps}}。
+     *
+     * @param question 原问题
+     * @param userId   当前用户 ID
+     * @param role     当前用户角色
+     * @param queryResult NL2SQL 服务返回的原响应（取 error 文案）
+     * @return 供前端渲染「顾问作答」卡片的结果体
+     */
+    private Map<String, Object> consultFallback(String question, Long userId, String role,
+                                                Map<String, Object> queryResult) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", false);
+        body.put("error", queryResult.get("error"));
+        body.put("error_code", "NLQ_UNSAFE");
+        body.put("consult", forwardAgent(question, userId, role, null));
+        return body;
     }
 
     /**
@@ -112,14 +140,18 @@ public class NlqService {
      * @return Agent 服务返回的 {answer, steps, steps_used, error}
      * @throws BusinessException 当触发限流或 Agent 服务调用失败时抛出
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> agent(NlqRequest request, Long userId, String role) {
         RateLimiter limiter = rateLimiters.computeIfAbsent(userId,
                 k -> RateLimiter.create(nlqProperties.getRateLimitPerMinute() / 60.0));
         if (!limiter.tryAcquire()) {
             throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS);
         }
+        return forwardAgent(request.getQuestion(), userId, role, request);
+    }
 
+    /** Agent 转发本体（不含限流）：独立入口与 /query 的顾问接力共用 */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> forwardAgent(String question, Long userId, String role, NlqRequest source) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Internal-Token", nlqProperties.getInternalToken());
@@ -127,11 +159,11 @@ public class NlqService {
         headers.set("X-User-Role", role);
 
         Map<String, Object> body = new HashMap<>();
-        body.put("question", request.getQuestion());
-        if (request.getHistory() != null) {
-            body.put("history", request.getHistory());
+        body.put("question", question);
+        if (source != null && source.getHistory() != null) {
+            body.put("history", source.getHistory());
         }
-        if (Boolean.TRUE.equals(request.getSelfDossier())) {
+        if (source != null && Boolean.TRUE.equals(source.getSelfDossier())) {
             body.put("self_dossier", true);
         }
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);

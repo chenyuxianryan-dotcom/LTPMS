@@ -16,6 +16,11 @@ from app.utils.db import db
 # 首答 + 一次带错误反馈的修复，避免小毛病直接判死刑
 MAX_ATTEMPTS = 2
 
+# 「这不是数据问题」的哨兵：知识类提问（制度/流程/资料/概念）不该硬凑 SQL。
+# 命中即直接结束本轮并带上 44001，前端据此把问题转给阿实顾问（知识库检索带出处）。
+NOT_A_DATA_SENTINEL = "NOT_A_DATA_QUESTION"
+NOT_A_DATA_CODE = "NLQ_UNSAFE"
+
 
 async def execute_query(question: str, role: str, user_id: int) -> dict:
     """执行一次自然语言查询，返回结构化结果。
@@ -39,6 +44,9 @@ async def execute_query(question: str, role: str, user_id: int) -> dict:
                 messages = build_repair_messages(messages, failed_sql, repair_feedback)
 
             raw_sql = await call_deepseek(messages)
+            if _is_not_a_data_question(raw_sql):
+                # 不重试：模型已经明确这不是查数问题，修复回合只会逼它编表名
+                return _fail("该问题不是数据查询问题", NOT_A_DATA_CODE)
             model_sql = extract_sql(raw_sql)
             failed_sql = model_sql
 
@@ -73,6 +81,7 @@ async def execute_query(question: str, role: str, user_id: int) -> dict:
                 "row_count": len(data_rows),
                 "execution_time": int((time.time() - start) * 1000),
                 "error": None,
+                "error_code": None,
             }
 
         return _fail(last_error or "查询执行失败：未能生成可执行的 SQL")
@@ -80,7 +89,16 @@ async def execute_query(question: str, role: str, user_id: int) -> dict:
         return _fail(f"查询执行失败：{e}")
 
 
-def _fail(error: str) -> dict:
+def _is_not_a_data_question(raw: str) -> bool:
+    """模型是否自陈「这不是查数问题」。
+
+    只认哨兵出现（不看有没有顺带写 SQL）：混写本身就是畸形输出，
+    真按半截 SQL 硬跑反而更糟——转给阿实顾问，它仍然能调 query_data 把数捞回来。
+    """
+    return NOT_A_DATA_SENTINEL in (raw or "").upper()
+
+
+def _fail(error: str, error_code: str | None = None) -> dict:
     return {
         "success": False,
         "sql": None,
@@ -89,4 +107,5 @@ def _fail(error: str) -> dict:
         "row_count": None,
         "execution_time": None,
         "error": error,
+        "error_code": error_code,
     }

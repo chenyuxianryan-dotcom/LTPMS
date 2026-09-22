@@ -15,7 +15,7 @@
 
         <!-- 问候语 -->
         <div class="asy-terminal__greeting">{{ greeting }}，我是阿实</div>
-        <div class="asy-terminal__sub">实验室数据随口问 · 系统自动注入数据权限（NL2SQL，只读）</div>
+        <div class="asy-terminal__sub">实验室数据随口问 · 系统自动注入数据权限（NL2SQL，只读）· 制度与资料类问题自动转阿实带出处作答</div>
 
         <!-- Composer：查询按钮内嵌 -->
         <div class="asy-composer" :class="{ 'asy-composer--busy': busy }">
@@ -146,6 +146,19 @@
         </template>
       </el-card>
 
+      <!-- 顾问作答：非数据问题（制度/流程/资料）转阿实，出处随答案上屏 -->
+      <el-card v-if="consult" class="nlq-page__result-card" shadow="never">
+        <div class="nlq-page__result-meta">
+          <span class="nlq-page__meta-dot" aria-hidden="true"></span>
+          <span class="nlq-page__meta-text">阿实顾问作答 · 「{{ consult.question }}」不是数据问题，已转知识库检索</span>
+          <span class="nlq-page__meta-scope">{{ isAdmin ? 'SCOPE:ALL' : 'SCOPE:SELF' }} · KB</span>
+        </div>
+
+        <p class="nlq-page__dossier-answer">{{ consult.answer }}</p>
+
+        <KnowledgeSources :steps="consult.steps" />
+      </el-card>
+
       <!-- 我的档案：服务端锁定 person_ref 为当前用户，跳过人员解析一轮 -->
       <el-card v-if="dossier" class="nlq-page__result-card" shadow="never">
         <div class="nlq-page__result-meta">
@@ -195,6 +208,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import KnowledgeSources from '@/components/KnowledgeSources.vue';
 import PersonDossier from '@/components/PersonDossier.vue';
 import { apiDeleteNlqHistory, apiGetNlqHistory, apiNlqAgent, apiNlqQuery } from '@/api/nlq';
 import { ERROR_CODE, NLQ_EXAMPLES } from '@/constants';
@@ -214,6 +228,10 @@ const history = ref<IQueryHistory[]>([]);
 /** 「我的档案」结果：steps 内即档案工具的双份载荷（display 上屏） */
 const dossierLoading = ref(false);
 const dossier = ref<{ steps: IAgentStep[]; answer: string; name: string | null } | null>(null);
+
+/** 顾问作答：服务端判定「非数据问题」时同请求接力阿实（知识库检索带出处） */
+const consult = ref<{ question: string; answer: string; steps: IAgentStep[] } | null>(null);
+
 const busy = computed(() => querying.value || dossierLoading.value);
 
 /** 时间感知问候（Claude 式 temporal greeting，让终端有人味） */
@@ -246,23 +264,33 @@ const tableVisible = computed(() => {
 });
 
 async function handleQuery(): Promise<void> {
-  if (!question.value.trim() || busy.value) return;
+  const asked = question.value.trim();
+  if (!asked || busy.value) return;
   querying.value = true;
   result.value = null;
   dossier.value = null;
+  consult.value = null;
   try {
-    const res = await apiNlqQuery(question.value.trim());
-    result.value = res;
-    if (res.success) {
-      // 成功即清空输入框；失败保留原文，避免报错时把用户输入吞掉
+    const res = await apiNlqQuery(asked);
+    // 非数据问题由服务端同请求接力顾问（consult 字段），前端只负责上屏
+    if (res.consult) {
+      consult.value = {
+        question: asked,
+        answer: res.consult.answer || '（未获得回复）',
+        steps: res.consult.steps ?? [],
+      };
       question.value = '';
+    } else {
+      result.value = res;
+      if (res.success) {
+        // 成功即清空输入框；失败保留原文，避免报错时把用户输入吞掉
+        question.value = '';
+      }
     }
     await loadHistory();
   } catch (error) {
     const bizError = error as IBizError;
-    if (bizError.code === ERROR_CODE.NLQ_UNSAFE) {
-      ElMessage.warning('该问题涉及写操作或危险语句，仅支持查询');
-    } else if (bizError.code === ERROR_CODE.NLQ_SERVICE_UNAVAILABLE) {
+    if (bizError.code === ERROR_CODE.NLQ_SERVICE_UNAVAILABLE) {
       ElMessage.warning('智能查询服务未启动或连接失败');
     } else if (bizError.code === ERROR_CODE.NLQ_MODEL_TIMEOUT) {
       ElMessage.warning('AI 服务暂时不可用，请稍后重试');
