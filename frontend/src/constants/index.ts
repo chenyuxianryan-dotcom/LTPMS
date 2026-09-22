@@ -114,3 +114,29 @@ export const TASK_REVISION_FIELD_LABELS: Record<string, string> = {
 /** 学生角色可见路由（守卫默认拒绝的白名单；页面 name 口径）
  *  合并后学生可见 /experiments（列表仅本人课程容器）与容器详情 */
 export const STUDENT_ROUTE_NAMES = ['experiments', 'experiment-detail', 'my-tasks'] as const;
+
+/** 通知类型展示映射 */
+export const NOTIFICATION_TYPE_MAP: Record<string, { label: string; tagType: 'success' | 'warning' | 'danger' | 'info' | 'primary' }> = {
+  MORNING_BRIEF: { label: '简报', tagType: 'primary' },
+  DEADLINE_WARNING: { label: '逾期预警', tagType: 'danger' },
+  STAGNATION_ALERT: { label: '停滞提醒', tagType: 'warning' },
+  REVIEW_PENDING: { label: '待验收', tagType: 'info' },
+  SUBMISSION_ARRIVED: { label: '新提交', tagType: 'success' },
+  DATASET_NEW_VERSION: { label: '数据集更新', tagType: 'primary' },
+  LAB_TASK: { label: '任务', tagType: 'info' },
+  SEMESTER_REMIND: { label: '学期提醒', tagType: 'warning' },
+  SCHEDULE_REVISED: { label: '课表修订', tagType: 'warning' },
+  REVISION_OVERWRITTEN: { label: '修订覆盖', tagType: 'danger' },
+  UPLOAD_REMIND: { label: '上传催办', tagType: 'warning' },
+  SYSTEM: { label: '系统', tagType: 'info' },
+};
+
+/** 通知偏好设置项定义 */
+export const NOTIFICATION_PREF_ITEMS = [
+  { type: 'MORNING_BRIEF', label: '晨间简报', desc: '每日 7:30 推送今日概览，周一包含完整项目健康检查' },
+  { type: 'DEADLINE_WARNING', label: '逾期预警', desc: '课题中有任务逾期时通知教师' },
+  { type: 'STAGNATION_ALERT', label: '停滞提醒', desc: '进行中的任务距截止不足 3 天且未提交时提醒学生' },
+  { type: 'REVIEW_PENDING', label: '待验收提醒', desc: '提交等待超过 24 小时未处理时提醒教师' },
+  { type: 'SUBMISSION_ARRIVED', label: '新提交通知', desc: '学生提交任务时实时通知教师' },
+  { type: 'DATASET_NEW_VERSION', label: '数据集新版本', desc: '数据集有新版本上传时通知课题成员' },
+] as const;

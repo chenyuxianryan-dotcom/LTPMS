@@ -27,6 +27,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -54,6 +55,66 @@ public class ScheduleService {
     private final SemesterMapper semesterMapper;
     private final RevisionService revisionService;
     private final NotificationService notificationService;
+
+    /**
+     * 获取教师今日课程（晨报专用）。
+     * 根据当前日期计算周次和星期几，过滤 schedule_time。
+     */
+    public List<MyScheduleItem> getTodaySchedule(Long teacherId) {
+        // 查当前活跃学期
+        Semester semester = semesterMapper.selectOne(
+                new LambdaQueryWrapper<Semester>().eq(Semester::getStatus, "ACTIVE"));
+        if (semester == null || semester.getWeek1StartDate() == null) {
+            return Collections.emptyList();
+        }
+
+        int currentWeek = WeekMath.weekNumberOf(LocalDate.now(), semester.getWeek1StartDate());
+        if (currentWeek <= 0) {
+            return Collections.emptyList();
+        }
+
+        int currentDay = LocalDate.now().getDayOfWeek().getValue(); // 1=Mon .. 7=Sun
+
+        // 取该教师本学期全部课表
+        List<Schedule> schedules = listByTeacher(semester.getId(), teacherId);
+        if (schedules.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> scheduleIds = schedules.stream().map(Schedule::getId).collect(Collectors.toList());
+        Map<Long, List<ScheduleTime>> timesBySchedule = scheduleTimeMapper.selectList(
+                        new LambdaQueryWrapper<ScheduleTime>().in(ScheduleTime::getScheduleId, scheduleIds))
+                .stream()
+                .collect(Collectors.groupingBy(ScheduleTime::getScheduleId));
+
+        Map<String, String> labNames = laboratoryMapper.selectList(
+                        new LambdaQueryWrapper<Laboratory>().in(Laboratory::getLabCode, schedules.stream()
+                                .map(Schedule::getLabCode).filter(Objects::nonNull).collect(Collectors.toSet())))
+                .stream()
+                .collect(Collectors.toMap(Laboratory::getLabCode, Laboratory::getLabName, (a, b) -> a));
+
+        User teacher = userMapper.selectById(teacherId);
+        String teacherName = teacher == null ? null : displayName(teacher);
+
+        List<MyScheduleItem> items = new ArrayList<>();
+        for (Schedule schedule : schedules) {
+            List<ScheduleTime> times = timesBySchedule.getOrDefault(schedule.getId(), Collections.emptyList());
+            // 过滤：dayOfWeek 匹配 + 周次匹配
+            boolean hasTodaySlot = times.stream().anyMatch(t ->
+                    t.getDayOfWeek() == currentDay
+                            && WeekMath.parseWeeks(t.getWeekRange(), t.getWeekType()).contains(currentWeek));
+            if (!hasTodaySlot) {
+                continue;
+            }
+            List<SlotView> slots = buildSlotViews(schedule, times, currentWeek);
+            items.add(new MyScheduleItem(
+                    schedule.getId(), schedule.getCourseCode(), schedule.getCourseName(), schedule.getTotalHours(),
+                    schedule.getTeacherId(), teacherName, schedule.getLabCode(), labNames.get(schedule.getLabCode()),
+                    schedule.getClassNames(), schedule.getStudentCount(), schedule.getRawScheduleText(),
+                    0L, slots, schedule.getCreatedAt()));
+        }
+        return items;
+    }
 
     /**
      * 分页查询课表列表，可按学期筛选。

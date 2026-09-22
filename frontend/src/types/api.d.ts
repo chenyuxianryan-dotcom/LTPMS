@@ -321,6 +321,15 @@ export interface INotification {
   createdAt: string;
 }
 
+/** 通知类型常量（晨报/预警/提醒） */
+export type TNotificationType =
+  | 'MORNING_BRIEF'
+  | 'DEADLINE_WARNING'
+  | 'STAGNATION_ALERT'
+  | 'REVIEW_PENDING'
+  | 'SUBMISSION_ARRIVED'
+  | 'DATASET_NEW_VERSION';
+
 export interface IQueryHistory {
   id: number;
   question: string;

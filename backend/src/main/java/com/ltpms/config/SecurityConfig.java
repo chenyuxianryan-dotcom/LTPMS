@@ -54,6 +54,7 @@ public class SecurityConfig {
                         "/api/v1/datasets/**",
                         "/api/v1/dataset-versions/**",
                         "/api/v1/notifications/**",
+                        "/api/v1/notification-preferences/**",
                         "/api/v1/users/**",
                         "/api/v1/files/**")
                     .hasAnyRole("ADMIN", "TEACHER", "STUDENT")

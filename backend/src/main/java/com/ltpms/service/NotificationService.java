@@ -171,6 +171,14 @@ public class NotificationService {
         create(userId, title, content, "LAB_TASK", "/experiments/" + projectId);
     }
 
+    /**
+     * 创建通知（公共入口，供 MorningBriefService / EventAlertService 调用）。
+     */
+    @Transactional
+    public void createNotification(Long userId, String title, String content, String type, String refUrl) {
+        create(userId, title, content, type, refUrl);
+    }
+
     private void create(Long userId, String title, String content, String type, String refUrl) {
         Notification notification = new Notification();
         notification.setUserId(userId);

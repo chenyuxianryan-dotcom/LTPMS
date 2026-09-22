@@ -97,6 +97,9 @@
                   <el-icon><Avatar /></el-icon>更换头像
                 </el-dropdown-item>
                 <el-dropdown-item command="change-password">修改密码</el-dropdown-item>
+                <el-dropdown-item command="notification-settings">
+                  <el-icon><Bell /></el-icon>通知偏好
+                </el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -252,6 +255,10 @@ function handleUserCommand(command: string): void {
   }
   if (command === 'change-password') {
     changePwdVisible.value = true;
+    return;
+  }
+  if (command === 'notification-settings') {
+    void router.push('/settings/notifications');
     return;
   }
   if (command === 'logout') {

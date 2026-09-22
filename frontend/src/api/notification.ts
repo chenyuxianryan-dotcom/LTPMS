@@ -1,4 +1,4 @@
-/** 通知模块 /notifications */
+/** 通知模块 /notifications + /notification-preferences */
 import { get, put } from '@/utils/request';
 import type { INotification, IPageResult } from '@/types/api';
 
@@ -16,4 +16,14 @@ export function apiMarkNotificationRead(id: number): Promise<void> {
 
 export function apiMarkAllNotificationsRead(): Promise<void> {
   return put('/notifications/read-all');
+}
+
+/** 获取当前用户的通知偏好 */
+export function apiGetNotificationPreferences(): Promise<Record<string, boolean>> {
+  return get<Record<string, boolean>>('/notification-preferences');
+}
+
+/** 更新当前用户的通知偏好 */
+export function apiUpdateNotificationPreferences(prefs: Record<string, boolean>): Promise<void> {
+  return put('/notification-preferences', prefs);
 }

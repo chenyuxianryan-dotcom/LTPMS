@@ -60,6 +60,7 @@ public class TaskService {
     private final NotificationService notificationService;
     private final RevisionService revisionService;
     private final ProjectStatsService statsService;
+    private final EventAlertService eventAlertService;
 
     /** 任务视图：学生侧不含提交内容/评语（字段级裁剪在提交接口做） */
     public record TaskView(Long id, Long projectId, String title, String description,
@@ -301,9 +302,8 @@ public class TaskService {
         update.setStatus("SUBMITTED");
         taskMapper.updateById(update);
 
-        notificationService.createLabTask(project.getTeacherId(), "任务已提交待验收",
-                "学生 " + displayName(student.getId()) + " 提交了任务：" + task.getTitle(),
-                project.getId());
+        eventAlertService.onSubmissionArrived(project.getId(), taskId,
+                project.getTeacherId(), task.getTitle(), displayName(student.getId()));
         return toSubmissionView(submission, true);
     }
 

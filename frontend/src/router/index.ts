@@ -119,6 +119,12 @@ const routes: RouteRecordRaw[] = [
         // 锁①：制度与流程由管理员维护（ADMIN 全局只读的知识库窄例外）；课程资料入口在「课程管理」卡片
         meta: { title: '制度与流程', icon: 'Files', roles: [ROLE.ADMIN] },
       },
+      {
+        path: 'settings/notifications',
+        name: 'notification-settings',
+        component: () => import('@/pages/settings/NotificationPreferencePage.vue'),
+        meta: { title: '通知偏好', roles: [ROLE.ADMIN, ROLE.TEACHER, ROLE.STUDENT] },
+      },
     ],
   },
   {
