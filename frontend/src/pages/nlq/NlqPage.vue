@@ -1,7 +1,7 @@
 <template>
   <div class="nlq-page">
     <!-- 主内容区 -->
-    <div class="nlq-page__main" :class="{ 'nlq-page__main--active': result || dossier || imageResult || busy }">
+    <div class="nlq-page__main" :class="{ 'nlq-page__main--active': result || dossier || imageResult || consult || busy }">
       <!-- 查询台（空态居中 hero；查询中/有结果时收起，输入框沉底） -->
       <div class="asy-terminal">
         <!-- 终端机头 -->
@@ -106,7 +106,7 @@
         </div>
 
         <!-- 空态引导行（无结果时显示） -->
-        <div v-if="!result && !querying" class="asy-boot">
+        <div v-if="!result && !querying && !consult" class="asy-boot">
           <span class="asy-boot__chevron">❯</span>
           <span class="asy-boot__text">等待指令</span>
           <span class="asy-boot__caret" aria-hidden="true"></span>
