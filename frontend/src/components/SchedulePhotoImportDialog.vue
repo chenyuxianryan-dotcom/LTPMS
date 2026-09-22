@@ -32,32 +32,7 @@
           <span class="photo-import__hint">识别出 {{ draftRows.length }} 行，可逐格修正后确认导入</span>
           <el-button size="small" text type="primary" @click="resetDraft">重新上传</el-button>
         </div>
-        <el-table :data="draftRows" border size="small" max-height="360">
-          <el-table-column label="课程号" width="110">
-            <template #default="{ row }"><el-input v-model="row.courseCode" size="small" /></template>
-          </el-table-column>
-          <el-table-column label="课程名" min-width="150">
-            <template #default="{ row }"><el-input v-model="row.courseName" size="small" /></template>
-          </el-table-column>
-          <el-table-column label="总学时" width="90">
-            <template #default="{ row }"><el-input v-model.number="row.totalHours" size="small" /></template>
-          </el-table-column>
-          <el-table-column label="教师工号" width="110">
-            <template #default="{ row }"><el-input v-model="row.teacherNo" size="small" /></template>
-          </el-table-column>
-          <el-table-column label="实验室编号" width="120">
-            <template #default="{ row }"><el-input v-model="row.labCode" size="small" /></template>
-          </el-table-column>
-          <el-table-column label="上课班级" min-width="140">
-            <template #default="{ row }"><el-input v-model="row.classNames" size="small" /></template>
-          </el-table-column>
-          <el-table-column label="人数" width="80">
-            <template #default="{ row }"><el-input v-model.number="row.studentCount" size="small" /></template>
-          </el-table-column>
-          <el-table-column label="上课时间" min-width="150">
-            <template #default="{ row }"><el-input v-model="row.rawScheduleText" size="small" /></template>
-          </el-table-column>
-        </el-table>
+        <ScheduleDraftTable :rows="draftRows" />
       </template>
     </div>
 
@@ -77,9 +52,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { Loading, UploadFilled } from '@element-plus/icons-vue';
-import { apiImportScheduleRows, apiPreviewScheduleRows, apiRecognizeSchedule, type IScheduleDraftRow } from '@/api/schedule';
+import ScheduleDraftTable from '@/components/ScheduleDraftTable.vue';
+import { apiRecognizeSchedule, type IScheduleDraftRow } from '@/api/schedule';
+import { readImageFile } from '@/utils/imageAttach';
+import { confirmScheduleDraft } from '@/utils/scheduleDraft';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -102,8 +79,8 @@ async function handleFileChange(uploadFile: { raw?: File }): Promise<void> {
   recognizeError.value = '';
   recognizing.value = true;
   try {
-    const base64 = await toBase64(file);
-    const result = await apiRecognizeSchedule(base64);
+    const image = await readImageFile(file);
+    const result = await apiRecognizeSchedule(image.base64);
     if (result.success && result.rows.length > 0) {
       draftRows.value = result.rows;
     } else {
@@ -116,19 +93,6 @@ async function handleFileChange(uploadFile: { raw?: File }): Promise<void> {
   }
 }
 
-function toBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      // 去掉 data:image/...;base64, 前缀
-      resolve(result.split(',')[1] ?? result);
-    };
-    reader.onerror = () => reject(new Error('读取图片失败'));
-    reader.readAsDataURL(file);
-  });
-}
-
 function resetDraft(): void {
   draftRows.value = [];
   recognizeError.value = '';
@@ -137,30 +101,8 @@ function resetDraft(): void {
 async function handleConfirm(): Promise<void> {
   confirming.value = true;
   try {
-    const preview = await apiPreviewScheduleRows(props.semesterId, draftRows.value);
-    let confirmOverwrite = false;
-    if (preview.revisionConflicts > 0) {
-      const shown = preview.conflictCourses.slice(0, 5).join('、');
-      const suffix = preview.conflictCourses.length > 5 ? ` 等 ${preview.conflictCourses.length} 门课程` : '';
-      try {
-        await ElMessageBox.confirm(
-          `本次导入将覆盖${shown}${suffix}的已有修订记录（系统会留痕并通知管理员）。确定继续导入吗？`,
-          '覆盖修订记录确认',
-          { type: 'warning', confirmButtonText: '继续导入', cancelButtonText: '取消' },
-        );
-        confirmOverwrite = true;
-      } catch {
-        return;
-      }
-    }
-    const result = await apiImportScheduleRows(props.semesterId, draftRows.value, confirmOverwrite);
-    const failed = result.failedCount ?? 0;
-    if (failed > 0) {
-      const first = result.errors?.length ? `，如：${result.errors[0].message}` : '';
-      ElMessage.warning(`导入完成：成功 ${result.successCount} 条，失败 ${failed} 条${first}`);
-    } else {
-      ElMessage.success(`导入成功 ${result.successCount} 条`);
-    }
+    const result = await confirmScheduleDraft(props.semesterId, draftRows.value);
+    if (!result) return; // 用户取消覆盖确认：留在草稿编辑态
     emit('update:modelValue', false);
     emit('success');
     resetDraft();

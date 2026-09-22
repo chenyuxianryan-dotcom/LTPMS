@@ -1,6 +1,7 @@
 /** 自然语言查询模块 /nlq */
 import { del, get, post } from '@/utils/request';
-import type { IAgentResult, INlqResult, IPageResult, IQueryHistory } from '@/types/api';
+import type { IScheduleDraftRow } from './schedule';
+import type { IAgentResult, IAgentStep, INlqResult, IPageResult, IQueryHistory } from '@/types/api';
 
 export function apiNlqQuery(question: string): Promise<INlqResult> {
   // NL2SQL 全链路（含大模型调用）耗时较长，单独放宽超时
@@ -18,6 +19,52 @@ export function apiNlqAgent(
     payload.self_dossier = true;
   }
   return post<IAgentResult>('/nlq/agent', payload, { timeout: 60000 });
+}
+
+/** 附图识别的通知转述（标题/时间/地点/事项） */
+export interface INlqImageNotice {
+  title?: string;
+  time?: string;
+  place?: string;
+  items?: string[];
+}
+
+/** 附图识图结果：route=schedule 课表 / document 文档页 / notice 通知 / unknown 未判定 */
+export interface INlqImageResult {
+  success: boolean;
+  route: string;
+  /** 图片理解摘要（系统看到的图片内容概述，路由目标在此明示） */
+  digest: string;
+  /** 低置信：走「没看清」兜底，无回答、无结构化结果 */
+  low_confidence: boolean;
+  answer: string;
+  /** 课表链路识别出的结构化行（字段同课表导入草稿） */
+  rows: IScheduleDraftRow[];
+  notice: INlqImageNotice;
+  /** 文档链路识别出的图内文字 */
+  document_text: string;
+  /** 文档链路的顾问作答轨迹（knowledge_search 出处） */
+  steps: IAgentStep[];
+  suggestions: string[];
+  error: string | null;
+}
+
+/**
+ * 智能查询附图：图片（+可选文字）→ 服务端意图路由后分路作答。
+ * imageBase64 不含 data: 前缀；forceRoute 用于「一键改道」重跑；
+ * 图片真实类型由服务端按魔数判定，前端不传 mime。
+ */
+export function apiNlqImageQuery(
+  imageBase64: string,
+  question = '',
+  forceRoute?: string,
+): Promise<INlqImageResult> {
+  // 识图=一次视觉调用（文档链路再叠知识库答问），单独放宽超时
+  return post<INlqImageResult>(
+    '/nlq/image-query',
+    { image_base64: imageBase64, question, force_route: forceRoute },
+    { timeout: 90000 },
+  );
 }
 
 export function apiGetNlqHistory(params: { page: number; size: number }): Promise<IPageResult<IQueryHistory>> {

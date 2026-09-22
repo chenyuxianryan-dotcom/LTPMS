@@ -4,10 +4,14 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     deepseek_api_key: str
     deepseek_api_url: str = "https://api.deepseek.com/chat/completions"
-    deepseek_model: str = "deepseek-chat"
+    deepseek_model: str = "deepseek-flash"
     deepseek_timeout: float = 15.0
 
-    # 智谱 GLM-4V 视觉（课表照片识别）；key 为空时视觉能力优雅降级，不影响查询类能力
+    # 视觉识别（图片理解）：默认与 NL2SQL/Agent 共用 DeepSeek 账号与端点
+    # （deepseek_model 支持图像理解）。
+    # vision_provider=zhipu 是回退开关：统一通道异常时可临时切回智谱 GLM-4V，
+    # 无需改代码（切换后调用量应归 0，只在一个发布周期内保留）。
+    vision_provider: str = "deepseek"
     zhipu_api_key: str = ""
     zhipu_api_url: str = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
     zhipu_vision_model: str = "glm-4v-flash"

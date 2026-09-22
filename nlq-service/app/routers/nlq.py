@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.services.agent_service import run_agent_query
 from app.services.archive_service import ArchiveCache, generate_archive
 from app.services.embeddings import EmbeddingUnavailableError, embed_texts
+from app.services.image_query import run_image_query
 from app.services.narrative_service import generate_narrative
 from app.services.query_service import execute_query
 from app.services.schema_cache import schema_cache
@@ -57,11 +58,34 @@ class QueryResponse(BaseModel):
 
 class RecognizeRequest(BaseModel):
     image_base64: str
+    image_mime: str = "image/jpeg"
 
 
 class RecognizeResponse(BaseModel):
     success: bool
     rows: list[dict]
+    error: str | None = None
+
+
+class ImageQueryRequest(BaseModel):
+    image_base64: str
+    question: str = ""
+    # 改道：用户指定按某类型重新处理（schedule | document | notice）
+    force_route: str | None = None
+    image_mime: str = "image/jpeg"
+
+
+class ImageQueryResponse(BaseModel):
+    success: bool
+    route: str = "unknown"
+    digest: str = ""
+    low_confidence: bool = False
+    answer: str = ""
+    rows: list[dict] = []
+    notice: dict = {}
+    document_text: str = ""
+    steps: list[dict] = []
+    suggestions: list[str] = []
     error: str | None = None
 
 
@@ -148,13 +172,34 @@ async def agent(
 
 @router.post("/recognize-schedule", response_model=RecognizeResponse)
 async def recognize_schedule(request: RecognizeRequest):
-    """课表照片识别：base64 图片 → 结构化课表行草稿（走 GLM-4V 通道）。"""
-    result = await recognize_schedule_photo(request.image_base64)
+    """课表照片识别：base64 图片 → 结构化课表行草稿（与智能查询附图同一视觉通道）。"""
+    result = await recognize_schedule_photo(request.image_base64, request.image_mime)
     return RecognizeResponse(
         success=result["success"],
         rows=result["rows"],
         error=result["error"],
     )
+
+
+@router.post("/image-query", response_model=ImageQueryResponse)
+async def image_query(
+    request: ImageQueryRequest,
+    x_user_id: int = Header(..., alias="X-User-Id"),
+    x_user_role: str = Header(..., alias="X-User-Role"),
+):
+    """智能查询附图：图片（+可选问题）→ 意图路由 → 课表取数 / 资料顾问 / 通知转述。
+
+    数据权限与纯文字查询同口径（身份由服务端注入，图片不扩大可见范围）。
+    """
+    result = await run_image_query(
+        request.image_base64,
+        request.question,
+        role=x_user_role,
+        user_id=x_user_id,
+        force_route=request.force_route,
+        image_mime=request.image_mime,
+    )
+    return ImageQueryResponse(**result)
 
 
 @router.post("/archive", response_model=ArchiveResponse)

@@ -47,7 +47,7 @@ public class NlqController {
     }
 
     /**
-     * 课表照片识别：base64 图片 → 结构化课表行草稿（GLM-4V 通道）。
+     * 课表照片识别：base64 图片 → 结构化课表行草稿（与智能查询附图同一视觉通道）。
      *
      * @param body 请求体，含 image_base64 字段
      * @return 识别结果 {success, rows, error}
@@ -57,6 +57,22 @@ public class NlqController {
     public Result<Map<String, Object>> recognizeSchedule(@RequestBody Map<String, String> body) {
         String imageBase64 = body.get("image_base64");
         return Result.success(nlqService.recognizeSchedulePhoto(imageBase64));
+    }
+
+    /**
+     * 智能查询附图：图片（+可选文字问题）→ 意图路由后分路作答（课表取数 / 资料顾问 / 通知转述）。
+     * 全角色可用（学生只读提问；写回不经此入口——草稿确认走课表导入，教师专属）。
+     *
+     * @param body 请求体，含 image_base64、可选 question 与 force_route（改道类型）
+     * @return 图片结果 {success, route, digest, answer, rows, notice, steps, suggestions, error}
+     */
+    @PostMapping("/image-query")
+    public Result<Map<String, Object>> imageQuery(@RequestBody Map<String, Object> body) {
+        String imageBase64 = body.get("image_base64") == null ? null : String.valueOf(body.get("image_base64"));
+        String question = body.get("question") == null ? "" : String.valueOf(body.get("question"));
+        String forceRoute = body.get("force_route") == null ? null : String.valueOf(body.get("force_route"));
+        return Result.success(nlqService.imageQuery(
+                imageBase64, question, forceRoute, getCurrentUserId(), getCurrentRole()));
     }
 
     /**

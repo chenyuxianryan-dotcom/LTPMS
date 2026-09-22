@@ -22,8 +22,10 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -35,6 +37,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @RequiredArgsConstructor
 public class NlqService {
+
+    /** 附图单张大小上限（解码后字节数）：与前端提示一致 */
+    private static final int MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
     private final NlqProperties nlqProperties;
     private final QueryHistoryMapper queryHistoryMapper;
@@ -190,19 +195,23 @@ public class NlqService {
     }
 
     /**
-     * 课表照片识别：转发 base64 图片到 NL2SQL 服务的 /recognize-schedule 端点（GLM-4V 通道）。
+     * 课表照片识别：转发 base64 图片到 NL2SQL 服务的 /recognize-schedule 端点
+     * （与智能查询附图同一视觉通道，模型与解析单点维护）。
      *
      * @param imageBase64 课表照片的 base64 编码（不含 data: 前缀）
      * @return 识别结果 {success, rows, error}
-     * @throws BusinessException 当视觉服务调用失败时抛出
+     * @throws BusinessException 当图片不合规或视觉服务调用失败时抛出
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> recognizeSchedulePhoto(String imageBase64) {
+        String base64 = stripDataUrl(imageBase64);
+        String imageMime = validateImage(base64);
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Internal-Token", nlqProperties.getInternalToken());
 
-        Map<String, Object> body = Map.of("image_base64", imageBase64);
+        Map<String, Object> body = Map.of("image_base64", base64, "image_mime", imageMime);
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {
@@ -219,6 +228,138 @@ public class NlqService {
             log.error("NL2SQL recognize-schedule request failed", e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
         }
+    }
+
+    /**
+     * 附图查询：图片（+可选问题）转发到 NL2SQL 服务的 /image-query，由视觉通道做意图路由后
+     * 分路作答（课表取数 / 资料顾问 / 通知转述）。图片本体仅内存中转，服务端不落盘。
+     *
+     * @param imageBase64 图片 base64（可带 data: 前缀）
+     * @param question    用户附带的文字问题，可空
+     * @param forceRoute  改道时指定的类型（schedule | document | notice），可空
+     * @param userId      当前用户 ID
+     * @param role        当前用户角色
+     * @return 图片结果 {success, route, digest, answer, rows, notice, steps, suggestions, error}
+     * @throws BusinessException 当触发限流、图片不合规或视觉服务调用失败时抛出
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> imageQuery(String imageBase64, String question, String forceRoute,
+                                          Long userId, String role) {
+        RateLimiter limiter = rateLimiters.computeIfAbsent(userId,
+                k -> RateLimiter.create(nlqProperties.getRateLimitPerMinute() / 60.0));
+        if (!limiter.tryAcquire()) {
+            throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS);
+        }
+
+        String base64 = stripDataUrl(imageBase64);
+        String imageMime = validateImage(base64);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Token", nlqProperties.getInternalToken());
+        headers.set("X-User-Id", String.valueOf(userId));
+        headers.set("X-User-Role", role);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("image_base64", base64);
+        body.put("question", question == null ? "" : question);
+        body.put("image_mime", imageMime);
+        if (forceRoute != null && !forceRoute.isBlank()) {
+            body.put("force_route", forceRoute);
+        }
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        Map<String, Object> result = null;
+        boolean success = false;
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    nlqProperties.getServiceUrl() + "/image-query", entity, Map.class);
+            result = response.getBody();
+            success = result != null && Boolean.TRUE.equals(result.get("success"));
+            return result;
+        } catch (RestClientResponseException e) {
+            log.error("NL2SQL image-query service error: {}", e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (ResourceAccessException e) {
+            log.error("NL2SQL image-query service unreachable: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.NLQ_SERVICE_UNAVAILABLE);
+        } catch (Exception e) {
+            log.error("NL2SQL image-query request failed", e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } finally {
+            // 附图查询同权记账：历史里只存文字与摘要，不存图片
+            String historyQuestion = question == null || question.isBlank() ? "【图片】未附文字" : question;
+            saveHistory(userId, role, historyQuestion, null, imageSummary(result), success);
+        }
+    }
+
+    /** 附图结果的一句话摘要（查询历史列展示） */
+    private static String imageSummary(Map<String, Object> result) {
+        if (result == null || !Boolean.TRUE.equals(result.get("success"))) {
+            return "图片：未识别出结果";
+        }
+        Object route = result.get("route");
+        if ("schedule".equals(route)) {
+            Object rows = result.get("rows");
+            int count = rows instanceof List<?> list ? list.size() : 0;
+            return "图片：课表 " + count + " 行";
+        }
+        if ("document".equals(route)) {
+            return "图片：资料页问答";
+        }
+        if ("notice".equals(route)) {
+            return "图片：通知转述";
+        }
+        return "图片：已识别";
+    }
+
+    /** 去掉 data:image/...;base64, 前缀（前端理论上已剥离，此处兜底） */
+    private static String stripDataUrl(String imageBase64) {
+        if (imageBase64 == null || imageBase64.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少图片内容，请重新选择图片");
+        }
+        String value = imageBase64.trim();
+        int comma = value.indexOf(',');
+        return value.startsWith("data:") && comma > 0 ? value.substring(comma + 1) : value;
+    }
+
+    /**
+     * 图片合规校验（所有附图入口唯一把关点）：base64 解码 → 大小上限 → 魔数白名单，
+     * 返回真实 MIME 供视觉通道使用。扩展名不可信，一律以内容魔数为准。
+     */
+    private static String validateImage(String base64) {
+        byte[] raw;
+        try {
+            raw = Base64.getDecoder().decode(base64);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "图片数据无法解码，请重新选择图片");
+        }
+        if (raw.length == 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "图片内容为空，请重新选择图片");
+        }
+        if (raw.length > MAX_IMAGE_BYTES) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "图片不能超过 10MB，请压缩后重试");
+        }
+        String mime = detectImageMime(raw);
+        if (mime == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅支持 jpg / png / webp 图片");
+        }
+        return mime;
+    }
+
+    /** 魔数识别：JPEG(FFD8FF) / PNG(89504E47) / WEBP(RIFF....WEBP) */
+    private static String detectImageMime(byte[] raw) {
+        if (raw.length >= 3 && (raw[0] & 0xFF) == 0xFF && (raw[1] & 0xFF) == 0xD8 && (raw[2] & 0xFF) == 0xFF) {
+            return "image/jpeg";
+        }
+        if (raw.length >= 8 && (raw[0] & 0xFF) == 0x89 && raw[1] == 'P' && raw[2] == 'N' && raw[3] == 'G') {
+            return "image/png";
+        }
+        if (raw.length >= 12 && raw[0] == 'R' && raw[1] == 'I' && raw[2] == 'F' && raw[3] == 'F'
+                && raw[8] == 'W' && raw[9] == 'E' && raw[10] == 'B' && raw[11] == 'P') {
+            return "image/webp";
+        }
+        return null;
     }
 
     /**
