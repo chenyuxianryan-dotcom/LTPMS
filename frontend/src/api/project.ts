@@ -7,6 +7,8 @@ import type {
   IExperiment,
   IMyTaskGroup,
   IProject,
+  IProjectGroup,
+  IProjectGroupPlan,
   IProjectMember,
   IProjectStats,
   IProjectTask,
@@ -82,6 +84,48 @@ export function apiImportMembers(projectId: number, file: File): Promise<IStuden
 
 export function apiRemoveMember(projectId: number, studentId: number): Promise<void> {
   return del<void>(`/projects/${projectId}/members/${studentId}`);
+}
+
+/* ------------------------------------------------------------------ 分组 */
+
+/** 某实验的分组全貌（每组人数基准实时取自实验目录 group_size） */
+export function apiListGroupPlan(projectId: number, experimentId: number): Promise<IProjectGroupPlan> {
+  return get<IProjectGroupPlan>(`/projects/${projectId}/groups`, { experimentId });
+}
+
+/** 一键均分 / 按新基准重排（覆盖式：清空该实验现有分组关系后重排） */
+export function apiAutoGroup(projectId: number, experimentId: number): Promise<IProjectGroupPlan> {
+  return post<IProjectGroupPlan>(`/projects/${projectId}/groups/auto`, null, { params: { experimentId } });
+}
+
+/** 手动新建空组（组名自定义，基准人数取当前目录值） */
+export function apiCreateGroup(
+  projectId: number,
+  body: { experimentId: number; groupName: string },
+): Promise<IProjectGroup> {
+  return post<IProjectGroup>(`/projects/${projectId}/groups`, body);
+}
+
+export function apiDeleteGroup(projectId: number, groupId: number): Promise<void> {
+  return del<void>(`/projects/${projectId}/groups/${groupId}`);
+}
+
+/** 移入成员：同一实验下一人只属一组，移入即从同实验其他组摘出 */
+export function apiAssignGroupMembers(
+  projectId: number,
+  groupId: number,
+  studentIds: number[],
+): Promise<IProjectGroupPlan> {
+  return post<IProjectGroupPlan>(`/projects/${projectId}/groups/${groupId}/members`, { studentIds });
+}
+
+/** 从组内移出学生（不影响其课题成员身份） */
+export function apiRemoveGroupMember(
+  projectId: number,
+  groupId: number,
+  studentId: number,
+): Promise<IProjectGroupPlan> {
+  return del<IProjectGroupPlan>(`/projects/${projectId}/groups/${groupId}/members/${studentId}`);
 }
 
 /* ------------------------------------------------------------------ 任务 */

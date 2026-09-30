@@ -5,12 +5,15 @@ import com.ltpms.annotation.RequireRole;
 import com.ltpms.common.ErrorCode;
 import com.ltpms.common.Result;
 import com.ltpms.dto.project.EnsureContainerRequest;
+import com.ltpms.dto.project.GroupCreateRequest;
+import com.ltpms.dto.project.GroupMembersRequest;
 import com.ltpms.dto.project.MemberAddRequest;
 import com.ltpms.dto.project.ProjectRequest;
 import com.ltpms.entity.Experiment;
 import com.ltpms.entity.LabProject;
 import com.ltpms.service.DatasetService;
 import com.ltpms.service.ExperimentService;
+import com.ltpms.service.ProjectGroupService;
 import com.ltpms.service.ProjectService;
 import com.ltpms.service.ProjectStatsService;
 import com.ltpms.service.TaskService;
@@ -40,6 +43,7 @@ import java.util.List;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectGroupService projectGroupService;
     private final TaskService taskService;
     private final DatasetService datasetService;
     private final ExperimentService experimentService;
@@ -142,13 +146,70 @@ public class ProjectController {
                 SecurityUtils.currentUserId(), SecurityUtils.currentRole()));
     }
 
-    /** 移出成员：其未完成任务置 CLOSED 留痕（r2-B1） */
+    /** 移出成员：其未完成任务置 CLOSED 留痕（r2-B1），并清理其在全部实验分组中的关系 */
     @DeleteMapping("/{id}/members/{studentId}")
     @RequireRole({"ADMIN", "TEACHER"})
     public Result<Void> removeMember(@PathVariable Long id, @PathVariable Long studentId) {
         projectService.removeMember(id, studentId,
                 SecurityUtils.currentUserId(), SecurityUtils.currentRole());
         return Result.success();
+    }
+
+    // ---------------------------------------------------------------- 分组（每实验一套）
+
+    /** 某实验的分组全貌（成员可读：归属老师/ADMIN/在组学生；基准人数实时读实验目录 group_size） */
+    @GetMapping("/{id}/groups")
+    public Result<ProjectGroupService.GroupPlan> groups(@PathVariable Long id,
+                                                        @RequestParam("experimentId") Long experimentId) {
+        return Result.success(projectGroupService.plan(id, experimentId,
+                SecurityUtils.currentUserId(), SecurityUtils.currentRole()));
+    }
+
+    /** 一键均分/按新基准重排（覆盖式：清空该实验现有分组关系后按目录每组人数重排） */
+    @PostMapping("/{id}/groups/auto")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<ProjectGroupService.GroupPlan> autoGroup(@PathVariable Long id,
+                                                           @RequestParam("experimentId") Long experimentId) {
+        return Result.success(projectGroupService.autoGroup(id, experimentId,
+                SecurityUtils.currentUserId(), SecurityUtils.currentRole()));
+    }
+
+    /** 手动新建空组（组名自定义，每组人数基准取当前目录值） */
+    @PostMapping("/{id}/groups")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<ProjectGroupService.GroupView> createGroup(@PathVariable Long id,
+                                                             @RequestBody GroupCreateRequest request) {
+        return Result.success(projectGroupService.createGroup(id, request,
+                SecurityUtils.currentUserId(), SecurityUtils.currentRole()));
+    }
+
+    /** 删除分组（连带清组内关系，成员退回未分组池） */
+    @DeleteMapping("/{id}/groups/{groupId}")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<Void> deleteGroup(@PathVariable Long id, @PathVariable Long groupId) {
+        projectGroupService.deleteGroup(id, groupId,
+                SecurityUtils.currentUserId(), SecurityUtils.currentRole());
+        return Result.success();
+    }
+
+    /** 移入成员（同一实验下一人只属一组：移入即从同实验其他组摘出） */
+    @PostMapping("/{id}/groups/{groupId}/members")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<ProjectGroupService.GroupPlan> assignGroupMembers(@PathVariable Long id,
+                                                                    @PathVariable Long groupId,
+                                                                    @RequestBody GroupMembersRequest request) {
+        return Result.success(projectGroupService.assignMembers(id, groupId, request,
+                SecurityUtils.currentUserId(), SecurityUtils.currentRole()));
+    }
+
+    /** 从组内移出学生（不影响其课题成员身份） */
+    @DeleteMapping("/{id}/groups/{groupId}/members/{studentId}")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<ProjectGroupService.GroupPlan> removeGroupMember(@PathVariable Long id,
+                                                                   @PathVariable Long groupId,
+                                                                   @PathVariable Long studentId) {
+        return Result.success(projectGroupService.removeMemberFromGroup(id, groupId, studentId,
+                SecurityUtils.currentUserId(), SecurityUtils.currentRole()));
     }
 
     // ---------------------------------------------------------------- 任务（项目侧）

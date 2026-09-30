@@ -46,6 +46,7 @@ public class ExperimentService {
     private final SemesterMapper semesterMapper;
     private final CodeGenerator codeGenerator;
     private final ProjectAuthService projectAuthService;
+    private final ProjectGroupService projectGroupService;
 
     /**
      * 容器实验目录（M-Q2/M-Q8）：读权限单路收口 ProjectAuthService（H2），
@@ -165,6 +166,7 @@ public class ExperimentService {
         checkPermission(course, currentUserId, role);
         checkCurrentSemester(course.getSemesterId());
         experimentMapper.deleteById(id);
+        projectGroupService.onExperimentDeleted(id);
     }
 
     /**

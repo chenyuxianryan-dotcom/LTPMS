@@ -530,6 +530,33 @@ export interface IProjectMember {
   joinedAt: string;
 }
 
+/** 实验分组单组（成员仅给 studentId，姓名由成员表映射） */
+export interface IProjectGroup {
+  id: number;
+  groupName: string;
+  /** 建组时快照的每组人数，与目录当前值不等即视为不一致 */
+  baselineSize: number;
+  studentIds: number[];
+}
+
+/** 某实验的分组全貌（每组人数唯一事实源 = 实验目录 group_size） */
+export interface IProjectGroupPlan {
+  experimentId: number;
+  experimentCode: string;
+  experimentName: string;
+  /** 目录当前每组人数 */
+  baselineSize: number;
+  memberCount: number;
+  groupedCount: number;
+  ungroupedCount: number;
+  actualGroupCount: number;
+  /** 按目录当前基准应分组数 */
+  expectedGroupCount: number;
+  /** 建组基准与目录不符，或某组人数超过基准 */
+  mismatch: boolean;
+  groups: IProjectGroup[];
+}
+
 /** 学生档案检索行 */
 export interface IStudent {
   id: number;

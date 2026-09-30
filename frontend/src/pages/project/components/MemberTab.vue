@@ -37,6 +37,14 @@
       </template>
     </el-table>
 
+    <!-- 分组（仅课程容器：每组人数唯一事实源是实验目录，独立课题无目录不开放分组） -->
+    <MemberGroupPanel
+      v-if="project.courseId != null"
+      :project="project"
+      :can-manage="canManage"
+      :members="members"
+    />
+
     <!-- 学生库勾选带入 -->
     <el-dialog v-model="addVisible" title="从学生库添加成员" width="640px">
       <div class="member-tab__search">
@@ -75,6 +83,7 @@ import { onMounted, ref } from 'vue';
 import { Plus, Search, Upload } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox, type TableInstance } from 'element-plus';
 import ImportDialog from '@/components/ImportDialog.vue';
+import MemberGroupPanel from './MemberGroupPanel.vue';
 import { apiAddMembers, apiListMembers, apiRemoveMember, apiSearchStudents } from '@/api/project';
 import { MEMBER_SOURCE_MAP } from '@/constants';
 import type { IProject, IProjectMember, IStudent, IStudentImportResult } from '@/types/api';

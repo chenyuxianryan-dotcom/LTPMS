@@ -72,6 +72,7 @@ public class ProjectService {
     private final ProjectAuthService authService;
     private final ProjectStatsService statsService;
     private final StudentService studentService;
+    private final ProjectGroupService groupService;
 
     /** 课题/容器 source 取值 */
     public static final String SOURCE_SYSTEM = "SYSTEM";
@@ -532,6 +533,7 @@ public class ProjectService {
                 .eq(LabProjectTask::getProjectId, projectId)
                 .eq(LabProjectTask::getAssigneeStudentId, studentId)
                 .in(LabProjectTask::getStatus, "NOT_STARTED", "IN_PROGRESS", "REJECTED"));
+        groupService.onMemberRemoved(projectId, studentId);
     }
 
     private Map<Long, String> userNames(Set<Long> userIds) {
