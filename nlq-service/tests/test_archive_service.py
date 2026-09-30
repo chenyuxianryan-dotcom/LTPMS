@@ -18,6 +18,74 @@ def _tmp_cache() -> ArchiveCache:
     return ArchiveCache(os.path.join(tempfile.mkdtemp(), "archive_cache.db"))
 
 
+# ---- 实验项目档案聚合假数据（按 SQL 特征分派，DB 为系统边界） ----
+
+_EXP_ROW = {
+    "id": 2, "course_id": 7, "experiment_code": "CS101-20261-001", "experiment_name": "示波器使用",
+    "category": "验证型", "type": "必做", "subject": "物理学", "hours": 2, "group_size": 2,
+    "requirement": "必修", "created_at": "2026-09-01 00:00:00",
+    "course_code": "CS101", "course_name": "大学物理实验", "semester_name": "2026-2027-1",
+}
+_CATALOG_ROWS = [
+    {"id": 1, "experiment_code": "CS101-20261-000", "experiment_name": "长度测量",
+     "category": "验证型", "requirement": "必修", "group_size": 2, "hours": 2},
+    {"id": 2, "experiment_code": "CS101-20261-001", "experiment_name": "示波器使用",
+     "category": "验证型", "requirement": "必修", "group_size": 2, "hours": 2},
+    {"id": 3, "experiment_code": "CS101-20261-002", "experiment_name": "牛顿环",
+     "category": "综合型", "requirement": "选修", "group_size": 4, "hours": 3},
+]
+_CONTAINER_ROW = {
+    "id": 14, "project_code": "LP-2026-002", "project_name": "大学物理实验",
+    "description": None, "status": "ACTIVE", "created_at": "2026-09-18 10:00:00",
+}
+_TASK_STATUS_ROWS = [
+    {"status": "ACCEPTED", "cnt": 3},
+    {"status": "IN_PROGRESS", "cnt": 2},
+    {"status": "CLOSED", "cnt": 1},
+]
+_GROUPS_OVER_LIMIT = [
+    {"id": 1, "group_name": "第1组", "baseline_size": 2, "member_count": 3},
+    {"id": 2, "group_name": "第2组", "baseline_size": 2, "member_count": 3},
+]
+_GROUPS_CONSISTENT = [
+    {"id": 1, "group_name": "第1组", "baseline_size": 2, "member_count": 2},
+    {"id": 2, "group_name": "第2组", "baseline_size": 2, "member_count": 2},
+    {"id": 3, "group_name": "第3组", "baseline_size": 2, "member_count": 2},
+]
+
+
+def _experiment_execute(group_rows=None, per_experiment=None, container=_CONTAINER_ROW):
+    """按 SQL 特征分派实验项目档案的全部聚合查询"""
+    async def execute(sql, params=()):
+        if "JOIN course c" in sql:
+            return [dict(_EXP_ROW)]
+        if "FROM schedule sc" in sql:
+            return [{"schedule_count": 4, "student_total": 96}]
+        if "FROM lab_project WHERE course_id" in sql:
+            return [dict(container)] if container else []
+        if "GROUP BY e.id" in sql:
+            return per_experiment if per_experiment is not None else []
+        if "GROUP BY g.id" in sql:
+            return [dict(row) for row in (group_rows if group_rows is not None else [])]
+        if "FROM experiment WHERE course_id" in sql:
+            return [dict(row) for row in _CATALOG_ROWS]
+        if "AS cnt FROM lab_project_task" in sql:
+            return [dict(row) for row in _TASK_STATUS_ROWS]
+        if "overdue_count FROM lab_project_task" in sql:
+            return [{"overdue_count": 1}]
+        if "assigned_student_count FROM lab_project_task" in sql:
+            return [{"assigned_student_count": 4}]
+        if "FROM lab_task_submission" in sql:
+            return [{"submission_count": 5, "pending_review_count": 2}]
+        if "FROM lab_dataset" in sql:
+            return [{"dataset_count": 1, "version_count": 3, "latest_version_max": 3}]
+        if "FROM lab_project_member" in sql:
+            return [{"member_count": 6}]
+        raise AssertionError(f"未预期的 SQL：{sql}")
+
+    return execute
+
+
 class TestCollectStats:
     async def test_lab_not_found_raises(self, monkeypatch):
         async def execute(sql, params=()):
@@ -93,24 +161,80 @@ class TestGenerateArchive:
         assert second["text"] == first["text"]
         assert len(llm_calls) == 1  # 第二次走缓存，LLM 只调一次
 
-    async def test_experiment_archive_includes_course_context(self, monkeypatch):
-        async def execute(sql, params=()):
-            if "FROM experiment" in sql:
-                return [{"id": 2, "experiment_code": "CS101-20261-001", "experiment_name": "示波器使用",
-                         "category": "验证型", "type": "必做", "subject": "物理学", "hours": 2,
-                         "group_size": 2, "requirement": "必修", "created_at": "2026-09-01 00:00:00",
-                         "course_code": "CS101", "course_name": "大学物理实验",
-                         "semester_name": "2026-2027-1"}]
-            return [{"schedule_count": 4, "student_total": 96}]
+    async def test_experiment_archive_covers_whole_project(self, monkeypatch):
+        """实验档案聚合扩为课题全貌：目录/成员/任务/材料/分组六节齐备，派生值 Python 侧算好"""
+        monkeypatch.setattr(archive_service.db, "execute", _experiment_execute(group_rows=_GROUPS_OVER_LIMIT))
 
-        monkeypatch.setattr(archive_service.db, "execute", execute)
+        captured = {}
 
-        cache = _tmp_cache()
-        result = await generate_archive("experiment", 2, cache=cache)
+        async def fake_generate(prompt):
+            captured["prompt"] = prompt
+            return {"success": True, "text": "档案文本", "error": None}
+
+        monkeypatch.setattr(archive_service, "generate_text", fake_generate)
+
+        result = await generate_archive("experiment", 2, cache=_tmp_cache())
 
         assert result["success"] is True
-        assert result["stats"]["course_code"] == "CS101"
-        assert result["stats"]["usage"]["schedule_count"] == 4
+        stats = result["stats"]
+        # 原有扁平字段与排课统计保持兼容
+        assert stats["course_code"] == "CS101"
+        assert stats["usage"]["schedule_count"] == 4
+        # 所属课题容器
+        assert stats["project"]["id"] == 14
+        assert stats["members"]["member_count"] == 6
+        # 任务：完成度 = ACCEPTED /(总数 − CLOSED) = 3/5
+        assert stats["tasks"]["total"] == 6
+        assert stats["tasks"]["effective_excluding_closed"] == 5
+        assert stats["tasks"]["completion_rate"] == 60.0
+        assert stats["tasks"]["overdue"] == 1
+        assert stats["tasks"]["unassigned_student_count"] == 2
+        assert stats["materials"]["pending_review_count"] == 2
+        # 分组：6 人 / 每组 2 人 → 应分 3 组，实际 2 组且超员 → 不一致
+        assert stats["grouping"]["expected_group_count"] == 3
+        assert stats["grouping"]["actual_group_count"] == 2
+        assert stats["grouping"]["consistent"] is False
+        # 实验目录全景
+        assert stats["catalog"]["experiment_count"] == 3
+        assert stats["catalog"]["position"] == 2
+        assert stats["catalog"]["group_size_min"] == 2
+        assert stats["catalog"]["group_size_max"] == 4
+        # 六节结构与「不编数字」红线进入 prompt
+        assert "六、风险提示" in captured["prompt"]
+        assert "不得编造" in captured["prompt"]
+
+    async def test_experiment_archive_without_container_degrades_to_none(self, monkeypatch):
+        """容器课题未懒生成：课题各节显式为 None（区别于 0），不影响实验本体"""
+        monkeypatch.setattr(archive_service.db, "execute", _experiment_execute(container=None))
+
+        async def fake_generate(prompt):
+            return {"success": True, "text": "档案文本", "error": None}
+
+        monkeypatch.setattr(archive_service, "generate_text", fake_generate)
+
+        result = await generate_archive("experiment", 2, cache=_tmp_cache())
+
+        assert result["success"] is True
+        stats = result["stats"]
+        assert stats["experiment_code"] == "CS101-20261-001"
+        for section in ("project", "members", "grouping", "tasks", "materials"):
+            assert stats[section] is None
+
+    async def test_experiment_archive_grouping_consistent(self, monkeypatch):
+        """3 组各 2 人、全员覆盖、基准与目录相同 → consistent 为 True"""
+        monkeypatch.setattr(archive_service.db, "execute", _experiment_execute(group_rows=_GROUPS_CONSISTENT))
+
+        async def fake_generate(prompt):
+            return {"success": True, "text": "档案文本", "error": None}
+
+        monkeypatch.setattr(archive_service, "generate_text", fake_generate)
+
+        result = await generate_archive("experiment", 2, cache=_tmp_cache())
+
+        grouping = result["stats"]["grouping"]
+        assert grouping["consistent"] is True
+        assert grouping["ungrouped_student_count"] == 0
+        assert grouping["expected_group_count"] == grouping["actual_group_count"] == 3
 
 
 class TestCacheSerialization:
