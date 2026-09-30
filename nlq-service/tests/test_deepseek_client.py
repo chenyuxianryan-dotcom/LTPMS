@@ -6,6 +6,7 @@
 
 import pytest
 
+from app.config import settings
 from app.services import deepseek_client
 
 
@@ -59,7 +60,7 @@ def test_chat_completion_passes_tools(monkeypatch):
 
     assert "tools" in captured["json"]
     assert captured["json"]["tools"] == tools
-    assert captured["json"]["model"] == "deepseek-chat"
+    assert captured["json"]["model"] == settings.deepseek_model
 
 
 def test_chat_completion_returns_tool_calls(monkeypatch):
