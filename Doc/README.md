@@ -223,7 +223,7 @@ docker compose up -d --build
 
 - **字符集**：`utf8mb4` / `utf8mb4_unicode_ci`；**逻辑外键**（不建物理外键，应用层保证完整性，教务导入容错需要）。
 - **14 张业务表**：`user`、`laboratory`、`semester`、`schedule`、`schedule_time`、`course`、`experiment`、`dictionary`、`query_history`、`notification`、`operation_log`、`holiday`、`lab_open_time`、`lab_open_exception`。
-- `database/init.sql` 为 **schema 权威来源**；存量库升级走 `upgrade_*.sql` 增量脚本（当前有：`upgrade_20260909_user_avatar.sql`、`upgrade_20260914_semester_open.sql`、`upgrade_20260916_course_revision.sql`）。
+- `database/init.sql` 为 **schema 权威来源**；存量库升级走 `upgrade_*.sql` 增量脚本（当前有：`upgrade_20260909_user_avatar.sql`、`upgrade_20260914_semester_open.sql`、`upgrade_20260916_course_revision.sql`、`upgrade_20260922_knowledge_base.sql` 等，完整清单见 `database/` 目录）。
 
 **账号模型**（本地脚本默认：库 `ltpms_db` @127.0.0.1:3307，业务账号 `ltpms/ltpms`）：
 
