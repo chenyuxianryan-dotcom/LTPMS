@@ -1,5 +1,5 @@
 /** 课题项目模块 /projects /tasks /datasets /students */
-import { del, download, get, post, put, upload } from '@/utils/request';
+import { del, download, downloadPost, get, post, put, upload } from '@/utils/request';
 import type {
   IDataset,
   IDatasetPreview,
@@ -12,6 +12,7 @@ import type {
   IProjectMember,
   IProjectStats,
   IProjectTask,
+  IReviewInboxItem,
   IRevisionView,
   IStudent,
   IStudentImportResult,
@@ -58,6 +59,27 @@ export function apiArchiveProject(id: number): Promise<IProject> {
 /** 删除课题：SYSTEM 容器 403；独立课题仅空壳可删 */
 export function apiDeleteProject(id: number): Promise<void> {
   return del<void>(`/projects/${id}`);
+}
+
+/** 导出成绩册 Excel（走 download 守卫，防 200+业务码假文件） */
+export function apiExportGrades(id: number): Promise<Blob> {
+  return download(`/projects/${id}/export/grades`);
+}
+
+/** 导出项目台账 Excel（走 download 守卫） */
+export function apiExportLedger(id: number): Promise<Blob> {
+  return download(`/projects/${id}/export/ledger`);
+}
+
+/**
+ * 导出全项目报告 PDF（T09，所见即所得）：把已生成的六节正文回传，后端排版 + 附录成员完成情况表直出。
+ * 走 downloadPost 守卫，防 200+业务码假文件。
+ */
+export function apiExportReportPdf(
+  id: number,
+  payload: { title?: string; text: string; generatedAt?: string | null },
+): Promise<Blob> {
+  return downloadPost(`/projects/${id}/report/pdf`, undefined, payload);
 }
 
 /** 容器实验目录（学生可读：容器课程维度的 experiment 行，替代全局 /experiments） */
@@ -134,7 +156,7 @@ export function apiListTasks(projectId: number): Promise<IProjectTask[]> {
   return get<IProjectTask[]>(`/projects/${projectId}/tasks`);
 }
 
-/** 派发任务：assigneeStudentIds>1 时服务端复制多条 */
+/** 派发任务：assigneeStudentIds>1 时服务端复制多条；experimentId 可空（T03 桥接，独立课题传值后端 400） */
 export function apiCreateTasks(
   projectId: number,
   body: {
@@ -143,14 +165,16 @@ export function apiCreateTasks(
     assigneeStudentIds: number[];
     deadline?: string | null;
     datasetId?: number | null;
+    experimentId?: number | null;
   },
 ): Promise<IProjectTask[]> {
   return post<IProjectTask[]>(`/projects/${projectId}/tasks`, body);
 }
 
+/** 编辑任务：experimentId null=不修改、0=清空关联、>0=改挂（T03） */
 export function apiUpdateTask(
   taskId: number,
-  body: { title?: string; description?: string; deadline?: string | null; datasetId?: number | null },
+  body: { title?: string; description?: string; deadline?: string | null; datasetId?: number | null; experimentId?: number | null },
 ): Promise<IProjectTask> {
   return put<IProjectTask>(`/tasks/${taskId}`, body);
 }
@@ -179,6 +203,11 @@ export function apiListSubmissions(taskId: number): Promise<ITaskSubmission[]> {
 
 export function apiListTaskRevisions(taskId: number): Promise<IRevisionView[]> {
   return get<IRevisionView[]>(`/tasks/${taskId}/revisions`);
+}
+
+/** 全局验收收件箱（T01）：教师=名下课题待验收 FIFO 队列；ADMIN 全量只读；可选 projectId 过滤 */
+export function apiReviewInbox(projectId?: number): Promise<IReviewInboxItem[]> {
+  return get<IReviewInboxItem[]>('/tasks/review-inbox', projectId ? { projectId } : undefined);
 }
 
 /** 学生「我的任务」按课题分组一次拉全 */

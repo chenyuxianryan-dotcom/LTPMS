@@ -4,6 +4,7 @@ import com.ltpms.annotation.OperationLog;
 import com.ltpms.annotation.RequireRole;
 import com.ltpms.common.ErrorCode;
 import com.ltpms.common.Result;
+import com.ltpms.dto.ProjectReportExportRequest;
 import com.ltpms.dto.project.EnsureContainerRequest;
 import com.ltpms.dto.project.GroupCreateRequest;
 import com.ltpms.dto.project.GroupMembersRequest;
@@ -13,12 +14,16 @@ import com.ltpms.entity.Experiment;
 import com.ltpms.entity.LabProject;
 import com.ltpms.service.DatasetService;
 import com.ltpms.service.ExperimentService;
+import com.ltpms.service.ProjectExportService;
 import com.ltpms.service.ProjectGroupService;
 import com.ltpms.service.ProjectService;
 import com.ltpms.service.ProjectStatsService;
 import com.ltpms.service.TaskService;
 import com.ltpms.util.SecurityUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +36,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -48,6 +57,7 @@ public class ProjectController {
     private final DatasetService datasetService;
     private final ExperimentService experimentService;
     private final ProjectStatsService statsService;
+    private final ProjectExportService exportService;
 
     /** 统一实验项目列表（含完成度%/逾期数/成员数，同源 stats）——教师/管理员/学生（学生仅所在课题） */
     @GetMapping
@@ -277,5 +287,55 @@ public class ProjectController {
                     datasetService.toView(outcome.existing()));
         }
         return Result.success(datasetService.toView(outcome.created()));
+    }
+
+    // ---------------------------------------------------------------- 导出（T05/T06）
+
+    /** 成绩册 Excel（Sheet1 汇总每生一行 + Sheet2 任务明细）；仅归属教师/ADMIN，含学号姓名不入 AI 链路 */
+    @GetMapping("/{id}/export/grades")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public void exportGrades(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        String projectName = projectService.detail(id, SecurityUtils.currentUserId(), SecurityUtils.currentRole())
+                .getProjectName();
+        byte[] data = exportService.exportGrades(id, SecurityUtils.currentUserId(), SecurityUtils.currentRole());
+        writeFile(response, data, "成绩册_" + projectName + "_" + today() + ".xlsx");
+    }
+
+    /** 项目台账 Excel（成员/实验目录/任务/提交记录/数据集登记 五 sheet）；仅归属教师/ADMIN */
+    @GetMapping("/{id}/export/ledger")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public void exportLedger(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        String projectName = projectService.detail(id, SecurityUtils.currentUserId(), SecurityUtils.currentRole())
+                .getProjectName();
+        byte[] data = exportService.exportLedger(id, SecurityUtils.currentUserId(), SecurityUtils.currentRole());
+        writeFile(response, data, "项目台账_" + projectName + "_" + today() + ".xlsx");
+    }
+
+    /**
+     * 全项目报告 PDF（T09）：前端把已生成的六节正文所见即所得提交，后端排版 + 附录成员完成情况表直出。
+     * 仅归属教师/ADMIN；学号姓名只落 PDF 附录、不进模型上下文。
+     */
+    @PostMapping("/{id}/report/pdf")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public void exportReportPdf(@PathVariable Long id,
+                                @RequestBody ProjectReportExportRequest request,
+                                HttpServletResponse response) throws IOException {
+        String projectName = projectService.detail(id, SecurityUtils.currentUserId(), SecurityUtils.currentRole())
+                .getProjectName();
+        byte[] data = exportService.exportReportPdf(id, request.getTitle(), request.getText(),
+                request.getGeneratedAt(), SecurityUtils.currentUserId(), SecurityUtils.currentRole());
+        writeFile(response, data, "项目报告_" + projectName + "_" + today() + ".pdf");
+    }
+
+    private void writeFile(HttpServletResponse response, byte[] data, String filename) throws IOException {
+        response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=" + URLEncoder.encode(filename, StandardCharsets.UTF_8)
+                        + "; filename*=UTF-8''" + URLEncoder.encode(filename, StandardCharsets.UTF_8));
+        response.getOutputStream().write(data);
+    }
+
+    private static String today() {
+        return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
     }
 }

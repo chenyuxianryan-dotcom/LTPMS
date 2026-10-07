@@ -24,21 +24,42 @@
             <template v-if="isStudent"> · 完成度 {{ Math.round(project.projectRate) }}%</template>
           </div>
         </div>
-        <div v-if="canManage" class="filter-bar">
-          <el-button :icon="Edit" @click="editVisible = true">编辑课题</el-button>
-          <el-button v-if="isContainer && project.status === 'ACTIVE'" :icon="FolderChecked" @click="handleArchive">归档</el-button>
+        <div v-if="canExport" class="filter-bar">
+          <template v-if="canManage">
+            <el-button :icon="Edit" @click="editVisible = true">编辑课题</el-button>
+            <el-button v-if="isContainer && project.status === 'ACTIVE'" :icon="FolderChecked" @click="handleArchive">归档</el-button>
+          </template>
+          <el-button :icon="Document" @click="reportVisible = true">生成项目报告</el-button>
+          <el-dropdown :disabled="exporting" @command="handleExport">
+            <el-button :icon="Download" :loading="exporting">
+              导出<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="grades">成绩册（Excel）</el-dropdown-item>
+                <el-dropdown-item command="ledger">项目台账（Excel）</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
 
       <el-tabs v-model="activeTab" class="detail-page__tabs">
         <el-tab-pane v-if="isContainer" label="实验目录" name="catalog">
-          <CatalogTab :project="project" :can-manage="canManage" />
+          <CatalogTab :project="project" :can-manage="canManage" @assign-task="handleAssignTask" />
         </el-tab-pane>
         <el-tab-pane label="成员" name="members">
           <MemberTab :project="project" :can-manage="canManage" @changed="load" />
         </el-tab-pane>
         <el-tab-pane label="任务" name="tasks">
-          <TaskTab :project="project" :can-manage="canManage" :audit-view="isAdmin" @changed="load" />
+          <TaskTab
+            :project="project"
+            :can-manage="canManage"
+            :audit-view="isAdmin"
+            :assign-prefill="assignPrefill"
+            :assign-seq="assignSeq"
+            @changed="load"
+          />
         </el-tab-pane>
         <el-tab-pane label="数据" name="datasets">
           <DatasetTab :project="project" :can-manage="canManage" />
@@ -62,6 +83,8 @@
           <el-button type="primary" @click="handleEditSave">保存</el-button>
         </template>
       </el-dialog>
+
+      <ReportDialog v-model="reportVisible" :project-id="project.id" :project-name="project.projectName" />
     </template>
   </div>
 </template>
@@ -69,17 +92,19 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowLeft, Edit, FolderChecked } from '@element-plus/icons-vue';
+import { ArrowLeft, Edit, FolderChecked, Download, ArrowDown, Document } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { apiArchiveProject, apiGetProject, apiUpdateProject } from '@/api/project';
+import { apiArchiveProject, apiExportGrades, apiExportLedger, apiGetProject, apiUpdateProject } from '@/api/project';
+import { saveBlob } from '@/utils/request';
 import { PROJECT_SOURCE_MAP, PROJECT_STATUS_MAP } from '@/constants';
 import { useUserStore } from '@/store/user';
-import type { IProject } from '@/types/api';
+import type { IExperiment, IProject } from '@/types/api';
 import MemberTab from './components/MemberTab.vue';
 import TaskTab from './components/TaskTab.vue';
 import DatasetTab from './components/DatasetTab.vue';
 import ProgressTab from './components/ProgressTab.vue';
 import CatalogTab from '@/pages/experiment/components/CatalogTab.vue';
+import ReportDialog from '@/components/ReportDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -97,6 +122,8 @@ const canManage = computed(
 );
 /** 课程容器（M-Q3）：仅这类课题带「实验目录」Tab */
 const isContainer = computed(() => project.value?.source === 'SYSTEM');
+/** 导出视角（T05/T06）：归属教师与 ADMIN 可导出成绩册/台账；学生无此入口（后端 403 兜底） */
+const canExport = computed(() => !isStudent.value);
 
 async function load(): Promise<void> {
   const id = Number(route.params.id);
@@ -118,6 +145,18 @@ async function load(): Promise<void> {
 onMounted(load);
 watch(() => route.params.id, load);
 
+/* ------------------------------------------------------------- T04：目录行布置任务跨 Tab */
+
+const assignPrefill = ref<{ title?: string; experimentId?: number } | null>(null);
+const assignSeq = ref(0);
+
+/** 目录行「布置任务」→ 预填标题（实验名）+ 默认选中该实验，切到「任务」Tab 自动开抽屉 */
+function handleAssignTask(row: IExperiment): void {
+  assignPrefill.value = { title: row.experimentName, experimentId: row.id };
+  assignSeq.value += 1;
+  activeTab.value = 'tasks';
+}
+
 /* ------------------------------------------------------------- 归档定格 */
 
 async function handleArchive(): Promise<void> {
@@ -134,6 +173,36 @@ async function handleArchive(): Promise<void> {
   await apiArchiveProject(project.value.id);
   ElMessage.success('已归档定格');
   await load();
+}
+
+/* ------------------------------------------------------------- T05/T06：导出成绩册 / 台账 */
+
+const exporting = ref(false);
+/** T09：全项目报告弹窗（与目录行「AI 档案」并存，入口在页头） */
+const reportVisible = ref(false);
+
+async function handleExport(command: string): Promise<void> {
+  if (!project.value || exporting.value) return;
+  exporting.value = true;
+  try {
+    const isGrades = command === 'grades';
+    const blob = isGrades
+      ? await apiExportGrades(project.value.id)
+      : await apiExportLedger(project.value.id);
+    const prefix = isGrades ? '成绩册' : '项目台账';
+    saveBlob(blob, `${prefix}_${project.value.projectName}_${dateStamp()}.xlsx`);
+    ElMessage.success('已开始下载');
+  } catch {
+    // 业务错误提示已由 download 守卫 / axios 拦截器统一弹出，此处不重复提示
+  } finally {
+    exporting.value = false;
+  }
+}
+
+function dateStamp(): string {
+  const d = new Date();
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
 }
 
 /* ------------------------------------------------------------- 编辑课题 */
