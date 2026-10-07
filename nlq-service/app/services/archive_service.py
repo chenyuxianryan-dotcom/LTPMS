@@ -166,6 +166,20 @@ class ArchiveCache:
             return None
         return row[0]
 
+    def get_created_at(self, cache_key: str, ttl_hours: int = ARCHIVE_TTL_HOURS) -> str | None:
+        """返回 TTL 内缓存条目的创建时间（ISO 字符串）；无 / 过期返回 None。"""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT created_at FROM archive_cache WHERE cache_key = ?",
+                (cache_key,),
+            ).fetchone()
+        if not row:
+            return None
+        created = datetime.fromisoformat(row[0])
+        if datetime.now() - created > timedelta(hours=ttl_hours):
+            return None
+        return row[0]
+
     def set(self, cache_key: str, text: str) -> None:
         with self._lock:
             self._conn.execute(
@@ -366,9 +380,11 @@ async def collect_experiment_stats(experiment_id: int) -> dict:
     return stats
 
 
-async def generate_archive(entity_type: str, entity_id: int, cache: ArchiveCache | None = None) -> dict:
+async def generate_archive(entity_type: str, entity_id: int, cache: ArchiveCache | None = None,
+                           force: bool = False) -> dict:
     """生成数字档案：聚合真实数据 → LLM 包装 → 缓存。
 
+    force=True 绕过缓存重新生成（前端「重新生成」入口）。
     返回 {success, text, cached, stats, error}。
     """
     try:
@@ -390,10 +406,11 @@ async def generate_archive(entity_type: str, entity_id: int, cache: ArchiveCache
         }
 
     key = _cache_key(entity_type, entity_id, stats)
-    if cache is not None:
+    if cache is not None and not force:
         cached_text = cache.get(key)
         if cached_text is not None:
-            return {"success": True, "text": cached_text, "cached": True, "stats": stats, "error": None}
+            return {"success": True, "text": cached_text, "cached": True, "stats": stats,
+                    "cached_at": cache.get_created_at(key), "error": None}
 
     result = await generate_text(prompt_template.format(stats=_stats_text(stats)))
     if not result["success"]:

@@ -289,6 +289,71 @@ public class ReportService {
         }
     }
 
+    /**
+     * 将实验项目全项目报告渲染为 PDF（纵向 A4，教学闭环收口 T09）。
+     *
+     * <p>所见即所得：六节叙述正文由前端原样提交，后端只做排版（小标题「一、二、…」放大区分）；
+     * 附录表（成员完成情况）由调用方从库直出后传入，不经模型。沿用静态字体 + 每文档新建 PdfFont
+     * + close 后取字节的既有教训。</p>
+     *
+     * @param title          文档标题
+     * @param subtitle       副标题（项目编号 ｜ 数据截至 …），可空
+     * @param narrativeText  六节叙述正文
+     * @param appendixTitle  附录标题
+     * @param appendixHeaders 附录表头
+     * @param appendixRows   附录数据行（每行与表头等长）
+     * @return PDF 文件字节数组
+     * @throws IOException 生成文件失败时抛出
+     */
+    public byte[] exportProjectReportPdf(String title, String subtitle, String narrativeText,
+                                         String appendixTitle, String[] appendixHeaders,
+                                         List<String[]> appendixRows) throws IOException {
+        PdfFont font = cjkFont();
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            PdfDocument pdfDoc = new PdfDocument(new PdfWriter(bos));
+            Document doc = new Document(pdfDoc, PageSize.A4);
+            doc.add(new Paragraph(blankTo(title, "实验项目报告")).setFont(font).setFontSize(18)
+                    .setTextAlignment(TextAlignment.CENTER));
+            if (notBlank(subtitle)) {
+                doc.add(new Paragraph(subtitle).setFont(font).setFontSize(10)
+                        .setFontColor(ColorConstants.GRAY)
+                        .setTextAlignment(TextAlignment.CENTER).setMarginBottom(16));
+            }
+            for (String line : textLines(narrativeText)) {
+                // 模型可能输出 markdown 小标题（## 一、…）：剥掉井号，按中文序号识别标题放大
+                String cleaned = line.trim().replaceAll("^#{1,6}\\s*", "");
+                boolean heading = cleaned.matches("^[一二三四五六七八九十]+、.*");
+                Paragraph paragraph = new Paragraph(cleaned.isEmpty() ? " " : cleaned).setFont(font)
+                        .setMultipliedLeading(1.6f);
+                if (heading) {
+                    paragraph.setFontSize(13).setMarginTop(12).setMarginBottom(4);
+                } else {
+                    paragraph.setFontSize(11);
+                }
+                doc.add(paragraph);
+            }
+            if (appendixHeaders != null && appendixRows != null && !appendixRows.isEmpty()) {
+                doc.add(new Paragraph(blankTo(appendixTitle, "附录")).setFont(font).setFontSize(14)
+                        .setMarginTop(20).setMarginBottom(6));
+                float[] widths = new float[appendixHeaders.length];
+                Arrays.fill(widths, 1f);
+                Table table = new Table(widths);
+                table.setWidth(UnitValue.createPercentValue(100));
+                for (String header : appendixHeaders) {
+                    table.addHeaderCell(pdfCell(font, header, 10));
+                }
+                for (String[] row : appendixRows) {
+                    for (int i = 0; i < appendixHeaders.length; i++) {
+                        table.addCell(pdfCell(font, i < row.length ? blankTo(row[i], "-") : "-", 9));
+                    }
+                }
+                doc.add(table);
+            }
+            doc.close();
+            return bos.toByteArray();
+        }
+    }
+
     private static Cell pdfCell(PdfFont font, String value, float fontSize) {
         return new Cell().add(new Paragraph(value == null ? "" : value).setFont(font).setFontSize(fontSize));
     }

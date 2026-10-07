@@ -23,12 +23,15 @@
           </el-descriptions-item>
         </el-descriptions>
         <div v-if="result?.cached" class="archive-dialog__cached">
-          <el-tag size="small" type="info" effect="plain">缓存档案（24 小时内有效）</el-tag>
+          <el-tag size="small" type="info" effect="plain">
+            {{ result?.cached_at ? `缓存档案 · 数据截至 ${result.cached_at}` : '缓存档案（24 小时内有效）' }}
+          </el-tag>
         </div>
       </template>
     </div>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">关闭</el-button>
+      <el-button :icon="RefreshRight" :loading="loading" @click="load(true)">重新生成</el-button>
       <el-button type="primary" :disabled="!hasText" @click="handleCopy">复制档案</el-button>
     </template>
   </el-dialog>
@@ -37,6 +40,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
+import { RefreshRight } from '@element-plus/icons-vue';
 import { apiNlqArchive, type INlqArchiveResult } from '@/api/nlq';
 
 /**
@@ -81,22 +85,30 @@ watch(
   (visible) => {
     if (!visible) return;
     result.value = null;
-    if (props.entityId == null) return;
-    loading.value = true;
-    apiNlqArchive(props.entityType, props.entityId)
-      .then((res) => {
-        result.value = res;
-      })
-      .catch(() => {
-        // 错误由 request 拦截器统一提示；此处保持空态兜底
-        result.value = null;
-      })
-      .finally(() => {
-        loading.value = false;
-      });
+    load(false);
   },
   { immediate: false },
 );
+
+/** 加载档案；force=true 绕过 24h 缓存重新生成（收掉上批「缓存无刷新入口」遗留） */
+function load(force: boolean): void {
+  if (props.entityId == null || loading.value) return;
+  loading.value = true;
+  apiNlqArchive(props.entityType, props.entityId, force)
+    .then((res) => {
+      result.value = res;
+      if (force && res?.success) {
+        ElMessage.success('已重新生成');
+      }
+    })
+    .catch(() => {
+      // 错误由 request 拦截器统一提示；此处保持空态兜底
+      if (!force) result.value = null;
+    })
+    .finally(() => {
+      loading.value = false;
+    });
+}
 
 async function handleCopy(): Promise<void> {
   if (!result.value?.text) return;

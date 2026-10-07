@@ -11,6 +11,8 @@ cryptography>=42.0.0
 pyyaml==6.0.3
 # 知识库检索的打分（余弦相似度）；纯 Python 循环在千级段落上过慢
 numpy>=2.0,<3
+# 实验材料 xlsx 文件画像（T07，read_only 采样）
+openpyxl>=3.1,<4
 # MCP Server（V3）：官方 SDK v1 含 FastMCP；勿升 2.x（FastMCP 已改名）
 # starlette 必须与 fastapi 0.115 共存（<0.39），mcp 1.x 依赖兼容
 mcp>=1.30.0,<2

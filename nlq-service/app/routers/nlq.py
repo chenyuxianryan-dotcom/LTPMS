@@ -7,6 +7,7 @@ from app.services.embeddings import EmbeddingUnavailableError, embed_texts
 from app.services.image_query import run_image_query
 from app.services.narrative_service import generate_narrative
 from app.services.query_service import execute_query
+from app.services.report_service import generate_report
 from app.services.schema_cache import schema_cache
 from app.services.vision import recognize_schedule_photo
 
@@ -92,12 +93,28 @@ class ImageQueryResponse(BaseModel):
 class ArchiveRequest(BaseModel):
     entity_type: str  # laboratory | experiment
     entity_id: int
+    force: bool = False  # 重新生成：绕过 24h 缓存
 
 
 class ArchiveResponse(BaseModel):
     success: bool
     text: str = ""
     cached: bool = False
+    cached_at: str | None = None
+    stats: dict | None = None
+    error: str | None = None
+
+
+class ReportRequest(BaseModel):
+    project_id: int
+    force: bool = False  # 重新生成：绕过 24h 缓存
+
+
+class ReportResponse(BaseModel):
+    success: bool
+    text: str = ""
+    cached: bool = False
+    generated_at: str | None = None
     stats: dict | None = None
     error: str | None = None
 
@@ -204,12 +221,36 @@ async def image_query(
 
 @router.post("/archive", response_model=ArchiveResponse)
 async def archive(request: ArchiveRequest):
-    """实验台数字档案：聚合真实统计 → AI 生成档案文本（缓存 TTL 24h）。"""
-    result = await generate_archive(request.entity_type, request.entity_id, cache=_get_archive_cache())
+    """实验台数字档案：聚合真实统计 → AI 生成档案文本（缓存 TTL 24h，force 绕过）。"""
+    result = await generate_archive(
+        request.entity_type, request.entity_id, cache=_get_archive_cache(), force=request.force)
     return ArchiveResponse(
         success=result["success"],
         text=result["text"],
         cached=result["cached"],
+        cached_at=result.get("cached_at"),
+        stats=result["stats"],
+        error=result["error"],
+    )
+
+
+@router.post("/report", response_model=ReportResponse)
+async def report(
+    request: ReportRequest,
+    x_user_id: int = Header(0, alias="X-User-Id"),
+    x_user_role: str = Header("", alias="X-User-Role"),
+):
+    """实验项目全项目报告：聚合课题全貌 + 材料文件画像 → AI 生成六节报告（缓存 TTL 24h）。
+
+    行级权限由 Java 侧经 ProjectAuthService 单路把关（本服务只认内部令牌 + 透传身份记账）；
+    学号 / 姓名不进模型上下文，附录成员表由后端直出。
+    """
+    result = await generate_report(request.project_id, force=request.force, cache=_get_archive_cache())
+    return ReportResponse(
+        success=result["success"],
+        text=result["text"],
+        cached=result["cached"],
+        generated_at=result.get("generated_at"),
         stats=result["stats"],
         error=result["error"],
     )

@@ -8,7 +8,7 @@ from app.services import text_generation
 
 class TestGenerateText:
     async def test_generate_text_delegates(self, monkeypatch):
-        async def fake_call(messages):
+        async def fake_call(messages, timeout=None):
             return "生成结果文本"
 
         monkeypatch.setattr(text_generation, "call_deepseek", fake_call)
@@ -17,7 +17,7 @@ class TestGenerateText:
         assert result["text"] == "生成结果文本"
 
     async def test_generate_text_error_fallback(self, monkeypatch):
-        async def fake_call(messages):
+        async def fake_call(messages, timeout=None):
             raise RuntimeError("模型超时")
 
         monkeypatch.setattr(text_generation, "call_deepseek", fake_call)
@@ -26,7 +26,7 @@ class TestGenerateText:
         assert "模型超时" in result["error"]
 
     async def test_generate_material_list_contains_advice(self, monkeypatch):
-        async def fake_call(messages):
+        async def fake_call(messages, timeout=None):
             # 校验 prompt 里带入了实验信息
             assert "密度计实验" in messages[0]["content"]
             return "密度计 | 1 | 建议清单"

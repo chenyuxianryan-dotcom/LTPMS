@@ -80,6 +80,17 @@ export interface INlqArchiveResult {
   success: boolean;
   text: string;
   cached: boolean;
+  cached_at?: string | null;
+  stats: Record<string, unknown> | null;
+  error: string | null;
+}
+
+/** 全项目报告结果：text=六节叙述正文；generated_at=数据截至时间；stats=确定性聚合（降级展示） */
+export interface INlqReportResult {
+  success: boolean;
+  text: string;
+  cached: boolean;
+  generated_at: string | null;
   stats: Record<string, unknown> | null;
   error: string | null;
 }
@@ -93,13 +104,26 @@ export interface INlqNarrativeResult {
   error: string | null;
 }
 
-/** 实验台数字档案：聚合真实统计 → AI 生成档案（缓存 TTL 24h） */
+/** 实验台数字档案：聚合真实统计 → AI 生成档案（缓存 TTL 24h；force=true 绕过缓存重新生成） */
 export function apiNlqArchive(
   entityType: 'laboratory' | 'experiment',
   entityId: number,
+  force = false,
 ): Promise<INlqArchiveResult> {
   // 档案含大模型生成，单独放宽超时
-  return post<INlqArchiveResult>('/nlq/archive', { entity_type: entityType, entity_id: entityId }, { timeout: 60000 });
+  return post<INlqArchiveResult>(
+    '/nlq/archive',
+    { entity_type: entityType, entity_id: entityId, force },
+    { timeout: 60000 },
+  );
+}
+
+/**
+ * 实验项目全项目报告：聚合课题全貌 + 材料文件画像 → AI 生成六节报告（缓存 TTL 24h）。
+ * 报告为长文一次成文，前端超时放宽到 90s（后端 per-call 45s + 重试 ≤1）；force=true 重新生成。
+ */
+export function apiNlqReport(projectId: number, force = false): Promise<INlqReportResult> {
+  return post<INlqReportResult>('/nlq/report', { project_id: projectId, force }, { timeout: 90000 });
 }
 
 /** 叙事报告/教学总结：数字由后端真实聚合，LLM 只做语言包装（教师强制个人口径） */

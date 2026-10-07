@@ -78,15 +78,31 @@ public class NlqController {
     /**
      * 实验台数字档案：AI 生成实验室/实验项目的「一句话简介 + 历史 + 使用统计」。
      *
-     * @param body 请求体，含 entity_type（laboratory | experiment）与 entity_id
-     * @return 档案结果 {success, text, cached, stats, error}
+     * @param body 请求体，含 entity_type（laboratory | experiment）、entity_id 与可选 force（重新生成）
+     * @return 档案结果 {success, text, cached, cached_at, stats, error}
      */
     @PostMapping("/archive")
     @RequireRole({"ADMIN", "TEACHER"})
     public Result<Map<String, Object>> archive(@RequestBody Map<String, Object> body) {
         String entityType = String.valueOf(body.get("entity_type"));
         Long entityId = body.get("entity_id") == null ? null : Long.valueOf(String.valueOf(body.get("entity_id")));
-        return Result.success(nlqService.archive(entityType, entityId));
+        boolean force = Boolean.parseBoolean(String.valueOf(body.getOrDefault("force", "false")));
+        return Result.success(nlqService.archive(entityType, entityId, force, getCurrentUserId(), getCurrentRole()));
+    }
+
+    /**
+     * 实验项目全项目报告：AI 生成六节报告（数字来自真实聚合 + 材料文件画像）。
+     * 行级权限经 ProjectAuthService 单路把关（ADMIN 放行 / TEACHER 须为归属）；学号姓名不进模型上下文。
+     *
+     * @param body 请求体，含 project_id 与可选 force（重新生成，绕过 24h 缓存）
+     * @return 报告结果 {success, text, cached, generated_at, stats, error}
+     */
+    @PostMapping("/report")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<Map<String, Object>> report(@RequestBody Map<String, Object> body) {
+        Long projectId = body.get("project_id") == null ? null : Long.valueOf(String.valueOf(body.get("project_id")));
+        boolean force = Boolean.parseBoolean(String.valueOf(body.getOrDefault("force", "false")));
+        return Result.success(nlqService.report(projectId, force, getCurrentUserId(), getCurrentRole()));
     }
 
     /**

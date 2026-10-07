@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     skills_dir: str = "skills"
     memory_db_path: str = "data/agent_memory.db"
 
+    # 实验材料落盘目录（数据集文件画像只读访问）；dev 指向后端 backend/uploads/lab，
+    # 相对路径以 nlq-service 工作目录为基准，生产用 env 覆盖为绝对路径。
+    lab_upload_dir: str = "../backend/uploads/lab"
+    # 单文件画像采样上限：超过则降级为仅元数据（不解析内容，不报错）
+    profile_max_file_mb: int = 20
+    profile_sample_rows: int = 2000
+    # 报告生成的独立超时（秒）：比全局 15s 宽，六节长文一次成文
+    report_timeout: float = 45.0
+
     # MCP Server（V3）：只读数据工具对外暴露；mcp_enabled=False 时拒绝启动（生产默认关）
     mcp_enabled: bool = True
     mcp_host: str = "127.0.0.1"

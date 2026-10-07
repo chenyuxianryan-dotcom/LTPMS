@@ -7,13 +7,14 @@
 from app.services.deepseek_client import call_deepseek
 
 
-async def generate_text(prompt: str) -> dict:
+async def generate_text(prompt: str, timeout: float | None = None) -> dict:
     """根据 prompt 生成一段文本，返回结构化结果。
 
+    timeout 为 per-call 超时覆盖（None 时沿用全局 15s；报告等长文场景传更宽值）。
     返回 dict：success / text / error。
     """
     try:
-        text = await call_deepseek([{"role": "user", "content": prompt}])
+        text = await call_deepseek([{"role": "user", "content": prompt}], timeout=timeout)
         return {"success": True, "text": text, "error": None}
     except Exception as e:
         return {"success": False, "text": "", "error": f"文本生成失败：{e}"}

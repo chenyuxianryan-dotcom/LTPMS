@@ -43,9 +43,22 @@ public class NlqService {
 
     private final NlqProperties nlqProperties;
     private final QueryHistoryMapper queryHistoryMapper;
+    private final ProjectAuthService projectAuthService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     private final Map<Long, RateLimiter> rateLimiters = new ConcurrentHashMap<>();
+
+    /**
+     * 用户级限流（与 /query、/agent 同口径、同实现）：共享同一平滑桶，
+     * 1 次 / (60/rateLimitPerMinute) 秒，无突发额度；超限抛 TOO_MANY_REQUESTS（前端 429 语义）。
+     */
+    private void acquireRateLimit(Long userId) {
+        RateLimiter limiter = rateLimiters.computeIfAbsent(userId,
+                k -> RateLimiter.create(nlqProperties.getRateLimitPerMinute() / 60.0));
+        if (!limiter.tryAcquire()) {
+            throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS);
+        }
+    }
 
     /**
      * 处理自然语言查询请求：先进行用户级限流，再转发至 NL2SQL 模型服务，
@@ -367,18 +380,26 @@ public class NlqService {
      *
      * @param entityType 实体类型（laboratory | experiment）
      * @param entityId   实体 ID
-     * @return 档案结果 {success, text, cached, stats, error}
-     * @throws BusinessException 当档案服务调用失败时抛出
+     * @param force      是否绕过 24h 缓存重新生成（前端「重新生成」入口）
+     * @param userId     当前用户 ID（限流记账）
+     * @param role       当前用户角色
+     * @return 档案结果 {success, text, cached, cached_at, stats, error}
+     * @throws BusinessException 当触发限流或档案服务调用失败时抛出
      */
     @SuppressWarnings("unchecked")
-    public Map<String, Object> archive(String entityType, Long entityId) {
+    public Map<String, Object> archive(String entityType, Long entityId, boolean force,
+                                       Long userId, String role) {
+        acquireRateLimit(userId);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Internal-Token", nlqProperties.getInternalToken());
+        headers.set("X-User-Id", String.valueOf(userId));
+        headers.set("X-User-Role", role);
 
         Map<String, Object> body = new HashMap<>();
         body.put("entity_type", entityType);
         body.put("entity_id", entityId);
+        body.put("force", force);
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
         try {
@@ -393,6 +414,48 @@ public class NlqService {
             throw new BusinessException(ErrorCode.NLQ_SERVICE_UNAVAILABLE);
         } catch (Exception e) {
             log.error("NL2SQL archive request failed", e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        }
+    }
+
+    /**
+     * 实验项目全项目报告：先经 ProjectAuthService 单路行级鉴权（ADMIN 放行 / TEACHER 须为归属），
+     * 再限流转发到 NL2SQL 服务的 /report 端点（AI 生成六节报告，数字来自真实聚合 + 文件画像）。
+     *
+     * @param projectId 实验项目 ID
+     * @param force     是否绕过 24h 缓存重新生成
+     * @param userId    当前用户 ID
+     * @param role      当前用户角色
+     * @return 报告结果 {success, text, cached, generated_at, stats, error}
+     * @throws BusinessException 当无权限、触发限流或报告服务调用失败时抛出
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> report(Long projectId, boolean force, Long userId, String role) {
+        projectAuthService.requireReadable(projectId, userId, role);
+        acquireRateLimit(userId);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Token", nlqProperties.getInternalToken());
+        headers.set("X-User-Id", String.valueOf(userId));
+        headers.set("X-User-Role", role);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("project_id", projectId);
+        body.put("force", force);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    nlqProperties.getServiceUrl() + "/report", entity, Map.class);
+            return response.getBody();
+        } catch (RestClientResponseException e) {
+            log.error("NL2SQL report service error: {}", e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
+        } catch (ResourceAccessException e) {
+            log.error("NL2SQL report service unreachable: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.NLQ_SERVICE_UNAVAILABLE);
+        } catch (Exception e) {
+            log.error("NL2SQL report request failed", e);
             throw new BusinessException(ErrorCode.NLQ_MODEL_TIMEOUT);
         }
     }
