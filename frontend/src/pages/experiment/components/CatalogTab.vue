@@ -39,11 +39,13 @@
       <el-table-column prop="groupSize" label="每组人数" width="95" align="right" class-name="tabular-nums" />
       <el-table-column prop="hours" label="学时" width="80" align="right" class-name="tabular-nums" />
       <!-- 操作列：教师全量；管理员只读视图保留材料清单/AI 档案（隐藏编辑/删除）；学生走 NLQ 白名单未放行（r2-H1） -->
-      <el-table-column v-if="canManage || isAdminView" label="操作" :width="isAdminView ? 170 : 270" fixed="right">
+      <el-table-column v-if="canManage || isAdminView" label="操作" :width="isAdminView ? 170 : 340" fixed="right">
         <template #default="{ row }">
           <template v-if="!isAdminView">
             <el-button link type="primary" :disabled="!canWrite" @click="openEdit(row)">编辑</el-button>
             <el-button link type="danger" :disabled="!canWrite" @click="handleDelete(row)">删除</el-button>
+            <!-- T04：目录行布置任务——切「任务」Tab 并预填标题（实验名）+ 默认选中该实验；ADMIN 只读视图隐藏 -->
+            <el-button link type="primary" :disabled="!canWrite" @click="handleAssignTask(row)">布置任务</el-button>
           </template>
           <el-button link type="success" @click="openMaterial(row)">材料清单</el-button>
           <el-button link type="success" @click="openArchive(row)">AI 档案</el-button>
@@ -151,6 +153,13 @@ import type { IDictItem, IExperiment, IProject, ISemester } from '@/types/api';
 import type { IBizError } from '@/utils/request';
 
 const props = defineProps<{ project: IProject; canManage: boolean }>();
+
+/** T04：目录行「布置任务」——上抛该行给父组件，由其切「任务」Tab 并预填 TaskFormDrawer */
+const emit = defineEmits<{ (e: 'assign-task', row: IExperiment): void }>();
+
+function handleAssignTask(row: IExperiment): void {
+  emit('assign-task', row);
+}
 
 const userStore = useUserStore();
 /** 管理员只读视图（2026-09-20 权限边界）：隐藏编辑/删除/批量导入，保留材料清单与 AI 档案等读侧入口 */

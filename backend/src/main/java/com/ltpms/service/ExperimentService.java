@@ -47,6 +47,7 @@ public class ExperimentService {
     private final CodeGenerator codeGenerator;
     private final ProjectAuthService projectAuthService;
     private final ProjectGroupService projectGroupService;
+    private final TaskService taskService;
 
     /**
      * 容器实验目录（M-Q2/M-Q8）：读权限单路收口 ProjectAuthService（H2），
@@ -167,6 +168,8 @@ public class ExperimentService {
         checkCurrentSemester(course.getSemesterId());
         experimentMapper.deleteById(id);
         projectGroupService.onExperimentDeleted(id);
+        // T03 桥接级联：关联任务 experiment_id 置空（任务保留、不阻断删除、无悬空引用）
+        taskService.onExperimentDeleted(id);
     }
 
     /**

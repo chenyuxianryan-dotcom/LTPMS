@@ -29,6 +29,12 @@
           <el-option v-for="d in datasets" :key="d.id" :value="d.id" :label="`${d.datasetName}（v${d.latestVersion}）`" />
         </el-select>
       </el-form-item>
+      <!-- T04：关联实验（本容器目录行）；独立课题无目录语义，不显示此项 -->
+      <el-form-item v-if="experiments && experiments.length" label="关联实验">
+        <el-select v-model="form.experimentId" clearable placeholder="可选，挂靠实验目录行" style="width: 100%">
+          <el-option v-for="e in experiments" :key="e.id" :value="e.id" :label="`${e.experimentCode} · ${e.experimentName}`" />
+        </el-select>
+      </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
@@ -41,7 +47,7 @@
 import { reactive, ref, watch } from 'vue';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { apiCreateTasks, apiUpdateTask } from '@/api/project';
-import type { IDataset, IProjectMember, IProjectTask } from '@/types/api';
+import type { IDataset, IExperiment, IProjectMember, IProjectTask } from '@/types/api';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -49,6 +55,10 @@ const props = defineProps<{
   members: IProjectMember[];
   datasets: IDataset[];
   editTask?: IProjectTask | null;
+  /** T04：本容器实验目录（空=独立课题，隐藏「关联实验」项） */
+  experiments?: IExperiment[];
+  /** T04：目录行「布置任务」入口预填（标题=实验名、默认选中该实验） */
+  prefill?: { title?: string; experimentId?: number } | null;
 }>();
 const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void; (e: 'saved'): void }>();
 
@@ -60,7 +70,8 @@ const form = reactive<{
   assigneeStudentIds: number[];
   deadline: string | null;
   datasetId: number | null;
-}>({ title: '', description: '', assigneeStudentIds: [], deadline: null, datasetId: null });
+  experimentId: number | null;
+}>({ title: '', description: '', assigneeStudentIds: [], deadline: null, datasetId: null, experimentId: null });
 
 const rules: FormRules = {
   title: [{ required: true, message: '请输入任务标题', trigger: 'blur' }],
@@ -71,11 +82,14 @@ watch(
   () => props.modelValue,
   (open) => {
     if (!open) return;
-    form.title = props.editTask?.title ?? '';
+    form.title = props.editTask?.title ?? props.prefill?.title ?? '';
     form.description = props.editTask?.description ?? '';
     form.assigneeStudentIds = [];
     form.deadline = props.editTask?.deadline ?? null;
     form.datasetId = props.editTask?.datasetId ?? null;
+    form.experimentId = props.editTask
+      ? props.editTask.experimentId ?? null
+      : props.prefill?.experimentId ?? null;
   },
 );
 
@@ -83,6 +97,7 @@ async function handleSave(): Promise<void> {
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid) return;
   saving.value = true;
+  const hasCatalog = !!(props.experiments && props.experiments.length);
   try {
     if (props.editTask) {
       await apiUpdateTask(props.editTask.id, {
@@ -90,6 +105,8 @@ async function handleSave(): Promise<void> {
         description: form.description,
         deadline: form.deadline,
         datasetId: form.datasetId,
+        // 有目录才传：null=不动 / 0=清空 / >0=改挂；独立课题不传（后端一律 400 兜底）
+        experimentId: hasCatalog ? form.experimentId ?? 0 : undefined,
       });
       ElMessage.success('任务已更新（变更已留痕）');
     } else {
@@ -99,6 +116,7 @@ async function handleSave(): Promise<void> {
         assigneeStudentIds: form.assigneeStudentIds,
         deadline: form.deadline,
         datasetId: form.datasetId,
+        experimentId: form.experimentId ?? undefined,
       });
       ElMessage.success(`已派发 ${created.length} 条任务并通知学生`);
     }

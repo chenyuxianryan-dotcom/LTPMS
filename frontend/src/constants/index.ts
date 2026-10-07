@@ -109,6 +109,7 @@ export const TASK_REVISION_FIELD_LABELS: Record<string, string> = {
   description: '任务说明',
   deadline: '截止时间',
   datasetId: '关联数据集',
+  experimentId: '关联实验',
 };
 
 /** 学生角色可见路由（守卫默认拒绝的白名单；页面 name 口径）

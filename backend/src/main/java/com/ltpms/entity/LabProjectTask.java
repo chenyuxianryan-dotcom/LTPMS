@@ -25,6 +25,8 @@ public class LabProjectTask {
     private String status;
     private LocalDateTime deadline;
     private Long datasetId;
+    /** 关联实验目录行（T03 深桥接；可空，删实验时置空） */
+    private Long experimentId;
     private Integer deleted;
     private Long createdBy;
     private LocalDateTime createdAt;

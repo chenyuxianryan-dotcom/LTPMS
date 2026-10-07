@@ -14,4 +14,6 @@ public class TaskUpdateRequest {
     private String description;
     private LocalDateTime deadline;
     private Long datasetId;
+    /** 关联实验（T03）：null=不修改；0=清空关联；>0=改挂（校验同新建） */
+    private Long experimentId;
 }

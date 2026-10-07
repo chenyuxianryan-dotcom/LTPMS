@@ -16,4 +16,6 @@ public class TaskCreateRequest {
     private List<Long> assigneeStudentIds;
     private LocalDateTime deadline;
     private Long datasetId;
+    /** 关联实验目录行（T03；可空；非空时须属于课题所属课程容器目录，独立课题一律 400） */
+    private Long experimentId;
 }

@@ -5,8 +5,17 @@
       <span class="task-tab__hint">多人派发将复制为独立任务并通知学生；已提交任务不可删除、只能驳回后关闭（规则①）</span>
     </div>
 
-    <el-table v-loading="loading" :data="tasks" border stripe>
+    <div v-if="experiments.length" class="task-tab__filters">
+      <el-select v-model="expFilter" clearable placeholder="按关联实验筛选" style="width: 240px">
+        <el-option v-for="e in experiments" :key="e.id" :value="e.id" :label="e.experimentName" />
+      </el-select>
+    </div>
+
+    <el-table v-loading="loading" :data="filteredTasks" border stripe>
       <el-table-column prop="title" label="任务标题" min-width="200" show-overflow-tooltip />
+      <el-table-column v-if="experiments.length" label="关联实验" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.experimentName || '-' }}</template>
+      </el-table-column>
       <el-table-column prop="assigneeName" label="执行人" width="110" />
       <el-table-column label="状态" width="110" align="center">
         <template #default="{ row }">
@@ -41,7 +50,9 @@
       :project-id="project.id"
       :members="members"
       :datasets="datasets"
+      :experiments="experiments"
       :edit-task="editTask"
+      :prefill="prefill"
       @saved="load"
     />
     <TaskReviewDialog v-model="reviewVisible" :task="reviewTask" :submission="reviewSubmission" @done="load" />
@@ -84,10 +95,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Plus } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
+  apiContainerExperiments,
   apiDeleteTask,
   apiListDatasets,
   apiListMembers,
@@ -96,23 +108,41 @@ import {
   apiListTasks,
 } from '@/api/project';
 import { TASK_REVISION_FIELD_LABELS, TASK_STATUS_MAP } from '@/constants';
-import type { IDataset, IProject, IProjectMember, IProjectTask, IRevisionView, ITaskSubmission } from '@/types/api';
+import type { IDataset, IExperiment, IProject, IProjectMember, IProjectTask, IRevisionView, ITaskSubmission } from '@/types/api';
 import { fmtDateTime, fmtFullDateTime } from '../projectUtils';
 import TaskFormDrawer from './TaskFormDrawer.vue';
 import TaskReviewDialog from './TaskReviewDialog.vue';
 
 /** auditView：管理员只读视角（2026-09-20 权限边界）——操作列仅保留提交记录/修订等读侧入口 */
-const props = defineProps<{ project: IProject; canManage: boolean; auditView?: boolean }>();
+const props = defineProps<{
+  project: IProject;
+  canManage: boolean;
+  auditView?: boolean;
+  /** T04：目录行「布置任务」跨 Tab 触发——prefill 预填内容，seq 每次自增以重复触发 */
+  assignPrefill?: { title?: string; experimentId?: number } | null;
+  assignSeq?: number;
+}>();
 
 const loading = ref(false);
 const tasks = ref<IProjectTask[]>([]);
 const members = ref<IProjectMember[]>([]);
 const datasets = ref<IDataset[]>([]);
+/** T04：本容器实验目录（独立课题为空，隐藏筛选与关联项） */
+const experiments = ref<IExperiment[]>([]);
+/** T04：按关联实验筛选（客户端过滤，空=全部） */
+const expFilter = ref<number | null>(null);
+
+const filteredTasks = computed(() =>
+  expFilter.value == null ? tasks.value : tasks.value.filter((t) => t.experimentId === expFilter.value),
+);
 
 async function load(): Promise<void> {
   loading.value = true;
   try {
     tasks.value = await apiListTasks(props.project.id);
+    if (props.project.courseId != null) {
+      experiments.value = await apiContainerExperiments(props.project.id);
+    }
     if (props.canManage) {
       const [ms, ds] = await Promise.all([apiListMembers(props.project.id), apiListDatasets(props.project.id)]);
       members.value = ms;
@@ -135,16 +165,41 @@ function statusOf(row: IProjectTask): { label: string; tagType: 'success' | 'war
 
 const formVisible = ref(false);
 const editTask = ref<IProjectTask | null>(null);
+const prefill = ref<{ title?: string; experimentId?: number } | null>(null);
 
 function openCreate(): void {
   editTask.value = null;
+  prefill.value = null;
   formVisible.value = true;
 }
 
 function openEdit(row: IProjectTask): void {
   editTask.value = row;
+  prefill.value = null;
   formVisible.value = true;
 }
+
+/**
+ * T04：目录行「布置任务」跨 Tab 触发。父组件切到本 Tab 时本组件可能刚挂载、目录尚未加载完，
+ * 故先确保目录就绪再开抽屉，否则「关联实验」下拉项因 experiments 为空而不显示。
+ */
+watch(
+  () => props.assignSeq,
+  async (seq) => {
+    if (!seq) return;
+    if (props.project.courseId != null && !experiments.value.length) {
+      try {
+        experiments.value = await apiContainerExperiments(props.project.id);
+      } catch {
+        /* 目录拉取失败不阻断派发，抽屉仍可用 */
+      }
+    }
+    editTask.value = null;
+    prefill.value = props.assignPrefill ?? null;
+    formVisible.value = true;
+  },
+  { immediate: true },
+);
 
 /** 已验收任务锁定不可编辑；CLOSED 只读 */
 function canEdit(row: IProjectTask): boolean {
@@ -229,6 +284,10 @@ async function openRevisions(row: IProjectTask): Promise<void> {
   &__hint {
     font-size: 12px;
     color: var(--text-tertiary);
+  }
+
+  &__filters {
+    margin-bottom: var(--space-3);
   }
 
   &__overdue {
