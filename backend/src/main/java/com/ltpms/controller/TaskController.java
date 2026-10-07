@@ -94,4 +94,12 @@ public class TaskController {
     public Result<List<TaskService.MyTaskGroup>> myTasks(@RequestParam(required = false) String status) {
         return Result.success(taskService.myTasks(SecurityUtils.currentUserId(), status));
     }
+
+    /** 全局验收收件箱（T01）：教师=名下全部课题待验收队列（FIFO）；ADMIN 全量只读；学生无 */
+    @GetMapping("/review-inbox")
+    @RequireRole({"ADMIN", "TEACHER"})
+    public Result<List<TaskService.InboxItem>> reviewInbox(@RequestParam(required = false) Long projectId) {
+        return Result.success(taskService.reviewInbox(
+                SecurityUtils.currentUserId(), SecurityUtils.currentRole(), projectId));
+    }
 }

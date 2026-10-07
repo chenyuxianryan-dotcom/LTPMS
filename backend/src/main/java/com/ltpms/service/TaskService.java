@@ -1,17 +1,20 @@
 package com.ltpms.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.ltpms.common.BusinessException;
 import com.ltpms.common.ErrorCode;
 import com.ltpms.dto.project.TaskCreateRequest;
 import com.ltpms.dto.project.TaskReviewRequest;
 import com.ltpms.dto.project.TaskSubmitRequest;
 import com.ltpms.dto.project.TaskUpdateRequest;
+import com.ltpms.entity.Experiment;
 import com.ltpms.entity.LabProject;
 import com.ltpms.entity.LabTaskSubmission;
 import com.ltpms.entity.LabProjectMember;
 import com.ltpms.entity.LabProjectTask;
 import com.ltpms.entity.Student;
+import com.ltpms.mapper.ExperimentMapper;
 import com.ltpms.mapper.LabProjectMapper;
 import com.ltpms.mapper.LabTaskSubmissionMapper;
 import com.ltpms.mapper.LabProjectMemberMapper;
@@ -31,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,6 +60,7 @@ public class TaskService {
     private final LabProjectMemberMapper memberMapper;
     private final StudentMapper studentMapper;
     private final UserMapper userMapper;
+    private final ExperimentMapper experimentMapper;
     private final ProjectAuthService authService;
     private final NotificationService notificationService;
     private final RevisionService revisionService;
@@ -66,6 +71,7 @@ public class TaskService {
     public record TaskView(Long id, Long projectId, String title, String description,
                            Long assigneeStudentId, String assigneeName, String status,
                            LocalDateTime deadline, boolean overdue, Long datasetId,
+                           Long experimentId, String experimentName,
                            LocalDateTime createdAt, LocalDateTime updatedAt) {
     }
 
@@ -77,6 +83,13 @@ public class TaskService {
 
     /** 学生「我的任务」按课题分组 */
     public record MyTaskGroup(Long projectId, String projectName, List<TaskView> tasks) {
+    }
+
+    /** 收件箱队列项（T01）：SUBMITTED 任务 + 最新待验收提交；按 submittedAt 升序 FIFO */
+    public record InboxItem(Long taskId, Long projectId, String projectName, String taskTitle,
+                            Long studentId, String studentName, String studentNo,
+                            Long submissionId, String content, Long datasetVersionId,
+                            LocalDateTime submittedAt, boolean overdue) {
     }
 
     // ---------------------------------------------------------------- 列表
@@ -128,6 +141,51 @@ public class TaskService {
                         .eq(LabProject::getStatus, "ACTIVE")));
     }
 
+    /**
+     * 全局验收收件箱（T01）：名下全部课题（ADMIN=全量只读）中 SUBMITTED 任务 + 最新待验收提交，
+     * 按 submittedAt 升序（FIFO 队列语义）。权限单路走 ProjectAuthService.listForReviewInbox。
+     */
+    public List<InboxItem> reviewInbox(Long userId, String role, Long projectId) {
+        List<LabProject> projects = authService.listForReviewInbox(userId, role);
+        if (projectId != null) {
+            projects = projects.stream().filter(p -> projectId.equals(p.getId())).collect(Collectors.toList());
+        }
+        if (projects.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> projectNames = projects.stream()
+                .collect(Collectors.toMap(LabProject::getId, LabProject::getProjectName));
+        List<LabProjectTask> tasks = taskMapper.selectList(
+                new LambdaQueryWrapper<LabProjectTask>()
+                        .eq(LabProjectTask::getStatus, "SUBMITTED")
+                        .in(LabProjectTask::getProjectId, projectNames.keySet()));
+        if (tasks.isEmpty()) {
+            return List.of();
+        }
+        Set<Long> assigneeIds = tasks.stream()
+                .map(LabProjectTask::getAssigneeStudentId).collect(Collectors.toSet());
+        Map<Long, String> names = studentNames(assigneeIds);
+        Map<Long, String> studentNos = studentMapper.selectBatchIds(assigneeIds).stream()
+                .collect(Collectors.toMap(Student::getId, s -> s.getStudentNo() == null ? "" : s.getStudentNo()));
+        LocalDateTime now = LocalDateTime.now();
+        List<InboxItem> items = new ArrayList<>();
+        for (LabProjectTask task : tasks) {
+            LabTaskSubmission latest = findLatestPendingSubmission(task.getId());
+            if (latest == null) {
+                continue; // 状态残留（SUBMITTED 但无待验收提交）不进队列
+            }
+            items.add(new InboxItem(task.getId(), task.getProjectId(),
+                    projectNames.get(task.getProjectId()), task.getTitle(),
+                    task.getAssigneeStudentId(), names.get(task.getAssigneeStudentId()),
+                    studentNos.get(task.getAssigneeStudentId()),
+                    latest.getId(), latest.getContent(), latest.getDatasetVersionId(),
+                    latest.getSubmittedAt(), ProjectStatsService.isOverdue(task, now)));
+        }
+        items.sort(Comparator.comparing(InboxItem::submittedAt,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+        return items;
+    }
+
     // ---------------------------------------------------------------- 派发
 
     /**
@@ -147,6 +205,8 @@ public class TaskService {
         Set<Long> memberIds = memberMapper.selectList(
                         new LambdaQueryWrapper<LabProjectMember>().eq(LabProjectMember::getProjectId, projectId)).stream()
                 .map(LabProjectMember::getStudentId).collect(Collectors.toSet());
+        Long experimentId = normalizeExperimentId(request.getExperimentId());
+        validateExperimentBinding(project, experimentId);
         List<LabProjectTask> created = new ArrayList<>();
         for (Long studentId : assignees.stream().distinct().collect(Collectors.toList())) {
             if (!memberIds.contains(studentId)) {
@@ -160,6 +220,7 @@ public class TaskService {
             task.setStatus("NOT_STARTED");
             task.setDeadline(request.getDeadline());
             task.setDatasetId(request.getDatasetId());
+            task.setExperimentId(experimentId);
             task.setDeleted(0);
             task.setCreatedBy(userId);
             taskMapper.insert(task);
@@ -194,28 +255,51 @@ public class TaskService {
         LabProjectTask update = new LabProjectTask();
         update.setId(taskId);
         Map<String, String[]> changes = new LinkedHashMap<>();
+        boolean hasColumnUpdate = false;
         if (request.getTitle() != null && !request.getTitle().isBlank()
                 && !request.getTitle().trim().equals(task.getTitle())) {
             changes.put("title", new String[]{task.getTitle(), request.getTitle().trim()});
             update.setTitle(request.getTitle().trim());
+            hasColumnUpdate = true;
         }
         if (request.getDescription() != null
                 && !java.util.Objects.equals(request.getDescription(), task.getDescription())) {
             changes.put("description", new String[]{task.getDescription(), request.getDescription()});
             update.setDescription(request.getDescription());
+            hasColumnUpdate = true;
         }
         if (request.getDeadline() != null && !request.getDeadline().equals(task.getDeadline())) {
             changes.put("deadline", new String[]{format(task.getDeadline()), format(request.getDeadline())});
             update.setDeadline(request.getDeadline());
+            hasColumnUpdate = true;
         }
         if (request.getDatasetId() != null && !request.getDatasetId().equals(task.getDatasetId())) {
             changes.put("datasetId", new String[]{format(task.getDatasetId()), format(request.getDatasetId())});
             update.setDatasetId(request.getDatasetId());
+            hasColumnUpdate = true;
+        }
+        // T03 关联实验：null=不修改；0=清空；>0=改挂（校验同新建），修改写修订留痕
+        if (request.getExperimentId() != null) {
+            Long target = normalizeExperimentId(request.getExperimentId());
+            if (!java.util.Objects.equals(target, task.getExperimentId())) {
+                validateExperimentBinding(project, target);
+                changes.put("experimentId", new String[]{format(task.getExperimentId()), format(target)});
+                if (target == null) {
+                    taskMapper.update(null, new LambdaUpdateWrapper<LabProjectTask>()
+                            .eq(LabProjectTask::getId, taskId)
+                            .set(LabProjectTask::getExperimentId, null));
+                } else {
+                    update.setExperimentId(target);
+                    hasColumnUpdate = true;
+                }
+            }
         }
         if (changes.isEmpty()) {
             return toView(task);
         }
-        taskMapper.updateById(update);
+        if (hasColumnUpdate) {
+            taskMapper.updateById(update);
+        }
         revisionService.record(RevisionService.TARGET_LAB_TASK, taskId, changes, role, userId);
         return toView(taskMapper.selectById(taskId));
     }
@@ -409,10 +493,15 @@ public class TaskService {
 
     private List<TaskView> toViews(List<LabProjectTask> tasks, Map<Long, String> names) {
         LocalDateTime now = LocalDateTime.now();
+        Map<Long, String> experimentNames = experimentNames(tasks.stream()
+                .map(LabProjectTask::getExperimentId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet()));
         return tasks.stream()
                 .map(t -> new TaskView(t.getId(), t.getProjectId(), t.getTitle(), t.getDescription(),
                         t.getAssigneeStudentId(), names.get(t.getAssigneeStudentId()), t.getStatus(),
                         t.getDeadline(), ProjectStatsService.isOverdue(t, now), t.getDatasetId(),
+                        t.getExperimentId(), experimentNames.get(t.getExperimentId()),
                         t.getCreatedAt(), t.getUpdatedAt()))
                 .collect(Collectors.toList());
     }
@@ -459,6 +548,46 @@ public class TaskService {
         }
         return studentMapper.selectBatchIds(studentIds).stream()
                 .collect(Collectors.toMap(Student::getId, Student::getUserId));
+    }
+
+    // ---------------------------------------------------------------- T03 实验桥接
+
+    /** 请求侧口径：0 视为「清空/不关联」，统一归一为 null */
+    private static Long normalizeExperimentId(Long experimentId) {
+        return experimentId != null && experimentId == 0L ? null : experimentId;
+    }
+
+    /**
+     * 挂靠校验（Q5-B）：实验必须属于课题所属课程容器的目录；独立课题（无课程）无目录语义一律 400。
+     */
+    private void validateExperimentBinding(LabProject project, Long experimentId) {
+        if (experimentId == null) {
+            return;
+        }
+        if (project.getCourseId() == null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "独立课题没有实验目录，不可关联实验");
+        }
+        Experiment experiment = experimentMapper.selectById(experimentId);
+        if (experiment == null || !project.getCourseId().equals(experiment.getCourseId())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "实验不属于该课题所属课程的目录");
+        }
+    }
+
+    /** 删实验级联（Q5-B）：关联任务 experiment_id 置空——任务保留、不阻断删除、无悬空引用 */
+    public void onExperimentDeleted(Long experimentId) {
+        taskMapper.update(null, new LambdaUpdateWrapper<LabProjectTask>()
+                .eq(LabProjectTask::getExperimentId, experimentId)
+                .set(LabProjectTask::getExperimentId, null));
+    }
+
+    private Map<Long, String> experimentNames(Collection<Long> experimentIds) {
+        if (experimentIds == null || experimentIds.isEmpty()) {
+            // 用 Collections.emptyMap() 而非 Map.of()：调用方以可空的 experimentId 作 key 查询，
+            // Map.of() 的 get(null) 会抛 NPE（不可变集合拒绝 null 键），emptyMap 则安全返回 null。
+            return java.util.Collections.emptyMap();
+        }
+        return experimentMapper.selectBatchIds(experimentIds).stream()
+                .collect(Collectors.toMap(Experiment::getId, Experiment::getExperimentName));
     }
 
     private static String format(Object value) {

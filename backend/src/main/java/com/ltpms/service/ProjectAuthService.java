@@ -13,6 +13,8 @@ import com.ltpms.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 /**
  * 课题模块行级权限唯一入口（技术方案 §4 硬红线 H2）：
  * 读侧 ADMIN 直通 / TEACHER 比 teacher_id / STUDENT 查 lab_project_member；
@@ -112,5 +114,20 @@ public class ProjectAuthService {
         if ("ARCHIVED".equals(project.getStatus())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "课题已归档，只读不可修改");
         }
+    }
+
+    /**
+     * 收件箱聚合可见范围（T01，收口 H2 单路）：教师=本人课题（teacher_id 本人）；ADMIN=全量只读视图；
+     * 其余角色（学生）无收件箱语义，直接 403——端点侧另有 @RequireRole 闸门双保险。
+     */
+    public List<LabProject> listForReviewInbox(Long userId, String role) {
+        if (SecurityUtils.ROLE_ADMIN.equals(role)) {
+            return projectMapper.selectList(new LambdaQueryWrapper<>());
+        }
+        if (SecurityUtils.ROLE_TEACHER.equals(role)) {
+            return projectMapper.selectList(
+                    new LambdaQueryWrapper<LabProject>().eq(LabProject::getTeacherId, userId));
+        }
+        throw new BusinessException(ErrorCode.FORBIDDEN);
     }
 }

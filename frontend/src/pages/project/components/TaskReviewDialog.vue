@@ -38,7 +38,13 @@ import { apiReviewTask } from '@/api/project';
 import type { IProjectTask, ITaskSubmission } from '@/types/api';
 import { fmtFullDateTime } from '../projectUtils';
 
-const props = defineProps<{ modelValue: boolean; task: IProjectTask | null; submission: ITaskSubmission | null }>();
+const props = defineProps<{
+  modelValue: boolean;
+  task: IProjectTask | null;
+  submission: ITaskSubmission | null;
+  /** 收件箱「通过/驳回」入口预选结论（T02）；缺省 ACCEPT，约束不变 */
+  initialDecision?: 'ACCEPT' | 'REJECT';
+}>();
 const emit = defineEmits<{ (e: 'update:modelValue', value: boolean): void; (e: 'done'): void }>();
 
 const decision = ref<'ACCEPT' | 'REJECT'>('ACCEPT');
@@ -49,7 +55,7 @@ watch(
   () => props.modelValue,
   (open) => {
     if (open) {
-      decision.value = 'ACCEPT';
+      decision.value = props.initialDecision ?? 'ACCEPT';
       comment.value = '';
     }
   },

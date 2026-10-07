@@ -122,7 +122,7 @@ public class EventAlertService {
 
             String title = "待验收提醒";
             String content = "有 " + e.getValue().size() + " 项提交已等待超过 24 小时未处理";
-            notificationService.createNotification(teacherUserId, title, content, "REVIEW_PENDING", "/dashboard");
+            notificationService.createNotification(teacherUserId, title, content, "REVIEW_PENDING", "/reviews");
         }
     }
 
@@ -137,7 +137,8 @@ public class EventAlertService {
 
         String title = "新提交待验收";
         String content = "学生 " + studentName + " 提交了任务：" + taskTitle;
-        notificationService.createNotification(teacherUserId, title, content, "SUBMISSION_ARRIVED", "/experiments/" + projectId);
+        notificationService.createNotification(teacherUserId, title, content, "SUBMISSION_ARRIVED",
+                "/reviews?projectId=" + projectId);
     }
 
     /** 数据集新版本上传，通知课题全体成员。 */

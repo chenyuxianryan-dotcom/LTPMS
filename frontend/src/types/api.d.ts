@@ -587,6 +587,9 @@ export interface IProjectTask {
   deadline?: string | null;
   overdue: boolean;
   datasetId?: number | null;
+  /** T03 深桥接：关联实验目录行（可空；删实验时后端置空） */
+  experimentId?: number | null;
+  experimentName?: string | null;
   createdAt: string;
   updatedAt?: string | null;
 }
@@ -609,6 +612,22 @@ export interface IMyTaskGroup {
   projectId: number;
   projectName: string;
   tasks: IProjectTask[];
+}
+
+/** 验收收件箱队列项（T01：SUBMITTED 任务 + 最新待验收提交，FIFO） */
+export interface IReviewInboxItem {
+  taskId: number;
+  projectId: number;
+  projectName: string;
+  taskTitle: string;
+  studentId: number;
+  studentName?: string | null;
+  studentNo?: string | null;
+  submissionId: number;
+  content?: string | null;
+  datasetVersionId?: number | null;
+  submittedAt: string;
+  overdue: boolean;
 }
 
 /** 数据集视图 */

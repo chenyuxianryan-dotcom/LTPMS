@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Clock, Collection, DataAnalysis, Files, List, Notebook, Odometer, OfficeBuilding, TrendCharts, User } from '@element-plus/icons-vue';
+import { ArrowDown, Avatar, Bell, Box, Calendar, CaretLeft, ChatDotRound, Checked, Clock, Collection, DataAnalysis, Files, List, Notebook, Odometer, OfficeBuilding, TrendCharts, User } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import AvatarPickerDialog from '@/components/AvatarPickerDialog.vue';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue';
@@ -177,6 +177,8 @@ const MENU_ITEMS: { path: string; title: string; icon: Component; roles?: string
   { path: '/my-tasks', title: '我的任务', icon: List, roles: [ROLE.STUDENT] },
   // 管理员不设本菜单：其入口在「课程管理」页头（管理员在该模块全局只读，2026-09-20 权限边界）
   { path: '/experiments', title: '实验项目', icon: Box, roles: [ROLE.TEACHER, ROLE.STUDENT] },
+  // T01/Q3：全局验收收件箱——仅教师挂菜单；ADMIN 深链只读不挂菜单
+  { path: '/reviews', title: '待验收', icon: Checked, roles: [ROLE.TEACHER] },
   { path: '/laboratories', title: '实验室管理', icon: OfficeBuilding, roles: [ROLE.ADMIN] },
   { path: '/semesters', title: '学期管理', icon: Calendar, roles: [ROLE.ADMIN] },
   { path: '/schedules', title: '课表管理', icon: Clock, roles: [ROLE.ADMIN] },

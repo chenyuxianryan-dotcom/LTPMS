@@ -77,6 +77,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '实验项目详情', roles: [ROLE.ADMIN, ROLE.TEACHER, ROLE.STUDENT] },
       },
       {
+        path: 'reviews',
+        name: 'review-inbox',
+        component: () => import('@/pages/review/ReviewInboxPage.vue'),
+        // T01/Q3：教师菜单「待验收」；ADMIN 不挂菜单、深链只读；学生无
+        meta: { title: '待验收', icon: 'Checked', roles: [ROLE.ADMIN, ROLE.TEACHER] },
+      },
+      {
         path: 'reports',
         name: 'reports',
         component: () => import('@/pages/report/ReportPage.vue'),
