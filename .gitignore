@@ -40,3 +40,6 @@ Thumbs.db
 # ===== Vite 临时文件 =====
 frontend/vite.config.ts.timestamp-*.mjs
 .playwright-cli/
+
+# ===== 单测覆盖率产物 =====
+frontend/coverage/
